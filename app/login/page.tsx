@@ -1,46 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useLogin } from '@/hooks/useLogin';
 
-export default function AuthPage() {
-    const router = useRouter();
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Login gagal');
-            }
-
-            // Save to localStorage
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('username', data.user.username);
-            localStorage.setItem('role', data.user.role);
-
-            // Redirect to admin dashboard
-            router.push('/admin');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
-        } finally {
-            setLoading(false);
-        }
-    };
+export default function LoginPage() {
+    const {
+        username,
+        setUsername,
+        password,
+        setPassword,
+        error,
+        loading,
+        handleLogin,
+    } = useLogin();
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-cyan-100 p-4">
@@ -117,12 +88,12 @@ export default function AuthPage() {
 
                     {/* Footer */}
                     <div className="mt-6 text-center">
-                        <button
-                            onClick={() => router.push('/')}
+                        <a
+                            href="/"
                             className="text-sm text-gray-500 hover:text-blue-600 transition"
                         >
                             ← Kembali ke halaman utama
-                        </button>
+                        </a>
                     </div>
                 </div>
 
