@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Customer {
+  id                 Int            @id(map: "PK_133ec679a801fab5e070f73d3ea") @default(autoincrement())
+  name               String         @db.VarChar
+  customerNumber     Int            @unique @map("customer_number")
+  outstandingBalance Decimal        @default(0) @map("outstanding_balance") @db.Decimal(12, 2)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt          DateTime?      @map("deleted_at") @db.Timestamp(6)
+  meterReadings      MeterReading[]
+
+  @@map("customers")
+}
+
+model MeterReading {
+  id         Int       @id(map: "PK_e1a17bbc8bfc32c9d70adc7c2bc") @default(autoincrement())
+  customerId Int       @map("customer_id")
+  period     String    @db.VarChar
+  meterStart Int       @default(0) @map("meter_start")
+  meterEnd   Int       @map("meter_end")
+  usage      Int       @default(0)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamp(6)
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  bill       Bill?
+
+  @@unique([customerId, period], map: "UQ_ce89a255bd126441c69abccbf19")
+  @@map("meter_readings")
+}
+
+model Bill {
+  id             Int          @id(map: "PK_a56215dfcb525755ec832cc80b7") @default(autoincrement())
+  meterReadingId Int          @unique(map: "REL_8934747c39be09b8a1e6e34fb8") @map("meter_reading_id")
+  totalAmount    Decimal      @default(0) @map("total_amount") @db.Decimal(12, 2)
+  paymentStatus  String       @default("pending") @map("payment_status") @db.VarChar
+  penalty        Decimal      @default(0) @db.Decimal(12, 2)
+  amountPaid     Decimal      @default(0) @map("amount_paid") @db.Decimal(12, 2)
+  remaining      Decimal      @default(0) @db.Decimal(12, 2)
+  change         Decimal      @default(0) @db.Decimal(12, 2)
+  paidAt         DateTime?    @map("paid_at") @db.Timestamp(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamp(6)
+  meterReading   MeterReading @relation(fields: [meterReadingId], references: [id])
+  items          BillItem[]
+
+  @@map("bills")
+}
+
+model BillItem {
+  id        Int       @id(map: "PK_729cb3e07036682e6695f4bac3f") @default(autoincrement())
+  billId    Int       @map("bill_id")
+  type      String    @db.VarChar
+  usage     Int       @default(0)
+  rate      Int       @default(0)
+  amount    Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
+  bill      Bill      @relation(fields: [billId], references: [id])
+
+  @@map("bill_items")
+}
+
+model Setting {
+  id          Int      @id(map: "PK_0669fe20e252eb692bf4d344975") @default(autoincrement())
+  key         String   @unique(map: "UQ_c8639b7626fa94ba8265628f214") @db.VarChar
+  value       String   @db.VarChar
+  description String?  @db.VarChar
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("settings")
+}
+
+model audit_logs {
+  id           Int      @id(map: "PK_1bb179d048bbc581caa3b013439") @default(autoincrement())
+  action       String   @db.VarChar(50)
+  entity_type  String   @db.VarChar(100)
+  entity_id    Int?
+  performed_by String   @default("System") @db.VarChar(255)
+  ip_address   String?  @db.VarChar(50)
+  details      Json?
+  description  String?
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+}
+
+model users {
+  id         Int      @id(map: "PK_a3ffb1c0c8416b9fc6f907b7433") @default(autoincrement())
+  username   String   @unique(map: "UQ_fe0bb3f6520ee0469504521e710") @db.VarChar
+  password   String   @db.VarChar
+  name       String   @db.VarChar
+  role       String   @default("admin") @db.VarChar
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+}

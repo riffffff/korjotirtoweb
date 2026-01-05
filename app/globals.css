@@ -1,0 +1,73 @@
+@import "tailwindcss";
+@import "flowbite-react/plugin/tailwindcss";
+@source "../.flowbite-react/class-list.json";
+
+/* =============================================
+   🎨 KORJO TIRTO - WATER THEME COLOR PALETTE
+   ============================================= */
+
+@theme {
+  /* FONTS */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
+  /* PRIMARY - Biru Air (Water Blue) */
+  --color-primary-50: #e6f7ff;
+  --color-primary-100: #b3e5fc;
+  --color-primary-200: #81d4fa;
+  --color-primary-300: #4fc3f7;
+  --color-primary-400: #29b6f6;
+  --color-primary-500: #0288d1;
+  --color-primary-600: #0277bd;
+  --color-primary-700: #01579b;
+  --color-primary-800: #014f8a;
+  --color-primary-900: #003c6b;
+
+  /* SECONDARY - Cyan/Teal (Air Segar) */
+  --color-secondary-50: #e0f7fa;
+  --color-secondary-100: #b2ebf2;
+  --color-secondary-200: #80deea;
+  --color-secondary-300: #4dd0e1;
+  --color-secondary-400: #26c6da;
+  --color-secondary-500: #00acc1;
+  --color-secondary-600: #00838f;
+  --color-secondary-700: #006064;
+  --color-secondary-800: #004d40;
+  --color-secondary-900: #003d33;
+
+  /* ACCENT - Deep Ocean Blue */
+  --color-accent-500: #1565c0;
+  --color-accent-600: #0d47a1;
+  --color-accent-700: #0a3d91;
+
+  /* STATUS COLORS */
+  --color-success-500: #22c55e;
+  --color-warning-500: #eab308;
+  --color-danger-500: #ef4444;
+
+  /* NEUTRAL - Abu-abu */
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+}
+
+/* =============================================
+   GLOBAL STYLES
+   ============================================= */
+
+body {
+  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-secondary-50) 100%);
+  min-height: 100vh;
+}
+
+/* Utility class untuk heading font */
+.font-heading {
+  font-family: var(--font-heading);
+}
