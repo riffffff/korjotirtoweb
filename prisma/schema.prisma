@@ -93,12 +93,15 @@ model audit_logs {
   created_at   DateTime @default(now()) @db.Timestamp(6)
 }
 
+// Users table - only for admin accounts
+// Guest users don't need to login, they can view bills without authentication
+// Only admins need to login to manage data (input meter readings, payments, etc.)
 model users {
   id         Int      @id(map: "PK_a3ffb1c0c8416b9fc6f907b7433") @default(autoincrement())
   username   String   @unique(map: "UQ_fe0bb3f6520ee0469504521e710") @db.VarChar
   password   String   @db.VarChar
   name       String   @db.VarChar
-  role       String   @default("admin") @db.VarChar
+  role       String   @default("admin") @db.VarChar // Only 'admin' role, no viewer
   is_active  Boolean  @default(true)
   created_at DateTime @default(now()) @db.Timestamp(6)
   updated_at DateTime @default(now()) @db.Timestamp(6)
