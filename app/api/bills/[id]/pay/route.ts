@@ -12,7 +12,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         const { id } = await params;
         const billId = parseInt(id, 10);
         const body = await request.json();
-        const { amountPaid, penalty = 0 } = body;
+        const { amountPaid, penalty = 0, role } = body;
+
+        // Validate admin role
+        if (role !== 'admin') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized: Only admin can process payments' },
+                { status: 403 }
+            );
+        }
 
         if (typeof amountPaid !== 'number' || amountPaid <= 0) {
             return NextResponse.json(

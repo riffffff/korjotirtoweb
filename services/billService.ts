@@ -52,9 +52,10 @@ export const billService = {
         return res.data.data || res.data;
     },
 
-    // PATCH /bills/:id/pay - Pay bill
+    // PATCH /bills/:id/pay - Pay bill (admin only)
     pay: async (id: number, data: PayBillRequest) => {
-        const res = await api.patch(`/bills/${id}/pay`, data);
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.patch(`/bills/${id}/pay`, { ...data, role });
         return res.data.data || res.data;
     },
 };

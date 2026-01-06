@@ -1,6 +1,7 @@
 'use client';
 import { useParams } from 'next/navigation';
 import { useBillDetailByPeriod } from '@/hooks/useBillDetail';
+import { useAuth } from '@/hooks/useAuth';
 import StandMeter from '@/components/StandMeter';
 import DetailStandMeter from '@/components/DetailStandMeter';
 import PaymentSection from '@/components/PaymentSection';
@@ -11,6 +12,7 @@ import { billService } from '@/services/billService';
 
 export default function CustomerBillDetailPage() {
     const params = useParams();
+    const { isAdmin } = useAuth();
     const customerId = params?.customerId ? Number(params.customerId) : null;
     const year = params?.year as string | undefined;
     const month = params?.month as string | undefined;
@@ -70,7 +72,8 @@ export default function CustomerBillDetailPage() {
                 totalAmount={totalAmount}
             />
 
-            {paymentStatus !== 'paid' && (
+            {/* Payment section - only visible to admin */}
+            {isAdmin && paymentStatus !== 'paid' && (
                 <PaymentSection
                     totalAmount={totalAmount}
                     onPay={handlePayment}
@@ -82,6 +85,16 @@ export default function CustomerBillDetailPage() {
                     <p className="text-green-600 font-semibold">✓ LUNAS</p>
                 </div>
             )}
+
+            {/* Info for non-admin users */}
+            {!isAdmin && paymentStatus !== 'paid' && (
+                <div className="py-4 bg-yellow-50 rounded-lg text-center">
+                    <p className="text-yellow-600 text-sm">
+                        Untuk melakukan pembayaran, silakan hubungi admin.
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
+
