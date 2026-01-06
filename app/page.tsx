@@ -1,131 +1,131 @@
 'use client';
-
 import { useRouter } from 'next/navigation';
-import { useBills } from '@/hooks/useBills';
-import CustomerCard from '@/components/CustomerCard';
+import { useState } from 'react';
+import { useCustomers } from '@/hooks/useCustomer';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
-import EmptyState from '@/components/state/EmptyState';
-
-// Nama bulan dalam Bahasa Indonesia
-const months = [
-  { value: '01', label: 'Januari' },
-  { value: '02', label: 'Februari' },
-  { value: '03', label: 'Maret' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'Mei' },
-  { value: '06', label: 'Juni' },
-  { value: '07', label: 'Juli' },
-  { value: '08', label: 'Agustus' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'Oktober' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'Desember' },
-];
-
-// Generate tahun (5 tahun terakhir)
-const years = Array.from({ length: 5 }, (_, i) => {
-  const year = new Date().getFullYear() - i;
-  return { value: String(year), label: String(year) };
-});
+import { formatCurrency } from '@/lib/formatCurrency';
 
 export default function HomePage() {
   const router = useRouter();
-  const {
-    bills,
-    loading,
-    error,
-    month,
-    year,
-    search,
-    setMonth,
-    setYear,
-    setSearch
-  } = useBills();
+  const { customers, loading, error } = useCustomers();
+  const [search, setSearch] = useState('');
+
+  // Filter customers by search term
+  const filteredCustomers = customers.filter((customer) =>
+    customer.name.toLowerCase().includes(search.toLowerCase()) ||
+    String(customer.customerNumber).includes(search)
+  );
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <header className="text-gray-600 p-4 shadow-lg mb-4 rounded-xl bg-white-100">
-        <h1 className="lg:text-[48px] text-3xl font-heading font-bold text-center p-8">
-          💧 KORJO TIRTO
-        </h1>
+    <div className="min-h-screen bg-neutral-50">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
+        <div className="max-w-lg mx-auto px-4 py-4">
+          <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
+          <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
+        </div>
       </header>
-      {/* Compact Filter Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200/60 p-2 mb-4">
-        <div className="flex items-center gap-2">
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari..."
-              className="w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition"
+
+      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Search */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Cari nama atau nomor pelanggan..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-4 py-3 pl-10 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
-              >
-                ✕
-              </button>
+          </svg>
+        </div>
+
+        {/* Stats Summary */}
+        {!loading && !error && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl p-4 border border-neutral-200">
+              <p className="text-xs text-neutral-400">Total Pelanggan</p>
+              <p className="text-2xl font-bold text-neutral-800">{customers.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-neutral-200">
+              <p className="text-xs text-neutral-400">Ada Tunggakan</p>
+              <p className="text-2xl font-bold text-red-600">
+                {customers.filter((c) => c.outstandingBalance > 0).length}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && <LoadingState message="Memuat data pelanggan..." />}
+
+        {/* Error State */}
+        {error && !loading && <ErrorState message={error} />}
+
+        {/* Customer List */}
+        {!loading && !error && (
+          <div className="space-y-3">
+            {filteredCustomers.length === 0 ? (
+              <div className="text-center py-8 text-neutral-400">
+                Tidak ada pelanggan ditemukan
+              </div>
+            ) : (
+              filteredCustomers.map((customer) => (
+                <div
+                  key={customer.id}
+                  onClick={() => router.push(`/customers/${customer.id}`)}
+                  className="bg-white rounded-xl border border-neutral-200 p-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between">
+                    {/* Left: Number & Name */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-600 font-bold text-sm">
+                          {customer.customerNumber}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-neutral-800">{customer.name}</h3>
+                        {customer.phone && (
+                          <p className="text-xs text-neutral-400">{customer.phone}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: Outstanding */}
+                    <div className="text-right">
+                      {customer.outstandingBalance > 0 ? (
+                        <>
+                          <p className="text-xs text-neutral-400">Tunggakan</p>
+                          <p className="font-bold text-red-600">
+                            {formatCurrency(customer.outstandingBalance)}
+                          </p>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
+                          ✓ Lunas
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
             )}
           </div>
-
-          {/* Month & Year in one row */}
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="px-2 py-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500 transition cursor-pointer"
-          >
-            {months.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="px-2 py-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500 transition cursor-pointer"
-          >
-            {years.map((y) => (
-              <option key={y.value} value={y.value}>{y.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading && <LoadingState />}
-
-      {/* Error State */}
-      {error && !loading && <ErrorState message={error} />}
-
-      {/* Bills Grid */}
-      {!loading && !error && bills.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-          {bills.map((bill) => (
-            <CustomerCard
-              key={bill.id}
-              customerNumber={String(bill.customer.customerNumber)}
-              name={bill.customer.name}
-              meterEnd={bill.meterReading.meterEnd}
-              totalAmount={bill.totalAmount}
-              outstandingBalance={bill.customer.outstandingBalance}
-              paymentStatus={bill.paymentStatus as 'pending' | 'partial' | 'paid'}
-              onClick={() => router.push(`/customers/${bill.customer.id}/bills/${year}/${month}`)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && !error && bills.length === 0 && (
-        <EmptyState
-          title="Tidak ada data tagihan"
-          description={`untuk ${months.find(m => m.value === month)?.label} ${year}${search ? ` dengan kata kunci "${search}"` : ''}`}
-        />
-      )}
+        )}
+      </main>
     </div>
   );
 }
