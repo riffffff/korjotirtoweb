@@ -8,6 +8,7 @@ export interface CustomerListItem {
     totalBill: number;
     totalPaid: number;
     outstandingBalance: number;
+    lastNotifiedAt: string | null;
 }
 
 export interface BillHistoryItem {
@@ -51,6 +52,12 @@ export const customerService = {
     pay: async (id: number, amount: number) => {
         const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
         const res = await api.patch(`/customers/${id}/pay`, { amount, role });
+        return res.data;
+    },
+
+    // PATCH /customers/:id/notify - Update last notified timestamp
+    notify: async (id: number) => {
+        const res = await api.patch(`/customers/${id}/notify`);
         return res.data;
     },
 };

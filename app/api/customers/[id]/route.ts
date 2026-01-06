@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 totalBill: true,
                 totalPaid: true,
                 outstandingBalance: true,
+                lastNotifiedAt: true,
             },
         });
 
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                     totalBill: Number(customer.totalBill),
                     totalPaid: Number(customer.totalPaid),
                     outstandingBalance: Number(customer.outstandingBalance),
+                    lastNotifiedAt: customer.lastNotifiedAt,
                 },
                 bills: formattedBills,
             },

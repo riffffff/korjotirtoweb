@@ -34,7 +34,7 @@ export default function CustomerDetailPage() {
     const [waResult, setWaResult] = useState<{ success: boolean; message: string } | null>(null);
 
     const handleSendWhatsApp = async () => {
-        if (!customer) return;
+        if (!customer || !customerId) return;
         setSendingWA(true);
         setWaResult(null);
 
@@ -43,7 +43,10 @@ export default function CustomerDetailPage() {
 
         setSendingWA(false);
         if (result.success) {
+            // Update lastNotifiedAt in database
+            await customerService.notify(customerId);
             setWaResult({ success: true, message: 'Pesan terkirim!' });
+            refetch(); // Refresh to get updated lastNotifiedAt
         } else {
             setWaResult({ success: false, message: result.error || 'Gagal mengirim' });
         }
@@ -99,6 +102,27 @@ export default function CustomerDetailPage() {
                     </div>
                 </div>
 
+                {/* Payment Audit Section */}
+                <div className="bg-white rounded-xl border border-neutral-200 p-4">
+                    <h2 className="text-sm font-semibold text-neutral-500 mb-3">Rekap Pembayaran</h2>
+                    <div className="space-y-2">
+                        <div className="flex justify-between">
+                            <span className="text-neutral-600">Total Tagihan Masuk</span>
+                            <span className="font-semibold text-neutral-800">{formatCurrency(customer.totalBill)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-neutral-600">Total Sudah Dibayar</span>
+                            <span className="font-semibold text-green-600">{formatCurrency(customer.totalPaid)}</span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-dashed border-neutral-200">
+                            <span className="font-semibold text-neutral-700">Sisa Tagihan</span>
+                            <span className={`font-bold ${customer.outstandingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {formatCurrency(customer.outstandingBalance)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* WhatsApp Button - Admin only, if has phone and unpaid bills */}
                 {isAdmin && customer.phone && unpaidBills.length > 0 && (
                     <div className="space-y-2">
@@ -116,6 +140,11 @@ export default function CustomerDetailPage() {
                             <div className={`text-center text-sm py-2 rounded-lg ${waResult.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                 {waResult.message}
                             </div>
+                        )}
+                        {customer.lastNotifiedAt && (
+                            <p className="text-xs text-neutral-400 text-center">
+                                Terakhir dikirim: {formatDateTime(customer.lastNotifiedAt)}
+                            </p>
                         )}
                     </div>
                 )}
@@ -256,4 +285,16 @@ function formatPeriod(period: string): string {
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
     return `${months[parseInt(month) - 1]} ${year}`;
+}
+
+// Helper to format datetime to Indonesian format
+function formatDateTime(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }

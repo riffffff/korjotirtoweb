@@ -80,7 +80,7 @@ PAMSIMAS Korjo Tirto
 }
 
 /**
- * Send WhatsApp message via Fonnte API (automatic, no user action needed)
+ * Send WhatsApp message via Fonnte API
  */
 export async function sendWhatsAppViaFonnte(
     phone: string,
@@ -89,16 +89,16 @@ export async function sendWhatsAppViaFonnte(
     try {
         const waNumber = formatPhoneForWA(phone);
 
+        const formData = new URLSearchParams();
+        formData.append('target', waNumber);
+        formData.append('message', message);
+
         const response = await fetch('https://api.fonnte.com/send', {
             method: 'POST',
             headers: {
                 'Authorization': FONNTE_TOKEN,
-                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                target: waNumber,
-                message: message,
-            }),
+            body: formData,
         });
 
         const result = await response.json();
@@ -106,22 +106,13 @@ export async function sendWhatsAppViaFonnte(
         if (result.status === true || result.status === 'true') {
             return { success: true };
         } else {
-            return { success: false, error: result.reason || 'Unknown error' };
+            console.error('Fonnte error:', result.reason);
+            return { success: false, error: result.reason || 'Gagal kirim' };
         }
     } catch (error) {
         console.error('Fonnte API error:', error);
-        return { success: false, error: 'Failed to send message' };
+        return { success: false, error: 'Gagal kirim pesan' };
     }
-}
-
-/**
- * Open WhatsApp with pre-filled message (fallback method)
- */
-export function openWhatsApp(phone: string, message: string): void {
-    const waNumber = formatPhoneForWA(phone);
-    const encodedMessage = encodeURIComponent(message);
-    const waUrl = `https://wa.me/${waNumber}?text=${encodedMessage}`;
-    window.open(waUrl, '_blank');
 }
 
 /**
@@ -132,11 +123,11 @@ export async function sendBillNotification(
     unpaidBills: BillHistoryItem[]
 ): Promise<{ success: boolean; error?: string }> {
     if (!customer.phone) {
-        return { success: false, error: 'No phone number' };
+        return { success: false, error: 'Tidak ada nomor HP' };
     }
 
     if (unpaidBills.length === 0) {
-        return { success: false, error: 'No unpaid bills' };
+        return { success: false, error: 'Tidak ada tagihan' };
     }
 
     const message = generateBillMessage(customer, unpaidBills);
