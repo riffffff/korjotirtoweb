@@ -18,6 +18,7 @@ export async function GET() {
                 totalBill: true,
                 totalPaid: true,
                 outstandingBalance: true,
+                lastNotifiedAt: true,
             },
         });
 
@@ -29,6 +30,7 @@ export async function GET() {
             totalBill: Number(customer.totalBill),
             totalPaid: Number(customer.totalPaid),
             outstandingBalance: Number(customer.outstandingBalance),
+            lastNotifiedAt: customer.lastNotifiedAt,
         }));
 
         return NextResponse.json({

@@ -180,7 +180,7 @@ export default function HomePage() {
                     <div className="text-right">
                       {customer.outstandingBalance > 0 ? (
                         <>
-                          <p className="text-xs text-neutral-400">Tunggakan</p>
+                          <p className="text-xs text-neutral-400">Tagihan</p>
                           <p className="font-bold text-red-600">
                             {formatCurrency(customer.outstandingBalance)}
                           </p>
@@ -192,6 +192,12 @@ export default function HomePage() {
                       )}
                     </div>
                   </div>
+                  {/* Last Notified */}
+                  {customer.lastNotifiedAt && (
+                    <p className="text-xs text-neutral-400 mt-2 pt-2 border-t border-neutral-100">
+                      Terakhir dikirim: {formatDateTime(customer.lastNotifiedAt)}
+                    </p>
+                  )}
                 </div>
               ))
             )}
@@ -200,4 +206,16 @@ export default function HomePage() {
       </main>
     </div>
   );
+}
+
+// Helper to format datetime to Indonesian format
+function formatDateTime(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
