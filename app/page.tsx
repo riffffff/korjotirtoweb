@@ -66,6 +66,11 @@ export default function HomePage() {
     setSendingWA(false);
     setBroadcastResult({ sent, failed });
 
+    // Store last broadcast time in localStorage (separate from individual customer notifications)
+    if (sent > 0) {
+      localStorage.setItem('lastBroadcastTime', new Date().toISOString());
+    }
+
     // Refetch to update lastNotifiedAt in UI
     refetch();
 
@@ -142,15 +147,14 @@ export default function HomePage() {
                 ✓ Terkirim: {broadcastResult.sent} | ✗ Gagal: {broadcastResult.failed}
               </div>
             )}
-            {/* Last broadcast time - show latest from all customers */}
+            {/* Last broadcast time from localStorage */}
             {(() => {
-              const lastNotified = customersWithUnpaid
-                .filter((c) => c.lastNotifiedAt)
-                .map((c) => new Date(c.lastNotifiedAt!).getTime())
-                .sort((a, b) => b - a)[0];
-              return lastNotified ? (
+              const lastBroadcast = typeof window !== 'undefined'
+                ? localStorage.getItem('lastBroadcastTime')
+                : null;
+              return lastBroadcast ? (
                 <p className="text-xs text-neutral-400 text-center">
-                  Terakhir dikirim: {formatDateTime(new Date(lastNotified).toISOString())}
+                  Terakhir dikirim: {formatDateTime(lastBroadcast)}
                 </p>
               ) : null;
             })()}
