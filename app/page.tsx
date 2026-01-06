@@ -12,7 +12,7 @@ import { formatCurrency } from '@/lib/formatCurrency';
 export default function HomePage() {
   const router = useRouter();
   const { isAdmin } = useAuth();
-  const { customers, loading, error } = useCustomers();
+  const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [sendingWA, setSendingWA] = useState(false);
 
@@ -48,6 +48,8 @@ export default function HomePage() {
           const message = generateBillMessage(customer, unpaidBills);
           const result = await sendWhatsAppViaFonnte(customer.phone, message);
           if (result.success) {
+            // Update lastNotifiedAt in database
+            await customerService.notify(customer.id);
             sent++;
           } else {
             failed++;
@@ -63,6 +65,9 @@ export default function HomePage() {
 
     setSendingWA(false);
     setBroadcastResult({ sent, failed });
+
+    // Refetch to update lastNotifiedAt in UI
+    refetch();
 
     // Clear result after 5 seconds
     setTimeout(() => setBroadcastResult(null), 5000);
