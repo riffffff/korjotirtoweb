@@ -5,6 +5,7 @@ type CustomerCardProps = {
   name: string;
   meterEnd: number;
   totalAmount: number;
+  outstandingBalance?: number;
   paymentStatus: 'pending' | 'partial' | 'paid';
   onClick?: () => void;
 };
@@ -14,9 +15,13 @@ export default function CustomerCard({
   name,
   meterEnd,
   totalAmount,
+  outstandingBalance = 0,
   paymentStatus,
   onClick
 }: CustomerCardProps) {
+
+  // Determine status based on outstanding balance
+  const hasOutstanding = outstandingBalance > 0;
 
   const statusConfig = {
     pending: {
@@ -45,19 +50,19 @@ export default function CustomerCard({
     <div
       onClick={onClick}
       className="
-                relative overflow-hidden
-                bg-white rounded-xl
-                border border-neutral-200/60
-                shadow-sm hover:shadow-lg
-                transition-all duration-300
-                hover:-translate-y-0.5
-                cursor-pointer group
-            "
+        relative overflow-hidden
+        bg-white rounded-xl
+        border border-neutral-200/60
+        shadow-sm hover:shadow-lg
+        transition-all duration-300
+        hover:-translate-y-0.5
+        cursor-pointer group
+      "
     >
       {/* Status Strip */}
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${status.badge}`} />
 
-      {/* Card Content - Compact */}
+      {/* Card Content */}
       <div className="p-3">
         {/* Row 1: Number, Name, Status */}
         <div className="flex items-center justify-between gap-2 mb-2">
@@ -69,16 +74,20 @@ export default function CustomerCard({
           </span>
         </div>
 
-        {/* Row 2: Meter & Total */}
+        {/* Row 2: Meter & Bill Info */}
         <div className="flex items-center justify-between bg-neutral-50 rounded-lg px-3 py-2">
           <div>
             <span className="text-xs text-neutral-400">Meter</span>
             <p className="font-bold text-neutral-700">{meterEnd} m³</p>
           </div>
+          <div className="text-center">
+            <span className="text-xs text-neutral-400">Tagihan Bulan Ini</span>
+            <p className="font-bold text-neutral-700">{formatCurrency(totalAmount)}</p>
+          </div>
           <div className="text-right">
-            <span className="text-xs text-neutral-400">Tagihan</span>
-            <p className={`font-bold ${paymentStatus === 'paid' ? 'text-neutral-800' : 'text-red-600'}`}>
-              {formatCurrency(totalAmount)}
+            <span className="text-xs text-neutral-400">Tunggakan</span>
+            <p className={`font-bold ${hasOutstanding ? 'text-red-600' : 'text-green-600'}`}>
+              {hasOutstanding ? formatCurrency(outstandingBalance) : '✓ Lunas'}
             </p>
           </div>
         </div>

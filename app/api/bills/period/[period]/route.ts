@@ -36,6 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 id: bill.meterReading.customerId,
                 name: bill.meterReading.customer.name,
                 customerNumber: bill.meterReading.customer.customerNumber,
+                outstandingBalance: Number(bill.meterReading.customer.outstandingBalance),
             },
             meterReading: {
                 period: bill.meterReading.period,

@@ -26,6 +26,9 @@ export interface CustomerSimple {
     id: number;
     name: string;
     customerNumber: number;
+    phone?: string;
+    totalBill?: number;
+    totalPaid?: number;
     outstandingBalance?: number;
 }
 

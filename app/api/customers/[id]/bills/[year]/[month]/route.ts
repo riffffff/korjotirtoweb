@@ -47,6 +47,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 id: bill.meterReading.customerId,
                 name: bill.meterReading.customer.name,
                 customerNumber: bill.meterReading.customer.customerNumber,
+                phone: bill.meterReading.customer.phone,
+                totalBill: Number(bill.meterReading.customer.totalBill),
+                totalPaid: Number(bill.meterReading.customer.totalPaid),
+                outstandingBalance: Number(bill.meterReading.customer.outstandingBalance),
             },
             meterReading: {
                 period: bill.meterReading.period,

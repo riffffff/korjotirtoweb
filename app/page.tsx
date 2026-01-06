@@ -111,6 +111,7 @@ export default function HomePage() {
               name={bill.customer.name}
               meterEnd={bill.meterReading.meterEnd}
               totalAmount={bill.totalAmount}
+              outstandingBalance={bill.customer.outstandingBalance}
               paymentStatus={bill.paymentStatus as 'pending' | 'partial' | 'paid'}
               onClick={() => router.push(`/customers/${bill.customer.id}/bills/${year}/${month}`)}
             />
