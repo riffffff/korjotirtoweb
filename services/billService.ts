@@ -52,10 +52,17 @@ export const billService = {
         return res.data.data || res.data;
     },
 
-    // PATCH /bills/:id/pay - Pay bill (admin only)
+    // PATCH /bills/:id/pay - Pay bill (DEPRECATED - use payCustomer instead)
     pay: async (id: number, data: PayBillRequest) => {
         const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
         const res = await api.patch(`/bills/${id}/pay`, { ...data, role });
         return res.data.data || res.data;
+    },
+
+    // PATCH /customers/:id/pay - Pay customer (FIFO allocation)
+    payCustomer: async (customerId: number, amount: number) => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.patch(`/customers/${customerId}/pay`, { amount, role });
+        return res.data;
     },
 };

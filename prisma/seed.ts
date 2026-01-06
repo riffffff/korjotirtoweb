@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { Pool } from 'pg';
 import { PrismaClient } from '.prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import bcrypt from 'bcrypt';
 
 const connectionString = process.env.DATABASE_URL;
 const pool = new Pool({ connectionString });
@@ -9,14 +10,15 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-    console.log('🌱 Starting seed...');
+    console.log('Starting seed...');
 
     // Clear existing data (optional - comment out if you want to keep existing data)
-    // await prisma.billItem.deleteMany();
-    // await prisma.bill.deleteMany();
-    // await prisma.meterReading.deleteMany();
-    // await prisma.customer.deleteMany();
-    // await prisma.setting.deleteMany();
+    await prisma.billItem.deleteMany();
+    await prisma.bill.deleteMany();
+    await prisma.meterReading.deleteMany();
+    await prisma.customer.deleteMany();
+    await prisma.setting.deleteMany();
+    await prisma.users.deleteMany();
 
     // 1. Create Settings
     const settings = await prisma.setting.createMany({
@@ -28,15 +30,36 @@ async function main() {
         ],
         skipDuplicates: true,
     });
-    console.log(`✅ Created ${settings.count} settings`);
+    console.log(`Created ${settings.count} settings`);
+
+    // 2. Create Admin User
+    const existingAdmin = await prisma.users.findUnique({
+        where: { username: 'admin' },
+    });
+
+    if (!existingAdmin) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await prisma.users.create({
+            data: {
+                username: 'admin',
+                password: hashedPassword,
+                name: 'Administrator',
+                role: 'admin',
+                is_active: true,
+            },
+        });
+        console.log('Created admin user (username: admin, password: admin123)');
+    } else {
+        console.log('Admin user already exists');
+    }
 
     // 2. Create Customers
     const customersData = [
-        { name: 'Budi Santoso', customerNumber: 1001 },
-        { name: 'Siti Rahayu', customerNumber: 1002 },
-        { name: 'Ahmad Wijaya', customerNumber: 1003 },
-        { name: 'Dewi Lestari', customerNumber: 1004 },
-        { name: 'Agus Pratama', customerNumber: 1005 },
+        { name: 'Nasekun', customerNumber: 1, phone: '085227797555' },
+        { name: 'Siti Fauziyah', customerNumber: 2, phone: '085643222417' },
+        { name: 'Ma\'rifatul Mentul', customerNumber: 3, phone: '085726106702' },
+        { name: 'Izzatul be Mature', customerNumber: 4, phone: '08117302075' },
+        { name: 'Agus Pratama', customerNumber: 5, phone: '085869669377' },
     ];
 
     for (const data of customersData) {
@@ -47,7 +70,7 @@ async function main() {
             await prisma.customer.create({ data });
         }
     }
-    console.log(`✅ Created ${customersData.length} customers`);
+    console.log(`Created ${customersData.length} customers`);
 
     // 3. Get customers for meter readings
     const customers = await prisma.customer.findMany();
@@ -109,11 +132,20 @@ async function main() {
                     },
                 },
             });
+
+            // Update customer totalBill and outstandingBalance
+            await prisma.customer.update({
+                where: { id: customer.id },
+                data: {
+                    totalBill: { increment: totalAmount },
+                    outstandingBalance: { increment: totalAmount },
+                },
+            });
         }
     }
-    console.log(`✅ Created meter readings & bills for period ${period}`);
+    console.log(`Created meter readings & bills for period ${period}`);
 
-    console.log('🎉 Seed completed!');
+    console.log('Seed completed!');
 }
 
 main()

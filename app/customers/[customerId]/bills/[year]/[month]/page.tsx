@@ -35,9 +35,10 @@ export default function CustomerBillDetailPage() {
     } = useBillDetailByPeriod(customerId, year, month);
 
     const handlePayment = async (amountPaid: number) => {
-        if (!bill?.id) return;
+        if (!customerId) return;
         try {
-            await billService.pay(bill.id, { amountPaid });
+            // Use customer-level FIFO payment
+            await billService.payCustomer(customerId, amountPaid);
             window.location.reload();
         } catch (err) {
             console.error('Payment failed:', err);
