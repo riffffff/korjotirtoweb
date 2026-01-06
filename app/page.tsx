@@ -137,6 +137,18 @@ export default function HomePage() {
                 ✓ Terkirim: {broadcastResult.sent} | ✗ Gagal: {broadcastResult.failed}
               </div>
             )}
+            {/* Last broadcast time - show latest from all customers */}
+            {(() => {
+              const lastNotified = customersWithUnpaid
+                .filter((c) => c.lastNotifiedAt)
+                .map((c) => new Date(c.lastNotifiedAt!).getTime())
+                .sort((a, b) => b - a)[0];
+              return lastNotified ? (
+                <p className="text-xs text-neutral-400 text-center">
+                  Terakhir dikirim: {formatDateTime(new Date(lastNotified).toISOString())}
+                </p>
+              ) : null;
+            })()}
           </div>
         )}
 
@@ -192,12 +204,7 @@ export default function HomePage() {
                       )}
                     </div>
                   </div>
-                  {/* Last Notified */}
-                  {customer.lastNotifiedAt && (
-                    <p className="text-xs text-neutral-400 mt-2 pt-2 border-t border-neutral-100">
-                      Terakhir dikirim: {formatDateTime(customer.lastNotifiedAt)}
-                    </p>
-                  )}
+
                 </div>
               ))
             )}
