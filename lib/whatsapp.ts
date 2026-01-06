@@ -1,6 +1,7 @@
 import { BillHistoryItem } from '@/services/customerService';
 
 const WEB_URL = 'http://localhost:3001'; // TODO: Change to production URL
+const FONNTE_TOKEN = 'vJqCcZq5xQ1uEEV91jFk';
 
 interface Customer {
     id: number;
@@ -79,7 +80,42 @@ PAMSIMAS Korjo Tirto
 }
 
 /**
- * Open WhatsApp with pre-filled message
+ * Send WhatsApp message via Fonnte API (automatic, no user action needed)
+ */
+export async function sendWhatsAppViaFonnte(
+    phone: string,
+    message: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const waNumber = formatPhoneForWA(phone);
+
+        const response = await fetch('https://api.fonnte.com/send', {
+            method: 'POST',
+            headers: {
+                'Authorization': FONNTE_TOKEN,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                target: waNumber,
+                message: message,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (result.status === true || result.status === 'true') {
+            return { success: true };
+        } else {
+            return { success: false, error: result.reason || 'Unknown error' };
+        }
+    } catch (error) {
+        console.error('Fonnte API error:', error);
+        return { success: false, error: 'Failed to send message' };
+    }
+}
+
+/**
+ * Open WhatsApp with pre-filled message (fallback method)
  */
 export function openWhatsApp(phone: string, message: string): void {
     const waNumber = formatPhoneForWA(phone);
@@ -89,23 +125,20 @@ export function openWhatsApp(phone: string, message: string): void {
 }
 
 /**
- * Send bill notification via WhatsApp
+ * Send bill notification via WhatsApp (using Fonnte API)
  */
-export function sendBillNotification(
+export async function sendBillNotification(
     customer: Customer,
     unpaidBills: BillHistoryItem[]
-): boolean {
+): Promise<{ success: boolean; error?: string }> {
     if (!customer.phone) {
-        console.warn(`Customer ${customer.name} has no phone number`);
-        return false;
+        return { success: false, error: 'No phone number' };
     }
 
     if (unpaidBills.length === 0) {
-        console.warn(`Customer ${customer.name} has no unpaid bills`);
-        return false;
+        return { success: false, error: 'No unpaid bills' };
     }
 
     const message = generateBillMessage(customer, unpaidBills);
-    openWhatsApp(customer.phone, message);
-    return true;
+    return await sendWhatsAppViaFonnte(customer.phone, message);
 }
