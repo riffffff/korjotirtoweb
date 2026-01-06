@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 },
                 items: true,
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { meterReading: { customer: { customerNumber: 'asc' } } },
         });
 
         const formattedBills = bills.map((bill) => ({

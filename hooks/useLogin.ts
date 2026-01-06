@@ -41,8 +41,7 @@ export function useLogin() {
             localStorage.setItem('username', data.user.username);
             localStorage.setItem('role', data.user.role);
 
-            // Redirect to admin dashboard
-            router.push('/admin');
+            router.push('/');
 
             return { success: true, user: data.user };
         } catch (err) {
