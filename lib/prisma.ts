@@ -12,7 +12,10 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient() {
     const pool = new Pool({
         connectionString,
-        max: 1, // Limit connections for serverless
+        max: 1,
+        ssl: {
+            rejectUnauthorized: false, // Required for Supabase
+        },
     });
     const adapter = new PrismaPg(pool);
     return new PrismaClient({ adapter });
