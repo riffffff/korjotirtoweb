@@ -39,8 +39,15 @@ export async function GET() {
         });
     } catch (error) {
         console.error('Error fetching customers:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorStack = error instanceof Error ? error.stack : '';
         return NextResponse.json(
-            { success: false, error: 'Failed to fetch customers' },
+            {
+                success: false,
+                error: 'Failed to fetch customers',
+                details: errorMessage,
+                stack: process.env.NODE_ENV !== 'production' ? errorStack : undefined,
+            },
             { status: 500 }
         );
     }
