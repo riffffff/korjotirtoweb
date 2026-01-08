@@ -10,12 +10,13 @@ import PaymentSection from '@/components/PaymentSection';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { formatDateShort } from '@/lib/formatDate';
 
 export default function CustomerDetailPage() {
     const params = useParams();
     const { isAdmin } = useAuth();
     const customerId = params?.id ? Number(params.id) : null;
-    const { customer, bills, loading, error, refetch } = useCustomerDetail(customerId);
+    const { customer, bills, payments, loading, error, refetch } = useCustomerDetail(customerId);
 
     // Track which bill is expanded (latest by default = index 0)
     const [expandedIndex, setExpandedIndex] = useState<number>(0);
@@ -122,31 +123,37 @@ export default function CustomerDetailPage() {
                     <p className="text-white text-3xl font-bold">
                         {formatCurrency(customer.outstandingBalance)}
                     </p>
-                    <div className="flex gap-4 text-white/70 text-xs mt-2">
-                        <span>Total Tagihan: {formatCurrency(customer.totalBill)}</span>
-                        <span>Dibayar: {formatCurrency(customer.totalPaid)}</span>
-                    </div>
+
                 </div>
 
-                {/* Payment Audit Section */}
+
+
+                {/* Riwayat Pembayaran (Payment History) */}
                 <div className="bg-white rounded-xl border border-neutral-200 p-4">
-                    <h2 className="text-sm font-semibold text-neutral-500 mb-3">Rekap Pembayaran</h2>
-                    <div className="space-y-2">
-                        <div className="flex justify-between">
-                            <span className="text-neutral-600">Total Tagihan Masuk</span>
-                            <span className="font-semibold text-neutral-800">{formatCurrency(customer.totalBill)}</span>
+                    <h2 className="text-sm font-semibold text-neutral-500 mb-3">Riwayat Pembayaran</h2>
+                    {!payments || payments.length === 0 ? (
+                        <p className="text-sm text-neutral-400 italic">Belum ada riwayat pembayaran</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {payments.map((payment) => (
+                                <div key={payment.id} className="flex justify-between items-start text-sm pb-3 border-b border-neutral-100 last:border-0 last:pb-0">
+                                    <div>
+                                        <p className="font-medium text-neutral-800">
+                                            {formatDateShort(payment.createdAt)}
+                                        </p>
+                                        <p className="text-xs text-neutral-500 mt-0.5 max-w-[200px]">
+                                            {payment.description}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold text-green-600">
+                                            {formatCurrency(payment.amount)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div className="flex justify-between">
-                            <span className="text-neutral-600">Total Sudah Dibayar</span>
-                            <span className="font-semibold text-green-600">{formatCurrency(customer.totalPaid)}</span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t border-dashed border-neutral-200">
-                            <span className="font-semibold text-neutral-700">Sisa Tagihan</span>
-                            <span className={`font-bold ${customer.outstandingBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                {formatCurrency(customer.outstandingBalance)}
-                            </span>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Payment Section - Admin only */}
@@ -194,10 +201,18 @@ export default function CustomerDetailPage() {
                                                 <p className="font-semibold text-neutral-800">
                                                     {formatPeriod(bill.period)}
                                                 </p>
-                                                <p className="text-xs text-neutral-400">
-                                                    Pemakaian: {bill.usage} m³
-                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-xs text-neutral-400">
+                                                        Pemakaian: {bill.usage} m³
+                                                    </p>
+                                                    {bill.penalty > 0 && (
+                                                        <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                                                            +Denda
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
+
                                         </div>
                                         <div className="text-right flex items-center gap-2">
                                             <div>
@@ -259,13 +274,22 @@ export default function CustomerDetailPage() {
                                                     </span>
                                                 </div>
                                             ))}
+                                            {bill.penalty > 0 && (
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-red-600">Denda Keterlambatan</span>
+                                                    <span className="font-medium text-red-600">
+                                                        {formatCurrency(bill.penalty)}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className="flex justify-between pt-2 border-t border-dashed border-neutral-200">
                                                 <span className="font-semibold">Total</span>
                                                 <span className="font-bold text-neutral-800">
-                                                    {formatCurrency(bill.totalAmount)}
+                                                    {formatCurrency(bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount)}
                                                 </span>
                                             </div>
                                         </div>
+
                                     </div>
                                 )}
                             </div>

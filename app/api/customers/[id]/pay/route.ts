@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// Helper to format period "2026-01" to "Januari 2026"
+function formatPeriodName(period: string): string {
+    const [year, month] = period.split('-');
+    const months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return `${months[parseInt(month) - 1]} ${year}`;
+}
+
 type RouteParams = {
     params: Promise<{
         id: string;
     }>;
 };
+
 
 /**
  * PATCH /api/customers/:id/pay
@@ -121,6 +132,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
                 totalPaid: newTotalPaid,
                 outstandingBalance: Math.max(0, newOutstanding),
             },
+        });
+
+        // Generate payment description - only mention fully paid (Lunas) bills
+        const paidPeriods = updatedBills
+            .filter(b => b.status === 'paid')
+            .map(b => formatPeriodName(b.period))
+            .join(', ');
+
+        let description = paidPeriods ? `Lunas: ${paidPeriods}` : 'Pembayaran';
+
+
+        // Create Payment Record
+        await prisma.payment.create({
+            data: {
+                customerId,
+                amount,
+                description: description.trim(),
+            }
         });
 
         // Calculate change (if payment exceeds total outstanding)

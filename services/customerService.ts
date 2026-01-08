@@ -1,4 +1,5 @@
 import api from "@/lib/api";
+import { Payment } from "@/types";
 
 export interface CustomerListItem {
     id: number;
@@ -18,6 +19,8 @@ export interface BillHistoryItem {
     meterEnd: number;
     usage: number;
     totalAmount: number;
+    penalty: number;
+    totalWithPenalty: number;
     amountPaid: number;
     remaining: number;
     paymentStatus: string;
@@ -33,6 +36,7 @@ export interface BillHistoryItem {
 export interface CustomerDetail {
     customer: CustomerListItem;
     bills: BillHistoryItem[];
+    payments: Payment[];
 }
 
 export const customerService = {

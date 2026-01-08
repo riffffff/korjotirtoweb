@@ -13,6 +13,7 @@ async function main() {
     console.log('Starting seed...');
 
     // Clear existing data (optional - comment out if you want to keep existing data)
+    await prisma.payment.deleteMany();
     await prisma.billItem.deleteMany();
     await prisma.bill.deleteMany();
     await prisma.meterReading.deleteMany();
@@ -23,9 +24,9 @@ async function main() {
     // 1. Create Settings
     const settings = await prisma.setting.createMany({
         data: [
-            { key: 'RATE_K1', value: '1200', description: 'Tarif per m³ untuk 0-40m³' },
+            { key: 'RATE_K1', value: '1800', description: 'Tarif per m³ untuk 0-40m³' },
             { key: 'RATE_K2', value: '3000', description: 'Tarif per m³ untuk >40m³' },
-            { key: 'ADMIN_FEE', value: '5000', description: 'Biaya admin bulanan' },
+            { key: 'ADMIN_FEE', value: '3000', description: 'Biaya admin bulanan' },
             { key: 'PENALTY_RATE', value: '5000', description: 'Denda keterlambatan' },
         ],
         skipDuplicates: true,
@@ -75,22 +76,18 @@ async function main() {
     // 3. Get customers for meter readings
     const customers = await prisma.customer.findMany();
 
-    // 4. Create Meter Readings & Bills for 12 months
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
+    // 4. Create Meter Readings & Bills for 12 months (Feb 2025 - Jan 2026)
+    // Paid: Feb 2025 - Nov 2025 (paid at end of their respective months)
+    // Unpaid: Dec 2025 - Jan 2026
+    const periods = [
+        '2025-02', '2025-03', '2025-04', '2025-05', '2025-06',
+        '2025-07', '2025-08', '2025-09', '2025-10', '2025-11',
+        '2025-12', '2026-01'
+    ];
 
-    // Generate periods for last 12 months
-    const periods: string[] = [];
-    for (let i = 11; i >= 0; i--) {
-        let month = currentMonth - i;
-        let year = currentYear;
-        if (month <= 0) {
-            month += 12;
-            year -= 1;
-        }
-        periods.push(`${year}-${String(month).padStart(2, '0')}`);
-    }
+    const RATE_K1 = 1800;
+    const RATE_K2 = 3000;
+    const ADMIN_FEE = 3000;
 
     for (const customer of customers) {
         let lastMeterEnd = Math.floor(Math.random() * 50) + 50; // Starting meter
@@ -102,17 +99,19 @@ async function main() {
             const meterEnd = meterStart + usage;
             lastMeterEnd = meterEnd;
 
-            // Calculate charges
+            // Calculate charges with correct rates
             const k1Usage = Math.min(usage, 40);
             const k2Usage = Math.max(0, usage - 40);
-            const k1Amount = k1Usage * 1200;
-            const k2Amount = k2Usage * 3000;
-            const adminFee = 5000;
-            const totalAmount = k1Amount + k2Amount + adminFee;
+            const k1Amount = k1Usage * RATE_K1;
+            const k2Amount = k2Usage * RATE_K2;
+            const totalAmount = k1Amount + k2Amount + ADMIN_FEE;
 
-            // Random payment status for older bills
-            const isCurrentMonth = period === periods[periods.length - 1];
-            const isPaid = !isCurrentMonth && Math.random() > 0.3; // 70% of old bills are paid
+            // Determine payment status: Feb-Nov 2025 = paid, Dec 2025 & Jan 2026 = unpaid
+            const [year, month] = period.split('-').map(Number);
+            const isPaid = year === 2025 && month >= 2 && month <= 11;
+
+            // For paid bills, set paidAt to end of that month
+            const paidAt = isPaid ? new Date(year, month, 0) : null; // Last day of month
 
             // Create meter reading
             const meterReading = await prisma.meterReading.upsert({
@@ -145,12 +144,12 @@ async function main() {
                         paymentStatus: isPaid ? 'paid' : 'pending',
                         amountPaid: isPaid ? totalAmount : 0,
                         remaining: isPaid ? 0 : totalAmount,
-                        paidAt: isPaid ? new Date() : null,
+                        paidAt: paidAt,
                         items: {
                             create: [
-                                { type: 'ADMIN_FEE', usage: 0, rate: adminFee, amount: adminFee },
-                                { type: 'K1', usage: k1Usage, rate: 1200, amount: k1Amount },
-                                ...(k2Usage > 0 ? [{ type: 'K2', usage: k2Usage, rate: 3000, amount: k2Amount }] : []),
+                                { type: 'ADMIN_FEE', usage: 0, rate: ADMIN_FEE, amount: ADMIN_FEE },
+                                { type: 'K1', usage: k1Usage, rate: RATE_K1, amount: k1Amount },
+                                ...(k2Usage > 0 ? [{ type: 'K2', usage: k2Usage, rate: RATE_K2, amount: k2Amount }] : []),
                             ],
                         },
                     },

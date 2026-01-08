@@ -60,6 +60,7 @@ export function useCustomerDetail(id: number | null) {
     return {
         customer: data?.customer ?? null,
         bills: data?.bills ?? [],
+        payments: data?.payments ?? [],
         loading,
         error,
         refetch,

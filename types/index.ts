@@ -50,60 +50,19 @@ export interface MeterReadingSimple {
     usage: number;
 }
 
-// GET /bills/period/:period - response.data item
-export interface BillPeriodItem {
-    id: number;
-    customer: CustomerSimple;
-    meterReading: MeterReadingSimple;
-    totalAmount: number;
-    remaining: number;
-    amountPaid: number;
-    paymentStatus: string;
-}
 
-// GET /bills/period/:period - full response
-export interface BillPeriodResponse {
-    period: string;
-    data: BillPeriodItem[];
-}
 
-// GET /bills/:id - bill detail response
-export interface BillDetail {
+
+
+// ================================
+// API RESPONSE TYPES - Payments
+// ================================
+
+export interface Payment {
     id: number;
-    period: string;
-    customer: CustomerSimple;
-    meterStart: number;
-    meterEnd: number;
-    usage: number;
-    items: BillItem[];
-    totalAmount: string;
-    penalty: string;
-    amountPaid: string;
-    remaining: string;
-    change: string;
-    paymentStatus: string;
-    paidAt: string | null;
+    amount: number;
+    description: string;
     createdAt: string;
-}
-
-// GET /bills/customer/:customerId - bill history item
-export interface BillHistoryItem {
-    id: number;
-    period: string;
-    meterStart: number;
-    meterEnd: number;
-    usage: number;
-    totalAmount: number;
-    amountPaid: number;
-    remaining: number;
-    paymentStatus: string;
-    paidAt: string | null;
-}
-
-// GET /bills/customer/:customerId - full response
-export interface BillHistoryResponse {
-    customer: CustomerSimple | null;
-    bills: BillHistoryItem[];
 }
 
 // ================================
@@ -115,10 +74,7 @@ export interface LoginRequest {
     password: string;
 }
 
-export interface PayBillRequest {
-    amountPaid: number;
-    hasPenalty?: boolean;
-}
+
 
 // ================================
 // LEGACY TYPES (for compatibility)
