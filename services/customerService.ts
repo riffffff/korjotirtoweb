@@ -39,6 +39,17 @@ export interface CustomerDetail {
     payments: Payment[];
 }
 
+export interface DashboardStats {
+    totalCustomers: number;
+    totalRevenue: number;
+    totalPaid: number;
+    totalOutstanding: number;
+    customersWithDebt: number;
+    customersPaidFull: number;
+    thisMonthBills: number;
+    currentPeriod: string;
+}
+
 export const customerService = {
     // GET /customers - List all customers
     getAll: async (): Promise<CustomerListItem[]> => {
@@ -52,6 +63,27 @@ export const customerService = {
         return res.data.data;
     },
 
+    // POST /customers - Create new customer
+    create: async (data: { name: string; customerNumber: string; phone?: string }) => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.post('/customers', { ...data, role });
+        return res.data;
+    },
+
+    // PUT /customers/:id - Update customer
+    update: async (id: number, data: { name: string; phone?: string }) => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.put(`/customers/${id}`, { ...data, role });
+        return res.data;
+    },
+
+    // DELETE /customers/:id - Soft delete customer
+    delete: async (id: number) => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.delete(`/customers/${id}`, { data: { role } });
+        return res.data;
+    },
+
     // PATCH /customers/:id/pay - Pay customer (FIFO)
     pay: async (id: number, amount: number) => {
         const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
@@ -63,5 +95,11 @@ export const customerService = {
     notify: async (id: number) => {
         const res = await api.patch(`/customers/${id}/notify`);
         return res.data;
+    },
+
+    // GET /dashboard - Get dashboard stats
+    getDashboard: async (): Promise<DashboardStats> => {
+        const res = await api.get('/dashboard');
+        return res.data.data;
     },
 };

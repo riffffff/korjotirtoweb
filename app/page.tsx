@@ -7,6 +7,8 @@ import { customerService } from '@/services/customerService';
 import { generateBillMessage, sendWhatsAppViaFonnte } from '@/lib/whatsapp';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
+import Modal from '@/components/ui/Modal';
+import CustomerForm from '@/components/CustomerForm';
 import { formatCurrency } from '@/lib/formatCurrency';
 
 export default function HomePage() {
@@ -15,6 +17,7 @@ export default function HomePage() {
   const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [sendingWA, setSendingWA] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Filter customers by search term
   const filteredCustomers = customers.filter((customer) =>
@@ -78,13 +81,53 @@ export default function HomePage() {
     setTimeout(() => setBroadcastResult(null), 5000);
   };
 
+  // Handle create customer
+  const handleCreateCustomer = async (data: { name: string; customerNumber: string; phone: string }) => {
+    try {
+      const result = await customerService.create(data);
+      if (result.success) {
+        setShowAddModal(false);
+        refetch();
+      } else {
+        alert(result.error || 'Gagal menambah pelanggan');
+      }
+    } catch (error) {
+      console.error('Failed to create customer:', error);
+      alert('Gagal menambah pelanggan');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-        <div className="max-w-lg mx-auto px-4 py-4">
-          <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
-          <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
+            <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
+          </div>
+          {isAdmin && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => router.push('/admin/dashboard')}
+                className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+                title="Dashboard"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                title="Tambah Pelanggan"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -220,6 +263,18 @@ export default function HomePage() {
           </div>
         )}
       </main>
+
+      {/* Add Customer Modal */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Tambah Pelanggan"
+      >
+        <CustomerForm
+          onSubmit={handleCreateCustomer}
+          onCancel={() => setShowAddModal(false)}
+        />
+      </Modal>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 /**
@@ -39,15 +39,66 @@ export async function GET() {
         });
     } catch (error) {
         console.error('Error fetching customers:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        const errorStack = error instanceof Error ? error.stack : '';
         return NextResponse.json(
-            {
-                success: false,
-                error: 'Failed to fetch customers',
-                details: errorMessage,
-                stack: process.env.NODE_ENV !== 'production' ? errorStack : undefined,
+            { success: false, error: 'Failed to fetch customers' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * POST /api/customers
+ * Create a new customer (admin only)
+ */
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { name, customerNumber, phone, role } = body;
+
+        // Check admin role
+        if (role !== 'admin') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
+        // Validate required fields
+        if (!name || !customerNumber) {
+            return NextResponse.json(
+                { success: false, error: 'Nama dan nomor pelanggan wajib diisi' },
+                { status: 400 }
+            );
+        }
+
+        // Check if customer number already exists
+        const existing = await prisma.customer.findUnique({
+            where: { customerNumber: parseInt(customerNumber) },
+        });
+
+        if (existing) {
+            return NextResponse.json(
+                { success: false, error: 'Nomor pelanggan sudah digunakan' },
+                { status: 400 }
+            );
+        }
+
+        const customer = await prisma.customer.create({
+            data: {
+                name,
+                customerNumber: parseInt(customerNumber),
+                phone: phone || null,
             },
+        });
+
+        return NextResponse.json({
+            success: true,
+            data: customer,
+        });
+    } catch (error) {
+        console.error('Error creating customer:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to create customer' },
             { status: 500 }
         );
     }

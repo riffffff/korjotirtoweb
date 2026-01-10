@@ -1,5 +1,5 @@
 'use client';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCustomerDetail } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,17 +9,24 @@ import BackButton from '@/components/BackButton';
 import PaymentSection from '@/components/PaymentSection';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
+import Modal from '@/components/ui/Modal';
+import CustomerForm from '@/components/CustomerForm';
+import Button from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { formatDateShort } from '@/lib/formatDate';
 
 export default function CustomerDetailPage() {
     const params = useParams();
+    const router = useRouter();
     const { isAdmin } = useAuth();
     const customerId = params?.id ? Number(params.id) : null;
     const { customer, bills, payments, loading, error, refetch } = useCustomerDetail(customerId);
 
     // Track which bill is expanded (latest by default = index 0)
     const [expandedIndex, setExpandedIndex] = useState<number>(0);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const handlePayment = async (amount: number) => {
         if (!customerId) return;
@@ -60,31 +67,91 @@ export default function CustomerDetailPage() {
         setExpandedIndex(expandedIndex === index ? -1 : index);
     };
 
+    // Handle edit customer
+    const handleEditCustomer = async (data: { name: string; customerNumber: string; phone: string }) => {
+        if (!customerId) return;
+        try {
+            const result = await customerService.update(customerId, { name: data.name, phone: data.phone });
+            if (result.success) {
+                setShowEditModal(false);
+                refetch();
+            } else {
+                alert(result.error || 'Gagal mengupdate pelanggan');
+            }
+        } catch (error) {
+            console.error('Failed to update customer:', error);
+            alert('Gagal mengupdate pelanggan');
+        }
+    };
+
+    // Handle delete customer
+    const handleDeleteCustomer = async () => {
+        if (!customerId) return;
+        setDeleting(true);
+        try {
+            const result = await customerService.delete(customerId);
+            if (result.success) {
+                router.push('/');
+            } else {
+                alert(result.error || 'Gagal menghapus pelanggan');
+            }
+        } catch (error) {
+            console.error('Failed to delete customer:', error);
+            alert('Gagal menghapus pelanggan');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     if (loading) return <LoadingState message="Memuat data pelanggan..." />;
     if (error) return <ErrorState message={error} />;
     if (!customer) return <ErrorState message="Pelanggan tidak ditemukan" />;
 
     const unpaidBills = bills.filter((b) => b.paymentStatus !== 'paid');
 
-    return (
+    return (<>
         <div className="min-h-screen bg-neutral-50">
             <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
                 <BackButton href="/" />
 
                 {/* Customer Header */}
                 <div className="bg-white rounded-xl p-4 border border-neutral-200">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-blue-600 font-bold text-xl">
-                                {customer.customerNumber}
-                            </span>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+                                <span className="text-blue-600 font-bold text-xl">
+                                    {customer.customerNumber}
+                                </span>
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-neutral-800">{customer.name}</h1>
+                                {customer.phone && (
+                                    <p className="text-sm text-neutral-500">{customer.phone}</p>
+                                )}
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-neutral-800">{customer.name}</h1>
-                            {customer.phone && (
-                                <p className="text-sm text-neutral-500">{customer.phone}</p>
-                            )}
-                        </div>
+                        {isAdmin && (
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowEditModal(true)}
+                                    className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
+                                    title="Edit"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+                                    title="Hapus"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* WhatsApp Button - Admin only, if has phone and unpaid bills */}
@@ -298,6 +365,56 @@ export default function CustomerDetailPage() {
                 </div>
             </div>
         </div>
+
+        {/* Edit Customer Modal */}
+        <Modal
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            title="Edit Pelanggan"
+        >
+            <CustomerForm
+                initialData={{
+                    name: customer.name,
+                    customerNumber: String(customer.customerNumber),
+                    phone: customer.phone || '',
+                }}
+                onSubmit={handleEditCustomer}
+                onCancel={() => setShowEditModal(false)}
+                isEdit
+            />
+        </Modal>
+
+        {/* Delete Confirmation Modal */}
+        <Modal
+            isOpen={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            title="Hapus Pelanggan"
+        >
+            <div className="space-y-4">
+                <p className="text-neutral-600">
+                    Yakin ingin menghapus <strong>{customer.name}</strong>?
+                    Data pelanggan akan disembunyikan dari sistem.
+                </p>
+                <div className="flex gap-3">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1"
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={handleDeleteCustomer}
+                        loading={deleting}
+                        className="flex-1"
+                    >
+                        Hapus
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+    </>
     );
 }
 

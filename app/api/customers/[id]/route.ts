@@ -152,3 +152,89 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         );
     }
 }
+
+/**
+ * PUT /api/customers/:id
+ * Update customer data (admin only)
+ */
+export async function PUT(request: NextRequest, { params }: RouteParams) {
+    try {
+        const { id } = await params;
+        const customerId = parseInt(id, 10);
+        const body = await request.json();
+        const { name, phone, role } = body;
+
+        // Check admin role
+        if (role !== 'admin') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
+        // Validate required fields
+        if (!name) {
+            return NextResponse.json(
+                { success: false, error: 'Nama wajib diisi' },
+                { status: 400 }
+            );
+        }
+
+        const customer = await prisma.customer.update({
+            where: { id: customerId },
+            data: {
+                name,
+                phone: phone || null,
+            },
+        });
+
+        return NextResponse.json({
+            success: true,
+            data: customer,
+        });
+    } catch (error) {
+        console.error('Error updating customer:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to update customer' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * DELETE /api/customers/:id
+ * Soft delete customer (admin only)
+ */
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+    try {
+        const { id } = await params;
+        const customerId = parseInt(id, 10);
+        const body = await request.json();
+        const { role } = body;
+
+        // Check admin role
+        if (role !== 'admin') {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 403 }
+            );
+        }
+
+        // Soft delete
+        await prisma.customer.update({
+            where: { id: customerId },
+            data: { deletedAt: new Date() },
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: 'Customer deleted successfully',
+        });
+    } catch (error) {
+        console.error('Error deleting customer:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to delete customer' },
+            { status: 500 }
+        );
+    }
+}
