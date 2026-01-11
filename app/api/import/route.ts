@@ -4,18 +4,30 @@ import prisma from '@/lib/prisma';
 import path from 'path';
 import fs from 'fs';
 
+interface ExcelCustomerRow {
+    customerNumber: number;
+    name: string;
+    phone: string | null;
+    meterStart: number;
+    meterEnd: number;
+    usage: number;
+    usageK1: number;
+    usageK2: number;
+    beban: number;
+    beayaK1: number;
+    beayaK2: number;
+    totalAmount: number;
+}
+
 /**
  * POST /api/import
- * Import customers from Excel file
- * - Check if customer name exists, skip if already registered
- * - Use database transaction with optimized batch processing
+ * Import customers + bills from Excel file
  */
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { role } = body;
 
-        // Check admin role
         if (role !== 'admin') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -23,7 +35,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Read Excel file from docs folder
         const filePath = path.join(process.cwd(), 'docs', 'data pengguna air.xlsx');
 
         if (!fs.existsSync(filePath)) {
@@ -37,32 +48,48 @@ export async function POST(request: NextRequest) {
         const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-
-        // Parse Excel - data starts from row 9 (index 8)
         const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
 
-        const customers: { customerNumber: number; name: string; phone: string | null }[] = [];
+        const customers: ExcelCustomerRow[] = [];
 
         for (let row = 8; row <= range.e.r; row++) {
-            const noCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
-            const namaCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 1 })];
-            const phoneCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 12 })];
+            const getVal = (col: number) => {
+                const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: col })];
+                return cell?.v;
+            };
 
-            if (!noCell || !namaCell) continue;
+            const no = getVal(0);
+            const nama = getVal(1);
+            if (!no || !nama) continue;
 
-            const customerNumber = parseInt(String(noCell.v).replace(/^0+/, ''), 10);
-            const name = String(namaCell.v).trim();
+            const customerNumber = parseInt(String(no).replace(/^0+/, ''), 10);
+            const name = String(nama).trim();
+
             let phone: string | null = null;
-
-            if (phoneCell && phoneCell.v) {
-                phone = String(phoneCell.v).trim();
+            const phoneVal = getVal(12);
+            if (phoneVal) {
+                phone = String(phoneVal).trim();
                 if (phone && !phone.startsWith('0') && !phone.startsWith('+')) {
                     phone = '0' + phone;
                 }
             }
 
+            const meterStart = Number(getVal(2)) || 0;
+            const meterEnd = Number(getVal(3)) || 0;
+            const usage = Number(getVal(4)) || (meterEnd - meterStart);
+            const usageK1 = Number(getVal(5)) || Math.min(usage, 40);
+            const usageK2 = Number(getVal(6)) || Math.max(usage - 40, 0);
+            const beban = Number(getVal(7)) || 3000;
+            const beayaK1 = Number(getVal(8)) || (usageK1 * 1800);
+            const beayaK2 = Number(getVal(9)) || (usageK2 * 3000);
+            const totalAmount = Number(getVal(10)) || (beban + beayaK1 + beayaK2);
+
             if (customerNumber && name) {
-                customers.push({ customerNumber, name, phone });
+                customers.push({
+                    customerNumber, name, phone,
+                    meterStart, meterEnd, usage,
+                    usageK1, usageK2, beban, beayaK1, beayaK2, totalAmount,
+                });
             }
         }
 
@@ -73,16 +100,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // OPTIMIZATION: Fetch all existing customer names BEFORE transaction
+        // Check existing customers
         const existingCustomers = await prisma.customer.findMany({
             where: { deletedAt: null },
-            select: { name: true },
+            select: { id: true, name: true },
         });
-        const existingNames = new Set(existingCustomers.map(c => c.name));
+        const existingNames = new Map(existingCustomers.map(c => [c.name, c.id]));
 
-        // Filter out customers that already exist
         const skippedNames: string[] = [];
-        const toCreate: typeof customers = [];
+        const toCreate: ExcelCustomerRow[] = [];
 
         for (const customer of customers) {
             if (existingNames.has(customer.name)) {
@@ -92,30 +118,105 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Batch create using createMany (much faster than individual creates)
-        if (toCreate.length > 0) {
-            await prisma.customer.createMany({
-                data: toCreate.map(c => ({
-                    customerNumber: c.customerNumber,
-                    name: c.name,
-                    phone: c.phone,
-                    totalBill: 0,
-                    totalPaid: 0,
-                    outstandingBalance: 0,
-                })),
-                skipDuplicates: true,
-            });
+        const period = '2025-12';
+        let customersAdded = 0;
+        let billsCreated = 0;
+
+        // Batch processing - smaller batches for slow Supabase free tier
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+            const batch = toCreate.slice(i, i + BATCH_SIZE);
+
+            await prisma.$transaction(async (tx) => {
+                for (const customer of batch) {
+                    // Create customer
+                    const newCustomer = await tx.customer.create({
+                        data: {
+                            customerNumber: customer.customerNumber,
+                            name: customer.name,
+                            phone: customer.phone,
+                            totalBill: customer.totalAmount,
+                            totalPaid: 0,
+                            outstandingBalance: customer.totalAmount,
+                        },
+                    });
+                    customersAdded++;
+
+                    // Create meter reading
+                    const meterReading = await tx.meterReading.create({
+                        data: {
+                            customerId: newCustomer.id,
+                            period,
+                            meterStart: customer.meterStart,
+                            meterEnd: customer.meterEnd,
+                            usage: customer.usage,
+                        },
+                    });
+
+                    // Create bill (linked via meterReading)
+                    const bill = await tx.bill.create({
+                        data: {
+                            meterReadingId: meterReading.id,
+                            totalAmount: customer.totalAmount,
+                            amountPaid: 0,
+                            remaining: customer.totalAmount,
+                            paymentStatus: 'unpaid',
+                        },
+                    });
+                    billsCreated++;
+
+                    // Create bill items
+                    const billItems: {
+                        billId: number;
+                        type: string;
+                        usage: number;
+                        rate: number;
+                        amount: number;
+                    }[] = [
+                            {
+                                billId: bill.id,
+                                type: 'beban',
+                                usage: 0,
+                                rate: customer.beban,
+                                amount: customer.beban,
+                            },
+                        ];
+
+                    if (customer.usageK1 > 0) {
+                        billItems.push({
+                            billId: bill.id,
+                            type: 'k1',
+                            usage: customer.usageK1,
+                            rate: 1800,
+                            amount: customer.beayaK1,
+                        });
+                    }
+
+                    if (customer.usageK2 > 0) {
+                        billItems.push({
+                            billId: bill.id,
+                            type: 'k2',
+                            usage: customer.usageK2,
+                            rate: 3000,
+                            amount: customer.beayaK2,
+                        });
+                    }
+
+                    await tx.billItem.createMany({ data: billItems });
+                }
+            }, { timeout: 60000 }); // 60 second timeout per batch
         }
 
         return NextResponse.json({
             success: true,
             data: {
                 total: customers.length,
-                added: toCreate.length,
+                customersAdded,
+                billsCreated,
                 skipped: skippedNames.length,
                 skippedNames: skippedNames.slice(0, 10),
             },
-            message: `Berhasil import ${toCreate.length} pelanggan, ${skippedNames.length} dilewati (sudah ada)`,
+            message: `Berhasil import ${customersAdded} pelanggan dengan ${billsCreated} tagihan`,
         });
     } catch (error) {
         console.error('Error importing customers:', error);
