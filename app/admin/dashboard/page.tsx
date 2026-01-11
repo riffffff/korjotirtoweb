@@ -8,17 +8,20 @@ import BackButton from '@/components/BackButton';
 
 export default function AdminDashboard() {
     const router = useRouter();
-    const { isAdmin } = useAuth();
+    const { isAdmin, isLoading: authLoading } = useAuth();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Wait for auth to complete before checking
+        if (authLoading) return;
+
         if (!isAdmin) {
             router.push('/');
             return;
         }
         fetchStats();
-    }, [isAdmin, router]);
+    }, [isAdmin, authLoading, router]);
 
     const fetchStats = async () => {
         try {
@@ -39,6 +42,8 @@ export default function AdminDashboard() {
         }).format(amount);
     };
 
+    // Show loading while auth is being checked
+    if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) return null;
 
     return (
