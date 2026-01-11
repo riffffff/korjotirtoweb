@@ -102,4 +102,20 @@ export const customerService = {
         const res = await api.get('/dashboard');
         return res.data.data;
     },
+
+    // POST /import - Import customers from Excel
+    importFromExcel: async () => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.post('/import', { role });
+        return res.data;
+    },
+
+    // DELETE /customers/clear - Clear all customer data
+    clearAll: async () => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.delete('/customers/clear', {
+            data: { role, confirmDelete: 'HAPUS_SEMUA' }
+        });
+        return res.data;
+    },
 };

@@ -122,12 +122,18 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Actions */}
-                        <div className="pt-4">
+                        <div className="pt-4 space-y-2">
                             <button
                                 onClick={() => router.push('/')}
                                 className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors"
                             >
                                 Lihat Daftar Pelanggan
+                            </button>
+                            <button
+                                onClick={() => router.push('/admin/import')}
+                                className="w-full py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-semibold rounded-xl transition-colors"
+                            >
+                                📥 Import Data Excel
                             </button>
                         </div>
                     </>
