@@ -191,6 +191,22 @@ export default function CustomerDetailPage() {
                         {formatCurrency(customer.outstandingBalance)}
                     </p>
 
+                    {/* Breakdown per bulan */}
+                    {unpaidBills.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-white/20">
+                            <p className="text-white/70 text-xs mb-2">Rincian:</p>
+                            <div className="space-y-1">
+                                {unpaidBills.map((bill) => (
+                                    <div key={bill.id} className="flex justify-between text-xs">
+                                        <span className="text-white/80">{formatPeriod(bill.period)}</span>
+                                        <span className="text-white font-medium">
+                                            {formatCurrency(bill.remaining)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
 
