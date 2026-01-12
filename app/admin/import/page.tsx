@@ -14,6 +14,21 @@ interface ImportResult {
     period: string;
 }
 
+interface Progress {
+    type: 'status' | 'progress' | 'complete' | 'error';
+    message?: string;
+    current?: number;
+    total?: number;
+    percent?: number;
+    name?: string;
+    detail?: string;
+    // complete data
+    newCustomers?: number;
+    existingCustomers?: number;
+    billsCreated?: number;
+    period?: string;
+}
+
 export default function ImportPage() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
@@ -25,6 +40,7 @@ export default function ImportPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const [importing, setImporting] = useState(false);
+    const [progress, setProgress] = useState<Progress | null>(null);
     const [result, setResult] = useState<ImportResult | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [errorDetail, setErrorDetail] = useState<string | null>(null);
@@ -35,6 +51,7 @@ export default function ImportPage() {
             setFile(selectedFile);
             setError(null);
             setResult(null);
+            setProgress(null);
         } else {
             setError('File harus berformat Excel (.xlsx atau .xls)');
         }
@@ -67,6 +84,7 @@ export default function ImportPage() {
         setError(null);
         setErrorDetail(null);
         setResult(null);
+        setProgress(null);
 
         try {
             const formData = new FormData();
@@ -79,14 +97,44 @@ export default function ImportPage() {
                 body: formData,
             });
 
-            const data = await response.json();
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('No response body');
 
-            if (data.success) {
-                setResult(data.data);
-                setFile(null);
-            } else {
-                setError(data.error || 'Gagal import');
-                setErrorDetail(data.errorDetail || null);
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6)) as Progress;
+                            setProgress(data);
+
+                            if (data.type === 'complete') {
+                                setResult({
+                                    total: data.total || 0,
+                                    newCustomers: data.newCustomers || 0,
+                                    existingCustomers: data.existingCustomers || 0,
+                                    billsCreated: data.billsCreated || 0,
+                                    period: data.period || period,
+                                });
+                                setFile(null);
+                            } else if (data.type === 'error') {
+                                setError(data.message || 'Gagal import');
+                                setErrorDetail(data.detail || null);
+                            }
+                        } catch (e) {
+                            console.error('Parse error:', e);
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error('Import failed:', err);
@@ -130,6 +178,7 @@ export default function ImportPage() {
                         value={period}
                         onChange={(e) => setPeriod(e.target.value)}
                         className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={importing}
                     />
                     <p className="text-sm text-neutral-500 mt-2">
                         Tagihan akan dibuat untuk: <strong>{periodLabel}</strong>
@@ -141,10 +190,10 @@ export default function ImportPage() {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !importing && fileInputRef.current?.click()}
                     className={`
-                        bg-white rounded-xl border-2 border-dashed p-8 text-center cursor-pointer
-                        transition-all duration-200
+                        bg-white rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200
+                        ${importing ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
                         ${isDragging
                             ? 'border-blue-500 bg-blue-50'
                             : file
@@ -159,6 +208,7 @@ export default function ImportPage() {
                         accept=".xlsx,.xls"
                         onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
                         className="hidden"
+                        disabled={importing}
                     />
 
                     {file ? (
@@ -167,15 +217,15 @@ export default function ImportPage() {
                                 <span className="text-3xl">📄</span>
                             </div>
                             <p className="font-semibold text-green-700">{file.name}</p>
-                            <p className="text-sm text-green-600">
-                                {(file.size / 1024).toFixed(1)} KB
-                            </p>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                                className="text-sm text-red-500 hover:text-red-700"
-                            >
-                                ✕ Hapus file
-                            </button>
+                            <p className="text-sm text-green-600">{(file.size / 1024).toFixed(1)} KB</p>
+                            {!importing && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                                    className="text-sm text-red-500 hover:text-red-700"
+                                >
+                                    ✕ Hapus file
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -185,43 +235,74 @@ export default function ImportPage() {
                             <p className="font-semibold text-neutral-700">
                                 {isDragging ? 'Lepaskan file di sini' : 'Drop file Excel di sini'}
                             </p>
-                            <p className="text-sm text-neutral-500">
-                                atau klik untuk memilih file (.xlsx, .xls)
-                            </p>
+                            <p className="text-sm text-neutral-500">atau klik untuk memilih file</p>
                         </div>
                     )}
                 </div>
 
-                {/* Import Info */}
-                <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
-                    <p className="font-medium mb-2">ℹ️ Catatan Import:</p>
-                    <ul className="space-y-1 list-disc list-inside text-blue-600">
-                        <li>Pelanggan baru akan ditambahkan otomatis</li>
-                        <li>Pelanggan lama akan ditambah tagihan baru</li>
-                        <li>Jika ada error, SEMUA data dibatalkan (rollback)</li>
-                        <li>Tagihan periode sama tidak bisa diimport 2x</li>
-                    </ul>
-                </div>
+                {/* Progress Bar */}
+                {importing && progress && (
+                    <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-3">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-neutral-700">
+                                {progress.type === 'progress' ? progress.message : progress.message}
+                            </span>
+                            {progress.percent !== undefined && (
+                                <span className="text-sm font-bold text-blue-600">{progress.percent}%</span>
+                            )}
+                        </div>
+
+                        <div className="w-full bg-neutral-200 rounded-full h-4 overflow-hidden">
+                            <div
+                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-200"
+                                style={{ width: `${progress.percent || 0}%` }}
+                            />
+                        </div>
+
+                        {progress.type === 'progress' && progress.current && progress.total && (
+                            <div className="text-center">
+                                <p className="text-lg font-bold text-neutral-800">
+                                    {progress.current} / {progress.total}
+                                </p>
+                                <p className="text-sm text-neutral-500 truncate">
+                                    {progress.name}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Import Button */}
-                <Button
-                    onClick={handleImport}
-                    loading={importing}
-                    variant="primary"
-                    className="w-full"
-                    disabled={!file || importing}
-                >
-                    {importing ? '⏳ Mengimport...' : `📥 Import Tagihan ${periodLabel}`}
-                </Button>
+                {!result && (
+                    <Button
+                        onClick={handleImport}
+                        loading={importing}
+                        variant="primary"
+                        className="w-full"
+                        disabled={!file || importing}
+                    >
+                        {importing ? '⏳ Mengimport...' : `📥 Import Tagihan ${periodLabel}`}
+                    </Button>
+                )}
+
+                {/* Info */}
+                {!importing && !result && (
+                    <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700">
+                        <p className="font-medium mb-2">ℹ️ Catatan:</p>
+                        <ul className="space-y-1 list-disc list-inside text-blue-600">
+                            <li>Jika error, SEMUA data dibatalkan (rollback)</li>
+                            <li>Tagihan periode sama tidak bisa diimport 2×</li>
+                            <li>Progress ditampilkan per-pelanggan</li>
+                        </ul>
+                    </div>
+                )}
 
                 {/* Error Display */}
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                         <p className="text-red-600 font-medium">❌ {error}</p>
                         {errorDetail && (
-                            <p className="text-sm text-red-500 mt-2 p-2 bg-red-100 rounded">
-                                {errorDetail}
-                            </p>
+                            <p className="text-sm text-red-500 mt-2 p-2 bg-red-100 rounded">{errorDetail}</p>
                         )}
                     </div>
                 )}
@@ -246,11 +327,7 @@ export default function ImportPage() {
                             </div>
                         </div>
 
-                        <Button
-                            onClick={() => router.push('/')}
-                            variant="secondary"
-                            className="w-full"
-                        >
+                        <Button onClick={() => router.push('/')} variant="secondary" className="w-full">
                             Lihat Daftar Pelanggan
                         </Button>
                     </div>
