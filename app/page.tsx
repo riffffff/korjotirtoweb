@@ -5,6 +5,7 @@ import { useCustomers } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
 import { generateBillMessage, sendWhatsAppViaFonnte } from '@/lib/whatsapp';
+import AppLayout from '@/components/layout/AppLayout';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
 import { formatCurrency } from '@/lib/formatCurrency';
@@ -81,16 +82,20 @@ export default function HomePage() {
 
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      {/* Header */}
+    <AppLayout>
+      {/* Header - simplified on tablet/laptop since sidebar handles navigation */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-        <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
+        <div className="max-w-lg md:max-w-none mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="md:hidden">
             <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
             <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
           </div>
+          <div className="hidden md:block">
+            <h1 className="text-xl font-bold text-neutral-800">Daftar Pelanggan</h1>
+          </div>
+          {/* Mobile-only admin buttons - hidden on tablet/laptop where sidebar is used */}
           {isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:hidden">
               <button
                 onClick={() => router.push('/admin/dashboard')}
                 className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
@@ -120,7 +125,9 @@ export default function HomePage() {
                       }}
                       className="w-full px-4 py-3 text-left hover:bg-neutral-50 flex items-center gap-3 text-neutral-700"
                     >
-                      <span className="text-lg">👤</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
                       <span className="font-medium">Tambah Pelanggan</span>
                     </button>
                     <button
@@ -130,7 +137,9 @@ export default function HomePage() {
                       }}
                       className="w-full px-4 py-3 text-left hover:bg-neutral-50 flex items-center gap-3 text-neutral-700"
                     >
-                      <span className="text-lg">📥</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
                       <span className="font-medium">Import Tagihan Bulanan</span>
                     </button>
                   </div>
@@ -141,7 +150,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
         {/* Search */}
         <div className="relative">
           <input
@@ -206,7 +215,7 @@ export default function HomePage() {
 
         {/* Customer List */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-3">
             {filteredCustomers.length === 0 ? (
               <div className="text-center py-8 text-neutral-400">
                 Tidak ada pelanggan ditemukan
@@ -257,7 +266,7 @@ export default function HomePage() {
           </div>
         )}
       </main>
-    </div>
+    </AppLayout>
   );
 }
 

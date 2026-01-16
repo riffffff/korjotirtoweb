@@ -5,6 +5,7 @@ import { useCustomerDetail, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
 import { sendBillNotification } from '@/lib/whatsapp';
+import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import PaymentSection from '@/components/PaymentSection';
 import LoadingState from '@/components/state/LoadingState';
@@ -203,8 +204,8 @@ export default function CustomerDetailPage() {
     const unpaidBills = bills.filter((b) => b.paymentStatus !== 'paid');
 
     return (<>
-        <div className="min-h-screen bg-neutral-50">
-            <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
+        <AppLayout>
+            <div className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
                 <BackButton href="/" />
 
                 {/* Customer Header */}
@@ -511,7 +512,7 @@ export default function CustomerDetailPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </AppLayout>
 
         {/* Edit Customer Modal */}
         <Modal
