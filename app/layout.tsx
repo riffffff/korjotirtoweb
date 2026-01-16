@@ -30,9 +30,6 @@ export default function RootLayout({
         <SidebarProvider>
           {children}
         </SidebarProvider>
-        <footer className="bg-neutral-800 text-white text-center py-3 text-sm md:pl-16">
-          <p className="text-neutral-400">© 2025 Korjo Tirto - Sukorejo</p>
-        </footer>
       </body>
     </html>
   );
