@@ -14,41 +14,46 @@ const SidebarContext = createContext<SidebarContextType>({
 
 export const useSidebar = () => useContext(SidebarContext);
 
-// Key for localStorage
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
+
+// Read initial state from data attribute (set by inline script before hydration)
+function getInitialCollapsed(): boolean {
+    if (typeof document !== 'undefined') {
+        const attr = document.documentElement.getAttribute('data-sidebar-collapsed');
+        return attr !== 'false';
+    }
+    return true;
+}
 
 interface AppLayoutProps {
     children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-    // Default collapsed, hydrated from localStorage
-    const [isCollapsed, setIsCollapsed] = useState(true);
-    const [isHydrated, setIsHydrated] = useState(false);
-
-    // Hydrate from localStorage on mount
-    useEffect(() => {
-        const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-        if (saved !== null) {
-            setIsCollapsed(saved === 'true');
-        }
-        setIsHydrated(true);
-    }, []);
+    const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
 
     const toggleSidebar = () => {
         const newValue = !isCollapsed;
         setIsCollapsed(newValue);
         localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
+        document.documentElement.setAttribute('data-sidebar-collapsed', String(newValue));
     };
+
+    // Sync with localStorage on mount (for SSR)
+    useEffect(() => {
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+        if (saved !== null) {
+            const collapsed = saved === 'true';
+            setIsCollapsed(collapsed);
+            document.documentElement.setAttribute('data-sidebar-collapsed', String(collapsed));
+        }
+    }, []);
 
     return (
         <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>
             <div className="min-h-screen bg-neutral-50">
-                {/* Sidebar - visible on md+, no transition until hydrated to prevent flash */}
                 <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
-
-                {/* Main content - shifts right on md+ to accommodate sidebar */}
-                <div className={`${isHydrated ? 'transition-all duration-300' : ''} ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
+                <div className={`transition-all duration-300 ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
                     {children}
                 </div>
             </div>
