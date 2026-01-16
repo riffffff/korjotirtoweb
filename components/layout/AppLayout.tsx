@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import Sidebar from './Sidebar';
 
 interface SidebarContextType {
@@ -21,32 +21,35 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-    // Start with collapsed, will be corrected immediately on mount
-    const [isCollapsed, setIsCollapsed] = useState(true);
-    const [isHydrated, setIsHydrated] = useState(false);
+    // Read from localStorage synchronously on mount (client-side only)
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+            return saved === null ? true : saved === 'true';
+        }
+        return true;
+    });
+    
+    const isInitialMount = useRef(true);
 
-    // Sync with localStorage immediately on mount
+    // Sync state changes to localStorage
     useEffect(() => {
-        const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-        const collapsed = saved === null ? true : saved === 'true';
-        setIsCollapsed(collapsed);
-        setIsHydrated(true);
-    }, []);
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+    }, [isCollapsed]);
 
     const toggleSidebar = () => {
-        const newValue = !isCollapsed;
-        setIsCollapsed(newValue);
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
+        setIsCollapsed(prev => !prev);
     };
 
     return (
         <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>
             <div className="min-h-screen bg-neutral-50">
-                {/* Hide sidebar until hydrated to prevent flash */}
-                <div className={isHydrated ? '' : 'md:invisible'}>
-                    <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
-                </div>
-                <div className={`transition-all duration-300 ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
+                <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+                <div className={`md:transition-[padding-left] md:duration-300 ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
                     {children}
                 </div>
             </div>
