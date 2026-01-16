@@ -61,11 +61,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Get all unpaid bills for this customer, ordered by period (oldest first = FIFO)
         const unpaidBills = await prisma.bill.findMany({
             where: {
-                deletedAt: null,
                 paymentStatus: { not: 'paid' },
                 meterReading: {
                     customerId: customerId,
-                    deletedAt: null,
                 },
             },
             include: {

@@ -1,31 +1,74 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { customerService, CustomerListItem, CustomerDetail } from '@/services/customerService';
 
-// Hook for fetching all customers
-export function useCustomers() {
-    const [customers, setCustomers] = useState<CustomerListItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+// Cache object for customer list (persists across navigation)
+const customerCache: {
+    data: CustomerListItem[] | null;
+    timestamp: number;
+} = {
+    data: null,
+    timestamp: 0,
+};
 
-    const refetch = useCallback(async () => {
+// Cache expiry: 30 seconds
+const CACHE_EXPIRY = 30 * 1000;
+
+// Hook for fetching all customers with caching
+export function useCustomers() {
+    const [customers, setCustomers] = useState<CustomerListItem[]>(customerCache.data || []);
+    const [loading, setLoading] = useState(!customerCache.data);
+    const [error, setError] = useState<string | null>(null);
+    const isMounted = useRef(true);
+
+    const refetch = useCallback(async (forceRefresh = false) => {
+        // Check cache validity
+        const now = Date.now();
+        if (!forceRefresh && customerCache.data && (now - customerCache.timestamp) < CACHE_EXPIRY) {
+            setCustomers(customerCache.data);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
             const data = await customerService.getAll();
-            setCustomers(data);
+
+            // Update cache
+            customerCache.data = data;
+            customerCache.timestamp = Date.now();
+
+            if (isMounted.current) {
+                setCustomers(data);
+            }
         } catch (err) {
-            setError('Gagal memuat data pelanggan');
+            if (isMounted.current) {
+                setError('Gagal memuat data pelanggan');
+            }
             console.error(err);
         } finally {
-            setLoading(false);
+            if (isMounted.current) {
+                setLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
+        isMounted.current = true;
         refetch();
+        return () => {
+            isMounted.current = false;
+        };
     }, [refetch]);
 
-    return { customers, loading, error, refetch };
+    // Force refresh function for when data changes
+    const forceRefresh = useCallback(() => {
+        customerCache.data = null;
+        customerCache.timestamp = 0;
+        refetch(true);
+    }, [refetch]);
+
+    return { customers, loading, error, refetch: forceRefresh };
 }
 
 // Hook for fetching single customer with bill history

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
@@ -12,12 +12,10 @@ interface ImportProgress {
     message?: string;
     current?: number;
     total?: number;
-    processed?: number;
-    failed?: number;
-    percent?: number;
     currentName?: string;
     added?: number;
     skipped?: number;
+    failed?: number;
 }
 
 export default function ImportPage() {
@@ -29,29 +27,78 @@ export default function ImportPage() {
     const [error, setError] = useState<string | null>(null);
     const [clearSuccess, setClearSuccess] = useState(false);
     const [completed, setCompleted] = useState(false);
-    const abortController = useRef<AbortController | null>(null);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [selectedPeriod, setSelectedPeriod] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                setSelectedFile(file);
+                setError(null);
+            } else {
+                setError('File harus berformat Excel (.xlsx atau .xls)');
+            }
+        }
+    }, []);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                setSelectedFile(file);
+                setError(null);
+            } else {
+                setError('File harus berformat Excel (.xlsx atau .xls)');
+            }
+        }
+    };
 
     const handleImport = async () => {
+        if (!selectedFile) {
+            setError('Pilih file Excel terlebih dahulu');
+            return;
+        }
+        if (!selectedPeriod) {
+            setError('Pilih periode tagihan terlebih dahulu');
+            return;
+        }
+
         setImporting(true);
         setError(null);
         setProgress(null);
         setCompleted(false);
         setClearSuccess(false);
 
-        abortController.current = new AbortController();
-
         try {
-            const role = localStorage.getItem('role');
-            const response = await fetch('/api/import/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role }),
-                signal: abortController.current.signal,
-            });
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('role', localStorage.getItem('role') || '');
+            formData.append('period', selectedPeriod);
 
-            if (!response.ok) {
-                throw new Error('Failed to start import');
-            }
+            const response = await fetch('/api/import/upload', {
+                method: 'POST',
+                body: formData,
+            });
 
             const reader = response.body?.getReader();
             if (!reader) throw new Error('No response body');
@@ -72,9 +119,9 @@ export default function ImportPage() {
                         try {
                             const data = JSON.parse(line.slice(6)) as ImportProgress;
                             setProgress(data);
-
                             if (data.type === 'complete') {
                                 setCompleted(true);
+                                setSelectedFile(null);
                             } else if (data.type === 'error') {
                                 setError(data.message || 'Unknown error');
                             }
@@ -85,21 +132,17 @@ export default function ImportPage() {
                 }
             }
         } catch (err) {
-            if ((err as Error).name !== 'AbortError') {
-                console.error('Import failed:', err);
-                setError('Gagal import data. Cek console untuk detail.');
-            }
+            console.error('Import failed:', err);
+            setError('Gagal import data. Cek console untuk detail.');
         } finally {
             setImporting(false);
-            abortController.current = null;
         }
     };
 
     const handleClearAll = async () => {
-        if (!confirm('⚠️ PERINGATAN!\n\nSemua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN.\n\nLanjutkan?')) {
+        if (!confirm('PERINGATAN!\n\nSemua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN.\n\nLanjutkan?')) {
             return;
         }
-
         setClearing(true);
         setError(null);
         setClearSuccess(false);
@@ -121,8 +164,16 @@ export default function ImportPage() {
         }
     };
 
-    if (authLoading) return <LoadingState message="Memeriksa akses..." />;
+    const formatPeriod = (period: string) => {
+        const [year, month] = period.split('-');
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        return `${months[parseInt(month) - 1]} ${year}`;
+    };
 
+    const isProcessing = importing || clearing;
+
+    if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) {
         router.push('/');
         return null;
@@ -132,122 +183,174 @@ export default function ImportPage() {
         <div className="min-h-screen bg-neutral-50">
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
                 <div className="max-w-lg mx-auto px-4 py-4">
-                    <h1 className="text-xl font-bold text-neutral-800">Import Data</h1>
-                    <p className="text-sm text-neutral-500">Import pelanggan dari Excel</p>
+                    <h1 className="text-xl font-bold text-neutral-800">Import Tagihan</h1>
+                    <p className="text-sm text-neutral-500">Import tagihan bulanan dari Excel</p>
                 </div>
             </header>
 
             <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
                 <BackButton href="/" />
 
-                {/* Import Info Card */}
-                <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">
-                    <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                            <span className="text-xl">📊</span>
-                        </div>
-                        <div>
-                            <h2 className="font-semibold text-neutral-800">Data Pengguna Air</h2>
-                            <p className="text-sm text-neutral-500 mt-1">
-                                Import dari <code className="bg-neutral-100 px-1 rounded">data pengguna air.xlsx</code>
-                            </p>
-                        </div>
-                    </div>
+                {/* Period Selector */}
+                <div className="bg-white rounded-xl p-4">
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                        Periode Tagihan
+                    </label>
+                    <input
+                        type="month"
+                        value={selectedPeriod}
+                        onChange={(e) => setSelectedPeriod(e.target.value)}
+                        disabled={isProcessing}
+                        className="w-full px-4 py-3 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                    />
+                    <p className="text-xs text-neutral-500 mt-2">
+                        Tagihan akan dibuat untuk periode: <strong>{formatPeriod(selectedPeriod)}</strong>
+                    </p>
+                </div>
 
-                    <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
-                        <p className="font-medium">ℹ️ Informasi:</p>
-                        <ul className="mt-1 space-y-1 list-disc list-inside text-blue-600">
-                            <li>Import pelanggan + tagihan Desember 2025</li>
-                            <li>Pelanggan yang sudah ada akan dilewati</li>
-                            <li>Progress ditampilkan secara real-time</li>
-                        </ul>
-                    </div>
+                {/* Drop Zone */}
+                <div
+                    onDragOver={!isProcessing ? handleDragOver : undefined}
+                    onDragLeave={!isProcessing ? handleDragLeave : undefined}
+                    onDrop={!isProcessing ? handleDrop : undefined}
+                    onClick={() => !isProcessing && fileInputRef.current?.click()}
+                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${isProcessing
+                            ? 'border-neutral-200 bg-neutral-50 cursor-not-allowed opacity-60'
+                            : isDragging
+                                ? 'border-blue-500 bg-blue-50 cursor-pointer'
+                                : selectedFile
+                                    ? 'border-green-400 bg-green-50 cursor-pointer'
+                                    : 'border-neutral-300 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
+                        }`}
+                >
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        disabled={isProcessing}
+                    />
 
-                    {/* Progress Bar */}
-                    {importing && progress && (
+                    {selectedFile ? (
                         <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-neutral-600">
-                                    {progress.type === 'progress'
-                                        ? `Importing: ${progress.currentName}`
-                                        : progress.message}
-                                </span>
-                                {progress.percent !== undefined && (
-                                    <span className="font-medium text-blue-600">{progress.percent}%</span>
-                                )}
+                            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
                             </div>
-                            {progress.total !== undefined && progress.current !== undefined && (
-                                <>
-                                    <div className="w-full bg-neutral-200 rounded-full h-3 overflow-hidden">
-                                        <div
-                                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-300"
-                                            style={{ width: `${progress.percent || 0}%` }}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between text-xs text-neutral-500">
-                                        <span>{progress.current} / {progress.total}</span>
-                                        <span>
-                                            ✅ {progress.processed || 0} |
-                                            ❌ {progress.failed || 0}
-                                        </span>
-                                    </div>
-                                </>
+                            <p className="font-semibold text-green-700">{selectedFile.name}</p>
+                            <p className="text-sm text-green-600">
+                                {(selectedFile.size / 1024).toFixed(1)} KB
+                            </p>
+                            {!isProcessing && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedFile(null);
+                                    }}
+                                    className="text-sm text-red-500 hover:text-red-600"
+                                >
+                                    Hapus file
+                                </button>
                             )}
                         </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <div className="w-16 h-16 mx-auto bg-neutral-100 rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                            </div>
+                            <p className="font-semibold text-neutral-700">
+                                {isDragging ? 'Drop file di sini' : 'Drag & drop file Excel'}
+                            </p>
+                            <p className="text-sm text-neutral-500">atau klik untuk pilih file</p>
+                        </div>
                     )}
+                </div>
 
-                    <div className="space-y-2">
-                        <Button
-                            onClick={handleImport}
-                            loading={importing}
-                            variant="primary"
-                            className="w-full"
-                            disabled={importing || clearing}
-                        >
-                            {importing ? '⏳ Mengimport...' : '📥 Import Data'}
-                        </Button>
-
-                        <Button
-                            onClick={handleClearAll}
-                            loading={clearing}
-                            variant="danger"
-                            className="w-full"
-                            disabled={importing || clearing}
-                        >
-                            {clearing ? 'Menghapus...' : '🗑️ Hapus Semua Data'}
-                        </Button>
+                {/* Progress */}
+                {importing && progress && (
+                    <div className="bg-white rounded-xl p-4 space-y-3">
+                        <div className="text-center">
+                            {progress.type === 'progress' ? (
+                                <>
+                                    <p className="text-2xl font-bold text-blue-600">
+                                        {progress.current}/{progress.total}
+                                    </p>
+                                    <p className="text-sm text-neutral-500">pelanggan</p>
+                                    <p className="text-sm text-neutral-600 mt-2 truncate">
+                                        {progress.currentName}
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="text-neutral-600">{progress.message}</p>
+                            )}
+                        </div>
+                        {progress.current !== undefined && progress.total !== undefined && (
+                            <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden">
+                                <div
+                                    className="bg-blue-500 h-full rounded-full transition-all duration-300"
+                                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                />
+                            </div>
+                        )}
                     </div>
+                )}
+
+                {/* Actions */}
+                <div className="space-y-2">
+                    <Button
+                        onClick={handleImport}
+                        loading={importing}
+                        variant="primary"
+                        className="w-full"
+                        disabled={isProcessing || !selectedFile}
+                    >
+                        {importing ? 'Mengimport...' : 'Import Data'}
+                    </Button>
+
+                    <Button
+                        onClick={handleClearAll}
+                        loading={clearing}
+                        variant="danger"
+                        className="w-full"
+                        disabled={isProcessing}
+                    >
+                        {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
+                    </Button>
                 </div>
 
                 {/* Clear Success */}
                 {clearSuccess && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                        <p className="text-green-700 font-medium">✅ Data berhasil dihapus!</p>
+                    <div className="bg-green-50 rounded-xl p-4">
+                        <p className="text-green-700 font-medium">Data berhasil dihapus!</p>
                         <p className="text-sm text-green-600 mt-1">Silakan import data baru.</p>
                     </div>
                 )}
 
                 {/* Error Display */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                        <p className="text-red-600 font-medium">❌ Error</p>
+                    <div className="bg-red-50 rounded-xl p-4">
+                        <p className="text-red-600 font-medium">Error</p>
                         <p className="text-sm text-red-500 mt-1">{error}</p>
                     </div>
                 )}
 
                 {/* Complete Result */}
                 {completed && progress?.type === 'complete' && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
-                        <p className="text-green-700 font-semibold">✅ Import Selesai!</p>
+                    <div className="bg-green-50 rounded-xl p-4 space-y-3">
+                        <p className="text-green-700 font-semibold">Import Selesai!</p>
 
                         <div className="grid grid-cols-3 gap-2 text-center">
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-neutral-800">{progress.total}</p>
-                                <p className="text-xs text-neutral-500">Total Data</p>
+                                <p className="text-xs text-neutral-500">Total</p>
                             </div>
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-green-600">{progress.added}</p>
-                                <p className="text-xs text-neutral-500">Ditambahkan</p>
+                                <p className="text-xs text-neutral-500">Berhasil</p>
                             </div>
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-orange-500">{progress.skipped}</p>

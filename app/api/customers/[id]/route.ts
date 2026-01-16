@@ -45,10 +45,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         // Get all bills for this customer, ordered by period (latest first)
         const bills = await prisma.bill.findMany({
             where: {
-                deletedAt: null,
                 meterReading: {
                     customerId: customerId,
-                    deletedAt: null,
                 },
             },
             include: {
@@ -127,6 +125,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             createdAt: p.createdAt.toISOString(),
         }));
 
+        // Calculate totals including penalties
+        const totalBillWithPenalty = formattedBills.reduce((sum, b) => sum + b.totalWithPenalty, 0);
+        const totalPaid = Number(customer.totalPaid);
+        const outstandingWithPenalty = formattedBills
+            .filter(b => b.paymentStatus !== 'paid')
+            .reduce((sum, b) => sum + (b.totalWithPenalty - b.amountPaid), 0);
+
         return NextResponse.json({
             success: true,
             data: {
@@ -135,9 +140,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                     name: customer.name,
                     customerNumber: customer.customerNumber,
                     phone: customer.phone,
-                    totalBill: Number(customer.totalBill),
-                    totalPaid: Number(customer.totalPaid),
-                    outstandingBalance: Number(customer.outstandingBalance),
+                    totalBill: totalBillWithPenalty,
+                    totalPaid: totalPaid,
+                    outstandingBalance: outstandingWithPenalty,
                     lastNotifiedAt: customer.lastNotifiedAt,
                 },
                 bills: formattedBills,
@@ -220,10 +225,42 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Soft delete
-        await prisma.customer.update({
-            where: { id: customerId },
-            data: { deletedAt: new Date() },
+        // Hard delete customer and related data
+        await prisma.$transaction(async (tx) => {
+            // Get all meter readings for this customer
+            const readings = await tx.meterReading.findMany({
+                where: { customerId: customerId },
+                select: { id: true },
+            });
+            const readingIds = readings.map(r => r.id);
+
+            // Delete bill items for all bills
+            if (readingIds.length > 0) {
+                await tx.billItem.deleteMany({
+                    where: {
+                        bill: {
+                            meterReadingId: { in: readingIds },
+                        },
+                    },
+                });
+
+                // Delete bills
+                await tx.bill.deleteMany({
+                    where: {
+                        meterReadingId: { in: readingIds },
+                    },
+                });
+
+                // Delete meter readings
+                await tx.meterReading.deleteMany({
+                    where: { customerId: customerId },
+                });
+            }
+
+            // Delete customer
+            await tx.customer.delete({
+                where: { id: customerId },
+            });
         });
 
         return NextResponse.json({

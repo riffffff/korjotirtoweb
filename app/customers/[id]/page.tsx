@@ -28,6 +28,18 @@ export default function CustomerDetailPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
+    // State for delete bill
+    const [showDeleteBillConfirm, setShowDeleteBillConfirm] = useState(false);
+    const [billToDelete, setBillToDelete] = useState<{ id: number; period: string } | null>(null);
+    const [deletingBill, setDeletingBill] = useState(false);
+
+    // State for add bill
+    const [showAddBillModal, setShowAddBillModal] = useState(false);
+    const [newBillPeriod, setNewBillPeriod] = useState('');
+    const [newBillMeterStart, setNewBillMeterStart] = useState('');
+    const [newBillMeterEnd, setNewBillMeterEnd] = useState('');
+    const [addingBill, setAddingBill] = useState(false);
+
     const handlePayment = async (amount: number) => {
         if (!customerId) return;
         try {
@@ -100,6 +112,82 @@ export default function CustomerDetailPage() {
             alert('Gagal menghapus pelanggan');
         } finally {
             setDeleting(false);
+        }
+    };
+
+    // Handle delete bill
+    const handleDeleteBill = async () => {
+        if (!billToDelete) return;
+        setDeletingBill(true);
+        try {
+            const result = await customerService.deleteBill(billToDelete.id);
+            if (result.success) {
+                setShowDeleteBillConfirm(false);
+                setBillToDelete(null);
+                refetch();
+            } else {
+                alert(result.error || 'Gagal menghapus tagihan');
+            }
+        } catch (error) {
+            console.error('Failed to delete bill:', error);
+            alert('Gagal menghapus tagihan');
+        } finally {
+            setDeletingBill(false);
+        }
+    };
+
+    const openDeleteBillModal = (bill: { id: number; period: string }) => {
+        setBillToDelete(bill);
+        setShowDeleteBillConfirm(true);
+    };
+
+    // Handle add bill for this customer
+    const handleAddBill = async () => {
+        if (!customerId || !newBillPeriod || !newBillMeterEnd) {
+            alert('Lengkapi semua field');
+            return;
+        }
+
+        // If no previous bills, require meter start
+        if (bills.length === 0 && !newBillMeterStart) {
+            alert('Meter awal wajib diisi untuk tagihan pertama');
+            return;
+        }
+
+        setAddingBill(true);
+        try {
+            const payload: Record<string, unknown> = {
+                period: newBillPeriod,
+                meterEnd: parseInt(newBillMeterEnd, 10),
+                role: localStorage.getItem('role'),
+            };
+
+            // Include meter start if this is first bill
+            if (bills.length === 0 && newBillMeterStart) {
+                payload.meterStart = parseInt(newBillMeterStart, 10);
+            }
+
+            const res = await fetch(`/api/customers/${customerId}/bills`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setShowAddBillModal(false);
+                setNewBillPeriod('');
+                setNewBillMeterStart('');
+                setNewBillMeterEnd('');
+                refetch();
+            } else {
+                alert(data.error || 'Gagal menambah tagihan');
+            }
+        } catch (error) {
+            console.error('Failed to add bill:', error);
+            alert('Gagal menambah tagihan');
+        } finally {
+            setAddingBill(false);
         }
     };
 
@@ -257,8 +345,28 @@ export default function CustomerDetailPage() {
 
                 {/* Bill History */}
                 <div className="space-y-3">
-                    <h2 className="text-lg font-semibold text-neutral-700">Riwayat Tagihan</h2>
-
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-neutral-700">Riwayat Tagihan</h2>
+                        {isAdmin && (
+                            <button
+                                onClick={() => {
+                                    // Set default period to current month
+                                    const now = new Date();
+                                    const year = now.getFullYear();
+                                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                                    setNewBillPeriod(`${year}-${month}`);
+                                    setNewBillMeterEnd('');
+                                    setShowAddBillModal(true);
+                                }}
+                                className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                Tambah
+                            </button>
+                        )}
+                    </div>
                     {bills.length === 0 ? (
                         <div className="text-center py-8 text-neutral-400">
                             Belum ada tagihan
@@ -373,6 +481,24 @@ export default function CustomerDetailPage() {
                                             </div>
                                         </div>
 
+                                        {/* Delete Bill Button - Admin only */}
+                                        {isAdmin && (
+                                            <div className="pt-3 mt-3 border-t border-neutral-100">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openDeleteBillModal({ id: bill.id, period: bill.period });
+                                                    }}
+                                                    className="w-full py-2 px-3 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                    Hapus Tagihan Ini
+                                                </button>
+                                            </div>
+                                        )}
+
                                     </div>
                                 )}
                             </div>
@@ -409,7 +535,7 @@ export default function CustomerDetailPage() {
             <div className="space-y-4">
                 <p className="text-neutral-600">
                     Yakin ingin menghapus <strong>{customer.name}</strong>?
-                    Data pelanggan akan disembunyikan dari sistem.
+                    Data pelanggan akan dihapus permanen dari sistem.
                 </p>
                 <div className="flex gap-3">
                     <Button
@@ -426,6 +552,116 @@ export default function CustomerDetailPage() {
                         className="flex-1"
                     >
                         Hapus
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+
+        {/* Delete Bill Confirmation Modal */}
+        <Modal
+            isOpen={showDeleteBillConfirm}
+            onClose={() => {
+                setShowDeleteBillConfirm(false);
+                setBillToDelete(null);
+            }}
+            title="Hapus Tagihan"
+        >
+            <div className="space-y-4">
+                <p className="text-neutral-600">
+                    Yakin ingin menghapus tagihan <strong>{billToDelete ? formatPeriod(billToDelete.period) : ''}</strong>?
+                    Data tagihan akan dihapus permanen dari sistem.
+                </p>
+                <div className="flex gap-3">
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            setShowDeleteBillConfirm(false);
+                            setBillToDelete(null);
+                        }}
+                        className="flex-1"
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={handleDeleteBill}
+                        loading={deletingBill}
+                        className="flex-1"
+                    >
+                        Hapus
+                    </Button>
+                </div>
+            </div>
+        </Modal>
+
+        {/* Add Bill Modal */}
+        <Modal
+            isOpen={showAddBillModal}
+            onClose={() => setShowAddBillModal(false)}
+            title="Tambah Tagihan"
+        >
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                        Periode
+                    </label>
+                    <input
+                        type="month"
+                        value={newBillPeriod}
+                        onChange={(e) => setNewBillPeriod(e.target.value)}
+                        className="w-full px-4 py-3 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                </div>
+                {/* Show meter start input if no previous bills */}
+                {bills.length === 0 && (
+                    <div>
+                        <label className="block text-sm font-medium text-neutral-700 mb-2">
+                            Meter Awal
+                        </label>
+                        <input
+                            type="number"
+                            value={newBillMeterStart}
+                            onChange={(e) => setNewBillMeterStart(e.target.value)}
+                            placeholder="Masukkan angka meter awal"
+                            className="w-full px-4 py-3 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="text-xs text-neutral-400 mt-1">
+                            Wajib diisi untuk tagihan pertama
+                        </p>
+                    </div>
+                )}
+                <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                        Meter Akhir
+                    </label>
+                    <input
+                        type="number"
+                        value={newBillMeterEnd}
+                        onChange={(e) => setNewBillMeterEnd(e.target.value)}
+                        placeholder="Masukkan angka meter akhir"
+                        className="w-full px-4 py-3 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {bills.length > 0 && (
+                        <p className="text-xs text-neutral-400 mt-1">
+                            Meter terakhir: {bills[0]?.meterEnd || 0}
+                        </p>
+                    )}
+                </div>
+                <div className="flex gap-3 pt-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => setShowAddBillModal(false)}
+                        className="flex-1"
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        variant="primary"
+                        onClick={handleAddBill}
+                        loading={addingBill}
+                        className="flex-1"
+                    >
+                        Tambah
                     </Button>
                 </div>
             </div>

@@ -118,4 +118,18 @@ export const customerService = {
         });
         return res.data;
     },
+
+    // DELETE /bills/:id - Soft delete a bill
+    deleteBill: async (billId: number) => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.delete(`/bills/${billId}`, { data: { role } });
+        return res.data;
+    },
+
+    // DELETE /bills/period/:period - Soft delete all bills for a period
+    deleteBillsByPeriod: async (period: string) => {
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.delete(`/bills/period/${period}`, { data: { role } });
+        return res.data;
+    },
 };
