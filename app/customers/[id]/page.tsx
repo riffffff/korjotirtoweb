@@ -1,7 +1,7 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useCustomerDetail } from '@/hooks/useCustomer';
+import { useCustomerDetail, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
 import { sendBillNotification } from '@/lib/whatsapp';
@@ -44,6 +44,7 @@ export default function CustomerDetailPage() {
         if (!customerId) return;
         try {
             await customerService.pay(customerId, amount);
+            clearCustomerCaches();
             refetch();
         } catch (err) {
             console.error('Payment failed:', err);
@@ -86,6 +87,7 @@ export default function CustomerDetailPage() {
             const result = await customerService.update(customerId, { name: data.name, phone: data.phone });
             if (result.success) {
                 setShowEditModal(false);
+                clearCustomerCaches();
                 refetch();
             } else {
                 alert(result.error || 'Gagal mengupdate pelanggan');
@@ -103,6 +105,7 @@ export default function CustomerDetailPage() {
         try {
             const result = await customerService.delete(customerId);
             if (result.success) {
+                clearCustomerCaches();
                 router.push('/');
             } else {
                 alert(result.error || 'Gagal menghapus pelanggan');
@@ -124,6 +127,7 @@ export default function CustomerDetailPage() {
             if (result.success) {
                 setShowDeleteBillConfirm(false);
                 setBillToDelete(null);
+                clearCustomerCaches();
                 refetch();
             } else {
                 alert(result.error || 'Gagal menghapus tagihan');
@@ -179,6 +183,7 @@ export default function CustomerDetailPage() {
                 setNewBillPeriod('');
                 setNewBillMeterStart('');
                 setNewBillMeterEnd('');
+                clearCustomerCaches();
                 refetch();
             } else {
                 alert(data.error || 'Gagal menambah tagihan');
@@ -199,7 +204,7 @@ export default function CustomerDetailPage() {
 
     return (<>
         <div className="min-h-screen bg-neutral-50">
-            <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+            <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
                 <BackButton href="/" />
 
                 {/* Customer Header */}

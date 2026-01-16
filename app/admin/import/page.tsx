@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { clearCustomerCaches } from '@/hooks/useCustomer';
 import { customerService } from '@/services/customerService';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
@@ -120,6 +121,7 @@ export default function ImportPage() {
                             const data = JSON.parse(line.slice(6)) as ImportProgress;
                             setProgress(data);
                             if (data.type === 'complete') {
+                                clearCustomerCaches();
                                 setCompleted(true);
                                 setSelectedFile(null);
                             } else if (data.type === 'error') {
@@ -152,6 +154,7 @@ export default function ImportPage() {
         try {
             const response = await customerService.clearAll();
             if (response.success) {
+                clearCustomerCaches();
                 setClearSuccess(true);
             } else {
                 setError(response.error || 'Gagal menghapus data');
@@ -182,13 +185,13 @@ export default function ImportPage() {
     return (
         <div className="min-h-screen bg-neutral-50">
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg mx-auto px-4 py-4">
+                <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Import Tagihan</h1>
                     <p className="text-sm text-neutral-500">Import tagihan bulanan dari Excel</p>
                 </div>
             </header>
 
-            <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+            <main className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
                 <BackButton href="/" />
 
                 {/* Period Selector */}

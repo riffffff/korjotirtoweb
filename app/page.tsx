@@ -84,7 +84,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
             <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
@@ -141,7 +141,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
         {/* Search */}
         <div className="relative">
           <input
@@ -206,7 +206,7 @@ export default function HomePage() {
 
         {/* Customer List */}
         {!loading && !error && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredCustomers.length === 0 ? (
               <div className="text-center py-8 text-neutral-400">
                 Tidak ada pelanggan ditemukan

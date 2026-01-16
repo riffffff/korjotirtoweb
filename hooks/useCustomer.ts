@@ -1,30 +1,32 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { customerService, CustomerListItem, CustomerDetail } from '@/services/customerService';
 
-// Cache object for customer list (persists across navigation)
-const customerCache: {
-    data: CustomerListItem[] | null;
-    timestamp: number;
-} = {
-    data: null,
-    timestamp: 0,
-};
+// In-memory cache for customer list
+let customerListCache: CustomerListItem[] | null = null;
+let customerListCacheTime = 0;
 
-// Cache expiry: 30 seconds
-const CACHE_EXPIRY = 30 * 1000;
+// In-memory cache for customer details
+const customerDetailCache = new Map<number, { data: CustomerDetail; time: number }>();
 
-// Hook for fetching all customers with caching
+// Cache expiry times
+const LIST_CACHE_EXPIRY = 30 * 1000; // 30 seconds
+const DETAIL_CACHE_EXPIRY = 60 * 1000; // 1 minute
+
+/**
+ * Hook for fetching all customers with caching
+ */
 export function useCustomers() {
-    const [customers, setCustomers] = useState<CustomerListItem[]>(customerCache.data || []);
-    const [loading, setLoading] = useState(!customerCache.data);
+    // Initialize with cached data if available
+    const [customers, setCustomers] = useState<CustomerListItem[]>(() => customerListCache || []);
+    const [loading, setLoading] = useState(() => !customerListCache);
     const [error, setError] = useState<string | null>(null);
-    const isMounted = useRef(true);
 
-    const refetch = useCallback(async (forceRefresh = false) => {
-        // Check cache validity
+    const fetchData = useCallback(async (force = false) => {
         const now = Date.now();
-        if (!forceRefresh && customerCache.data && (now - customerCache.timestamp) < CACHE_EXPIRY) {
-            setCustomers(customerCache.data);
+        
+        // Use cache if valid and not forcing refresh
+        if (!force && customerListCache && (now - customerListCacheTime) < LIST_CACHE_EXPIRY) {
+            setCustomers(customerListCache);
             setLoading(false);
             return;
         }
@@ -32,73 +34,101 @@ export function useCustomers() {
         try {
             setLoading(true);
             setError(null);
+            
             const data = await customerService.getAll();
-
+            
             // Update cache
-            customerCache.data = data;
-            customerCache.timestamp = Date.now();
-
-            if (isMounted.current) {
-                setCustomers(data);
-            }
+            customerListCache = data;
+            customerListCacheTime = Date.now();
+            
+            setCustomers(data);
         } catch (err) {
-            if (isMounted.current) {
-                setError('Gagal memuat data pelanggan');
-            }
-            console.error(err);
+            console.error('Failed to fetch customers:', err);
+            setError('Gagal memuat data pelanggan');
         } finally {
-            if (isMounted.current) {
-                setLoading(false);
-            }
+            setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        isMounted.current = true;
-        refetch();
-        return () => {
-            isMounted.current = false;
-        };
-    }, [refetch]);
+        fetchData();
+    }, [fetchData]);
 
-    // Force refresh function for when data changes
-    const forceRefresh = useCallback(() => {
-        customerCache.data = null;
-        customerCache.timestamp = 0;
-        refetch(true);
-    }, [refetch]);
+    // Force refresh and clear cache
+    const refetch = useCallback(() => {
+        customerListCache = null;
+        customerListCacheTime = 0;
+        fetchData(true);
+    }, [fetchData]);
 
-    return { customers, loading, error, refetch: forceRefresh };
+    return { customers, loading, error, refetch };
 }
 
-// Hook for fetching single customer with bill history
+/**
+ * Hook for fetching single customer with bill history (with caching)
+ */
 export function useCustomerDetail(id: number | null) {
-    const [data, setData] = useState<CustomerDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<CustomerDetail | null>(() => {
+        if (id && customerDetailCache.has(id)) {
+            const cached = customerDetailCache.get(id)!;
+            if (Date.now() - cached.time < DETAIL_CACHE_EXPIRY) {
+                return cached.data;
+            }
+        }
+        return null;
+    });
+    const [loading, setLoading] = useState(() => {
+        if (!id) return false;
+        const cached = customerDetailCache.get(id);
+        return !cached || (Date.now() - cached.time) >= DETAIL_CACHE_EXPIRY;
+    });
     const [error, setError] = useState<string | null>(null);
 
-    const refetch = useCallback(async () => {
+    const fetchData = useCallback(async (force = false) => {
         if (!id) {
             setLoading(false);
             return;
         }
 
+        const now = Date.now();
+        const cached = customerDetailCache.get(id);
+
+        // Use cache if valid and not forcing
+        if (!force && cached && (now - cached.time) < DETAIL_CACHE_EXPIRY) {
+            setData(cached.data);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
+            
             const result = await customerService.getById(id);
+            
+            // Update cache
+            customerDetailCache.set(id, { data: result, time: Date.now() });
+            
             setData(result);
         } catch (err) {
+            console.error('Failed to fetch customer detail:', err);
             setError('Gagal memuat data pelanggan');
-            console.error(err);
         } finally {
             setLoading(false);
         }
     }, [id]);
 
     useEffect(() => {
-        refetch();
-    }, [refetch]);
+        fetchData();
+    }, [fetchData]);
+
+    // Force refresh
+    const refetch = useCallback(() => {
+        if (id) {
+            customerDetailCache.delete(id);
+        }
+        fetchData(true);
+    }, [id, fetchData]);
 
     return {
         customer: data?.customer ?? null,
@@ -108,4 +138,13 @@ export function useCustomerDetail(id: number | null) {
         error,
         refetch,
     };
+}
+
+/**
+ * Utility to clear all caches (call after import/delete operations)
+ */
+export function clearCustomerCaches() {
+    customerListCache = null;
+    customerListCacheTime = 0;
+    customerDetailCache.clear();
 }

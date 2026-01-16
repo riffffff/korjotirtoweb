@@ -40,13 +40,13 @@ export default function NewCustomerPage() {
         <div className="min-h-screen bg-neutral-50">
             {/* Header */}
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg mx-auto px-4 py-4">
+                <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Tambah Pelanggan</h1>
                     <p className="text-sm text-neutral-500">Tambah pelanggan baru ke sistem</p>
                 </div>
             </header>
 
-            <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
+            <main className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-4">
                 <BackButton href="/admin/dashboard" />
 
                 <div className="bg-white rounded-xl border border-neutral-200 p-4">
