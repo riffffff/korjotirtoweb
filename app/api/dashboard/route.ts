@@ -4,44 +4,51 @@ import prisma from '@/lib/prisma';
 /**
  * GET /api/dashboard
  * Get summary statistics for admin dashboard
- * Returns: total customers and unpaid count per period
+ * Returns: total customers, revenue, outstanding, and stats per period
  */
 export async function GET() {
     try {
         // Get total customers
         const totalCustomers = await prisma.customer.count();
 
+        // Get total revenue (sum of all payments)
+        const revenueResult = await prisma.payment.aggregate({
+            _sum: { amount: true }
+        });
+        const totalRevenue = Number(revenueResult._sum.amount || 0);
+
+        // Get total outstanding (sum of remaining from unpaid bills)
+        const outstandingResult = await prisma.bill.aggregate({
+            where: { paymentStatus: { not: 'paid' } },
+            _sum: { remaining: true, penalty: true }
+        });
+        const totalOutstanding = Number(outstandingResult._sum.remaining || 0) + Number(outstandingResult._sum.penalty || 0);
+
         // Get all unique periods with bills
         const periods = await prisma.meterReading.findMany({
-            select: {
-                period: true,
-            },
+            select: { period: true },
             distinct: ['period'],
-            orderBy: {
-                period: 'desc',
-            },
-            take: 12, // Last 12 months
+            orderBy: { period: 'desc' },
+            take: 12,
         });
 
-        // For each period, get unpaid count
+        // For each period, get stats
         const periodStats = await Promise.all(
             periods.map(async ({ period }) => {
-                const totalBills = await prisma.bill.count({
-                    where: {
-                        meterReading: {
-                            period: period,
-                        },
-                    },
+                const bills = await prisma.bill.findMany({
+                    where: { meterReading: { period } },
+                    select: {
+                        paymentStatus: true,
+                        totalAmount: true,
+                        amountPaid: true,
+                    }
                 });
 
-                const unpaidCount = await prisma.bill.count({
-                    where: {
-                        meterReading: {
-                            period: period,
-                        },
-                        paymentStatus: { not: 'paid' },
-                    },
-                });
+                const totalBills = bills.length;
+                const paidCount = bills.filter(b => b.paymentStatus === 'paid').length;
+                const unpaidCount = totalBills - paidCount;
+                const totalAmount = bills.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+                const paidAmount = bills.reduce((sum, b) => sum + Number(b.amountPaid), 0);
 
                 // Format period to Indonesian
                 const [year, month] = period.split('-');
@@ -55,7 +62,10 @@ export async function GET() {
                     period,
                     periodLabel,
                     totalBills,
+                    paidCount,
                     unpaidCount,
+                    totalAmount,
+                    paidAmount,
                 };
             })
         );
@@ -64,6 +74,8 @@ export async function GET() {
             success: true,
             data: {
                 totalCustomers,
+                totalRevenue,
+                totalOutstanding,
                 periods: periodStats,
             },
         });
