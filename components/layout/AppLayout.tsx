@@ -16,12 +16,12 @@ export const useSidebar = () => useContext(SidebarContext);
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
-interface AppLayoutProps {
+interface SidebarProviderProps {
     children: React.ReactNode;
 }
 
-export default function AppLayout({ children }: AppLayoutProps) {
-    // Read from localStorage synchronously on mount (client-side only)
+// This component should be placed in root layout.tsx so sidebar doesn't remount
+export function SidebarProvider({ children }: SidebarProviderProps) {
     const [isCollapsed, setIsCollapsed] = useState(() => {
         if (typeof window !== 'undefined') {
             const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
@@ -32,7 +32,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
     
     const isInitialMount = useRef(true);
 
-    // Sync state changes to localStorage
     useEffect(() => {
         if (isInitialMount.current) {
             isInitialMount.current = false;
@@ -55,4 +54,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
         </SidebarContext.Provider>
     );
+}
+
+// Wrapper for pages - no longer handles sidebar, just passes through
+interface AppLayoutProps {
+    children: React.ReactNode;
+}
+
+export default function AppLayout({ children }: AppLayoutProps) {
+    // AppLayout is now just a passthrough since sidebar is in root layout
+    return <>{children}</>;
 }
