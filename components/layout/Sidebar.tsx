@@ -63,12 +63,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
     const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
-    const handleNavigation = (href: string) => {
-        router.push(href);
-    };
-
     return (
-        <aside className={`hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-neutral-800 text-white transition-all duration-300 ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}>
+        // Use CSS variable for width to prevent flash
+        <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-neutral-800 text-white sidebar-width transition-[width] duration-300">
             {/* Logo & Toggle */}
             <div className="px-3 py-4 border-b border-neutral-700 flex items-center justify-between min-h-[60px]">
                 {!isCollapsed && (
@@ -99,7 +96,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     return (
                         <button
                             key={item.href}
-                            onClick={() => handleNavigation(item.href)}
+                            onClick={() => router.push(item.href)}
                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
                                 isActive
                                     ? 'bg-blue-600 text-white'

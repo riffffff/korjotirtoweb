@@ -77,27 +77,31 @@ body {
    ============================================= */
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px) scale(0.95);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
 @keyframes slide-down {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(-10px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
@@ -113,4 +117,28 @@ body {
 
 .animate-slide-down {
   animation: slide-down 0.2s ease-out;
+}
+
+/* =============================================
+   SIDEBAR - CSS-first to prevent flash
+   ============================================= */
+
+/* Default: sidebar collapsed */
+:root {
+  --sidebar-width: 4rem;
+}
+
+/* Expanded state */
+:root[data-sidebar-collapsed="false"] {
+  --sidebar-width: 16rem;
+}
+
+/* Apply to sidebar */
+.sidebar-width {
+  width: var(--sidebar-width);
+}
+
+/* Apply to main content padding */
+.main-padding {
+  padding-left: var(--sidebar-width);
 }
