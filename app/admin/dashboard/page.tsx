@@ -3,22 +3,17 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import LoadingState from '@/components/state/LoadingState';
-import { formatCurrency } from '@/lib/formatCurrency';
 
 interface PeriodStats {
     period: string;
     periodLabel: string;
     totalBills: number;
-    unpaidCount: number;
     paidCount: number;
-    totalAmount: number;
-    paidAmount: number;
+    unpaidCount: number;
 }
 
 interface DashboardData {
     totalCustomers: number;
-    totalRevenue: number;
-    totalOutstanding: number;
     periods: PeriodStats[];
 }
 
@@ -59,12 +54,18 @@ export default function AdminDashboard() {
         return Math.round((period.paidCount / period.totalBills) * 100);
     };
 
+    // Calculate overall stats
+    const totalPaid = data?.periods.reduce((sum, p) => sum + p.paidCount, 0) || 0;
+    const totalUnpaid = data?.periods.reduce((sum, p) => sum + p.unpaidCount, 0) || 0;
+    const totalBills = totalPaid + totalUnpaid;
+    const overallRate = totalBills > 0 ? Math.round((totalPaid / totalBills) * 100) : 0;
+
     return (
         <>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
                 <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
                     <h1 className="text-2xl font-bold text-neutral-800">Dashboard</h1>
-                    <p className="text-sm text-neutral-500">Ringkasan data & statistik</p>
+                    <p className="text-sm text-neutral-500">Ringkasan statistik pembayaran</p>
                 </div>
             </header>
 
@@ -73,7 +74,7 @@ export default function AdminDashboard() {
                     <LoadingState variant="skeleton-list" count={3} />
                 ) : data && (
                     <>
-                        {/* Stats Grid */}
+                        {/* Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Total Pelanggan */}
                             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg shadow-blue-500/20">
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
                                     <div>
                                         <p className="text-blue-100 text-sm font-medium">Total Pelanggan</p>
                                         <p className="text-4xl font-bold mt-2">{data.totalCustomers}</p>
-                                        <p className="text-blue-200 text-xs mt-1">pelanggan aktif</p>
+                                        <p className="text-blue-200 text-xs mt-1">pelanggan terdaftar</p>
                                     </div>
                                     <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
                                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,29 +92,29 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            {/* Total Pendapatan */}
+                            {/* Sudah Bayar */}
                             <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-green-500/20">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-green-100 text-sm font-medium">Total Pendapatan</p>
-                                        <p className="text-3xl font-bold mt-2">{formatCurrency(data.totalRevenue || 0)}</p>
-                                        <p className="text-green-200 text-xs mt-1">sudah terbayar</p>
+                                        <p className="text-green-100 text-sm font-medium">Sudah Bayar</p>
+                                        <p className="text-4xl font-bold mt-2">{totalPaid}</p>
+                                        <p className="text-green-200 text-xs mt-1">dari {totalBills} tagihan ({overallRate}%)</p>
                                     </div>
                                     <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
                                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Total Tunggakan */}
+                            {/* Belum Bayar */}
                             <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-500/20">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-orange-100 text-sm font-medium">Total Tunggakan</p>
-                                        <p className="text-3xl font-bold mt-2">{formatCurrency(data.totalOutstanding || 0)}</p>
-                                        <p className="text-orange-200 text-xs mt-1">belum terbayar</p>
+                                        <p className="text-orange-100 text-sm font-medium">Belum Bayar</p>
+                                        <p className="text-4xl font-bold mt-2">{totalUnpaid}</p>
+                                        <p className="text-orange-200 text-xs mt-1">dari {totalBills} tagihan ({100 - overallRate}%)</p>
                                     </div>
                                     <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
                                         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,53 +125,70 @@ export default function AdminDashboard() {
                             </div>
                         </div>
 
-                        {/* Period Stats */}
+                        {/* Period Stats with Bar Chart Style */}
                         <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
                             <div className="px-6 py-4 border-b border-neutral-100">
-                                <h2 className="font-semibold text-neutral-800">Status Pembayaran per Periode</h2>
-                                <p className="text-sm text-neutral-500">12 periode terakhir</p>
+                                <h2 className="font-semibold text-neutral-800">Persentase Pembayaran per Bulan</h2>
+                                <p className="text-sm text-neutral-500">Perbandingan lunas vs belum bayar</p>
                             </div>
-                            <div className="divide-y divide-neutral-100">
+                            <div className="p-6 space-y-4">
                                 {data.periods.length === 0 ? (
-                                    <div className="px-6 py-8 text-center text-neutral-400">
+                                    <div className="py-8 text-center text-neutral-400">
                                         Belum ada data tagihan
                                     </div>
                                 ) : (
                                     data.periods.map((period) => {
                                         const rate = getPaymentRate(period);
                                         return (
-                                            <div key={period.period} className="px-6 py-4 hover:bg-neutral-50 transition-colors">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div>
-                                                        <span className="font-medium text-neutral-800">{period.periodLabel}</span>
-                                                        <span className="text-sm text-neutral-500 ml-2">
-                                                            ({period.totalBills} tagihan)
+                                            <div key={period.period} className="space-y-2">
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <span className="font-medium text-neutral-700">{period.periodLabel}</span>
+                                                    <div className="flex items-center gap-4 text-xs">
+                                                        <span className="text-green-600">
+                                                            ✓ {period.paidCount} lunas
                                                         </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <span className={`text-sm font-medium ${rate === 100 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                                            {rate}% lunas
+                                                        <span className="text-red-600">
+                                                            ✗ {period.unpaidCount} belum
                                                         </span>
-                                                        {period.unpaidCount > 0 && (
-                                                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                                                                {period.unpaidCount} belum bayar
-                                                            </span>
-                                                        )}
+                                                        <span className="font-bold text-neutral-800 w-12 text-right">
+                                                            {rate}%
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                {/* Progress Bar */}
-                                                <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                                                {/* Stacked Bar */}
+                                                <div className="h-6 bg-neutral-100 rounded-full overflow-hidden flex">
                                                     <div
-                                                        className={`h-full rounded-full transition-all ${
-                                                            rate === 100 ? 'bg-green-500' : rate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                                                        }`}
+                                                        className="bg-gradient-to-r from-green-400 to-green-500 transition-all flex items-center justify-center"
                                                         style={{ width: `${rate}%` }}
-                                                    />
+                                                    >
+                                                        {rate >= 20 && (
+                                                            <span className="text-xs text-white font-medium">{period.paidCount}</span>
+                                                        )}
+                                                    </div>
+                                                    <div
+                                                        className="bg-gradient-to-r from-red-400 to-red-500 transition-all flex items-center justify-center"
+                                                        style={{ width: `${100 - rate}%` }}
+                                                    >
+                                                        {(100 - rate) >= 20 && (
+                                                            <span className="text-xs text-white font-medium">{period.unpaidCount}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
                                     })
                                 )}
+                            </div>
+                            {/* Legend */}
+                            <div className="px-6 py-3 bg-neutral-50 border-t border-neutral-100 flex justify-center gap-6 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-gradient-to-r from-green-400 to-green-500" />
+                                    <span className="text-neutral-600">Sudah Bayar</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-gradient-to-r from-red-400 to-red-500" />
+                                    <span className="text-neutral-600">Belum Bayar</span>
+                                </div>
                             </div>
                         </div>
 
