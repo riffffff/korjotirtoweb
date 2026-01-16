@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import * as XLSX from 'xlsx';
 import prisma from '@/lib/prisma';
 
-interface ExcelRow {
+interface ExcelCustomerRow {
     customerNumber: number;
     name: string;
     phone: string | null;
@@ -19,66 +19,76 @@ interface ExcelRow {
 
 /**
  * POST /api/import/upload
- * Import with real-time progress and full transaction (rollback on error)
+ * Import customers + bills from uploaded Excel file with progress streaming
  */
 export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
         async start(controller) {
-            const send = (data: object) => {
+            const sendProgress = (data: object) => {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
             };
 
             try {
-                // Parse form data
                 const formData = await request.formData();
                 const file = formData.get('file') as File | null;
-                const role = formData.get('role') as string;
-                const period = formData.get('period') as string;
+                const role = formData.get('role') as string | null;
+                const period = formData.get('period') as string | null;
 
                 if (role !== 'admin') {
-                    send({ type: 'error', message: 'Unauthorized' });
+                    sendProgress({ type: 'error', message: 'Unauthorized' });
                     controller.close();
                     return;
                 }
 
                 if (!file) {
-                    send({ type: 'error', message: 'File Excel harus diupload' });
+                    sendProgress({ type: 'error', message: 'File tidak ditemukan' });
                     controller.close();
                     return;
                 }
 
                 if (!period || !/^\d{4}-\d{2}$/.test(period)) {
-                    send({ type: 'error', message: 'Period harus format YYYY-MM' });
+                    sendProgress({ type: 'error', message: 'Periode tidak valid' });
                     controller.close();
                     return;
                 }
 
-                send({ type: 'status', message: 'Membaca file...', percent: 5 });
+                sendProgress({ type: 'status', message: 'Membaca file Excel...' });
 
-                // Read Excel
+                // Read file buffer
                 const arrayBuffer = await file.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const buffer = Buffer.from(arrayBuffer);
+
+                const workbook = XLSX.read(buffer, { type: 'buffer' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
                 const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
 
-                send({ type: 'status', message: 'Parsing data...', percent: 10 });
+                sendProgress({ type: 'status', message: 'Parsing data...', percent: 10 });
 
-                // Parse rows
-                const rows: ExcelRow[] = [];
+                const customers: ExcelCustomerRow[] = [];
+
                 for (let row = 8; row <= range.e.r; row++) {
-                    const getVal = (col: number) => worksheet[XLSX.utils.encode_cell({ r: row, c: col })]?.v;
-                    const no = getVal(0), nama = getVal(1);
+                    const getVal = (col: number) => {
+                        const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: col })];
+                        return cell?.v;
+                    };
+
+                    const no = getVal(0);
+                    const nama = getVal(1);
                     if (!no || !nama) continue;
 
                     const customerNumber = parseInt(String(no).replace(/^0+/, ''), 10);
                     const name = String(nama).trim();
+
                     let phone: string | null = null;
                     const phoneVal = getVal(12);
                     if (phoneVal) {
                         phone = String(phoneVal).trim();
-                        if (phone && !phone.startsWith('0') && !phone.startsWith('+')) phone = '0' + phone;
+                        if (phone && !phone.startsWith('0') && !phone.startsWith('+')) {
+                            phone = '0' + phone;
+                        }
                     }
 
                     const meterStart = Number(getVal(2)) || 0;
@@ -92,131 +102,174 @@ export async function POST(request: NextRequest) {
                     const totalAmount = Number(getVal(10)) || (beban + beayaK1 + beayaK2);
 
                     if (customerNumber && name) {
-                        rows.push({ customerNumber, name, phone, meterStart, meterEnd, usage, usageK1, usageK2, beban, beayaK1, beayaK2, totalAmount });
+                        customers.push({
+                            customerNumber, name, phone,
+                            meterStart, meterEnd, usage,
+                            usageK1, usageK2, beban, beayaK1, beayaK2, totalAmount,
+                        });
                     }
                 }
 
-                if (rows.length === 0) {
-                    send({ type: 'error', message: 'Tidak ada data valid di file' });
+                if (customers.length === 0) {
+                    sendProgress({ type: 'error', message: 'Tidak ada data valid di file Excel' });
                     controller.close();
                     return;
                 }
 
-                send({ type: 'status', message: `Ditemukan ${rows.length} data`, total: rows.length, percent: 15 });
+                sendProgress({ type: 'status', message: `Ditemukan ${customers.length} pelanggan`, percent: 15 });
 
-                // Full transaction with progress
-                let newCustomers = 0;
-                let existingCustomers = 0;
-                let current = 0;
+                // Check existing customers by name and customerNumber
+                const existingCustomers = await prisma.customer.findMany({
+                    select: { id: true, name: true, customerNumber: true },
+                });
+                const existingNames = new Set(existingCustomers.map(c => c.name));
+                const existingNumbers = new Set(existingCustomers.map(c => c.customerNumber));
 
-                await prisma.$transaction(async (tx) => {
-                    for (const row of rows) {
-                        current++;
-                        const percent = 15 + Math.round((current / rows.length) * 80);
+                const skippedNames: string[] = [];
+                const toCreate: ExcelCustomerRow[] = [];
 
-                        send({
-                            type: 'progress',
-                            current,
-                            total: rows.length,
-                            percent,
-                            name: row.name,
-                            message: `${current}/${rows.length} - ${row.name}`,
-                        });
-
-                        // Find or create customer
-                        let customer = await tx.customer.findFirst({
-                            where: { name: row.name, deletedAt: null },
-                        });
-
-                        if (customer) {
-                            existingCustomers++;
-                        } else {
-                            customer = await tx.customer.create({
-                                data: {
-                                    customerNumber: row.customerNumber,
-                                    name: row.name,
-                                    phone: row.phone,
-                                    totalBill: 0,
-                                    totalPaid: 0,
-                                    outstandingBalance: 0,
-                                },
-                            });
-                            newCustomers++;
-                        }
-
-                        // Check duplicate period
-                        const existingReading = await tx.meterReading.findFirst({
-                            where: { customerId: customer.id, period },
-                        });
-
-                        if (existingReading) {
-                            throw new Error(`Tagihan ${period} untuk "${row.name}" sudah ada`);
-                        }
-
-                        // Create meter reading
-                        const meterReading = await tx.meterReading.create({
-                            data: {
-                                customerId: customer.id,
-                                period,
-                                meterStart: row.meterStart,
-                                meterEnd: row.meterEnd,
-                                usage: row.usage,
-                            },
-                        });
-
-                        // Create bill
-                        const bill = await tx.bill.create({
-                            data: {
-                                meterReadingId: meterReading.id,
-                                totalAmount: row.totalAmount,
-                                amountPaid: 0,
-                                remaining: row.totalAmount,
-                                paymentStatus: 'unpaid',
-                            },
-                        });
-
-                        // Create bill items
-                        await tx.billItem.create({
-                            data: { billId: bill.id, type: 'beban', usage: 0, rate: row.beban, amount: row.beban },
-                        });
-                        if (row.usageK1 > 0) {
-                            await tx.billItem.create({
-                                data: { billId: bill.id, type: 'k1', usage: row.usageK1, rate: 1800, amount: row.beayaK1 },
-                            });
-                        }
-                        if (row.usageK2 > 0) {
-                            await tx.billItem.create({
-                                data: { billId: bill.id, type: 'k2', usage: row.usageK2, rate: 3000, amount: row.beayaK2 },
-                            });
-                        }
-
-                        // Update customer totals
-                        await tx.customer.update({
-                            where: { id: customer.id },
-                            data: {
-                                totalBill: { increment: row.totalAmount },
-                                outstandingBalance: { increment: row.totalAmount },
-                            },
-                        });
+                for (const customer of customers) {
+                    if (existingNames.has(customer.name) || existingNumbers.has(customer.customerNumber)) {
+                        skippedNames.push(customer.name);
+                    } else {
+                        toCreate.push(customer);
                     }
-                }, { timeout: 300000 }); // 5 minutes max
+                }
 
-                send({
-                    type: 'complete',
-                    total: rows.length,
-                    newCustomers,
-                    existingCustomers,
-                    billsCreated: rows.length,
-                    period,
-                    percent: 100,
-                    message: `Selesai! ${rows.length} tagihan berhasil diimport`,
+                if (toCreate.length === 0) {
+                    sendProgress({
+                        type: 'complete',
+                        total: customers.length,
+                        added: 0,
+                        skipped: skippedNames.length,
+                        message: 'Semua pelanggan sudah ada'
+                    });
+                    controller.close();
+                    return;
+                }
+
+                sendProgress({
+                    type: 'status',
+                    message: `${skippedNames.length} sudah ada, ${toCreate.length} akan diimport`
                 });
 
+                // period is already received from formData
+
+                let customersAdded = 0;
+                let billsCreated = 0;
+                let failed = 0;
+
+                // Process one by one for progress
+                for (let i = 0; i < toCreate.length; i++) {
+                    const customer = toCreate[i];
+                    const percent = Math.round(20 + ((i + 1) / toCreate.length) * 75);
+
+                    sendProgress({
+                        type: 'progress',
+                        current: i + 1,
+                        total: toCreate.length,
+                        percent,
+                        currentName: customer.name,
+                        message: `Mengimport ${customer.name}...`
+                    });
+
+                    try {
+                        await prisma.$transaction(async (tx) => {
+                            // Create customer
+                            const newCustomer = await tx.customer.create({
+                                data: {
+                                    customerNumber: customer.customerNumber,
+                                    name: customer.name,
+                                    phone: customer.phone,
+                                    totalBill: customer.totalAmount,
+                                    totalPaid: 0,
+                                    outstandingBalance: customer.totalAmount,
+                                },
+                            });
+
+                            // Create meter reading
+                            const meterReading = await tx.meterReading.create({
+                                data: {
+                                    customerId: newCustomer.id,
+                                    period,
+                                    meterStart: customer.meterStart,
+                                    meterEnd: customer.meterEnd,
+                                    usage: customer.usage,
+                                },
+                            });
+
+                            // Create bill
+                            const bill = await tx.bill.create({
+                                data: {
+                                    meterReadingId: meterReading.id,
+                                    totalAmount: customer.totalAmount,
+                                    amountPaid: 0,
+                                    remaining: customer.totalAmount,
+                                    paymentStatus: 'unpaid',
+                                },
+                            });
+
+                            // Create bill items
+                            const billItems: {
+                                billId: number;
+                                type: string;
+                                usage: number;
+                                rate: number;
+                                amount: number;
+                            }[] = [
+                                    {
+                                        billId: bill.id,
+                                        type: 'beban',
+                                        usage: 0,
+                                        rate: customer.beban,
+                                        amount: customer.beban,
+                                    },
+                                ];
+
+                            if (customer.usageK1 > 0) {
+                                billItems.push({
+                                    billId: bill.id,
+                                    type: 'k1',
+                                    usage: customer.usageK1,
+                                    rate: 1800,
+                                    amount: customer.beayaK1,
+                                });
+                            }
+
+                            if (customer.usageK2 > 0) {
+                                billItems.push({
+                                    billId: bill.id,
+                                    type: 'k2',
+                                    usage: customer.usageK2,
+                                    rate: 3000,
+                                    amount: customer.beayaK2,
+                                });
+                            }
+
+                            await tx.billItem.createMany({ data: billItems });
+                        });
+
+                        customersAdded++;
+                        billsCreated++;
+                    } catch (err) {
+                        console.error(`Failed to import ${customer.name}:`, err);
+                        failed++;
+                    }
+                }
+
+                sendProgress({
+                    type: 'complete',
+                    total: customers.length,
+                    added: customersAdded,
+                    skipped: skippedNames.length,
+                    failed,
+                    percent: 100,
+                    message: `Selesai! ${customersAdded} pelanggan berhasil diimport`
+                });
                 controller.close();
             } catch (error) {
-                console.error('Import error:', error);
-                const msg = error instanceof Error ? error.message : 'Unknown error';
-                send({ type: 'error', message: 'Import gagal - semua data di-rollback', detail: msg });
+                console.error('Error importing customers:', error);
+                sendProgress({ type: 'error', message: 'Gagal: ' + String(error) });
                 controller.close();
             }
         },

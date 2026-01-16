@@ -4,11 +4,11 @@ import prisma from '@/lib/prisma';
 /**
  * GET /api/customers
  * List all customers with their outstanding balance
+ * Fast query - penalty calculation done in frontend for list view
  */
 export async function GET() {
     try {
         const customers = await prisma.customer.findMany({
-            where: { deletedAt: null },
             orderBy: { customerNumber: 'asc' },
             select: {
                 id: true,
@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { name, customerNumber, phone, role } = body;
 
-        // Check admin role
         if (role !== 'admin') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
@@ -63,7 +62,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate required fields
         if (!name || !customerNumber) {
             return NextResponse.json(
                 { success: false, error: 'Nama dan nomor pelanggan wajib diisi' },
@@ -71,7 +69,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if customer number already exists
         const existing = await prisma.customer.findUnique({
             where: { customerNumber: parseInt(customerNumber) },
         });

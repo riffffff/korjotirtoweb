@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
                 sendProgress({ type: 'status', message: `Ditemukan ${customers.length} pelanggan`, percent: 15 });
 
                 // Check existing
-                const existing = await prisma.customer.findMany({ where: { deletedAt: null }, select: { name: true } });
+                const existing = await prisma.customer.findMany({ select: { name: true } });
                 const existingNames = new Set(existing.map(c => c.name));
                 const toCreate = customers.filter(c => !existingNames.has(c.name));
                 const skipped = customers.length - toCreate.length;
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
                 // Get created customer IDs
                 sendProgress({ type: 'status', message: 'Mengambil ID pelanggan...', percent: 40 });
                 const createdCustomers = await prisma.customer.findMany({
-                    where: { name: { in: toCreate.map(c => c.name) }, deletedAt: null },
+                    where: { name: { in: toCreate.map(c => c.name) } },
                     select: { id: true, name: true },
                 });
                 const customerIdMap = new Map(createdCustomers.map(c => [c.name, c.id]));

@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
 
         // Check existing customers
         const existingCustomers = await prisma.customer.findMany({
-            where: { deletedAt: null },
             select: { id: true, name: true },
         });
         const existingNames = new Map(existingCustomers.map(c => [c.name, c.id]));

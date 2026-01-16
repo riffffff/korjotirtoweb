@@ -7,8 +7,6 @@ import { customerService } from '@/services/customerService';
 import { generateBillMessage, sendWhatsAppViaFonnte } from '@/lib/whatsapp';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
-import Modal from '@/components/ui/Modal';
-import CustomerForm from '@/components/CustomerForm';
 import { formatCurrency } from '@/lib/formatCurrency';
 
 export default function HomePage() {
@@ -17,7 +15,7 @@ export default function HomePage() {
   const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [sendingWA, setSendingWA] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
 
   // Filter customers by search term
   const filteredCustomers = customers.filter((customer) =>
@@ -81,21 +79,6 @@ export default function HomePage() {
     setTimeout(() => setBroadcastResult(null), 5000);
   };
 
-  // Handle create customer
-  const handleCreateCustomer = async (data: { name: string; customerNumber: string; phone: string }) => {
-    try {
-      const result = await customerService.create(data);
-      if (result.success) {
-        setShowAddModal(false);
-        refetch();
-      } else {
-        alert(result.error || 'Gagal menambah pelanggan');
-      }
-    } catch (error) {
-      console.error('Failed to create customer:', error);
-      alert('Gagal menambah pelanggan');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -117,15 +100,42 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </button>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
-                title="Tambah Pelanggan"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowAddMenu(!showAddMenu)}
+                  className="p-2 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 transition-colors"
+                  title="Tambah"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+                {/* Dropdown Menu */}
+                {showAddMenu && (
+                  <div className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-lg border border-neutral-200 py-2 z-20">
+                    <button
+                      onClick={() => {
+                        setShowAddMenu(false);
+                        router.push('/admin/customer/new');
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-neutral-50 flex items-center gap-3 text-neutral-700"
+                    >
+                      <span className="text-lg">👤</span>
+                      <span className="font-medium">Tambah Pelanggan</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowAddMenu(false);
+                        router.push('/admin/import');
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-neutral-50 flex items-center gap-3 text-neutral-700"
+                    >
+                      <span className="text-lg">📥</span>
+                      <span className="font-medium">Import Tagihan Bulanan</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -155,22 +165,6 @@ export default function HomePage() {
             />
           </svg>
         </div>
-
-        {/* Stats Summary */}
-        {!loading && !error && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-xl p-4 border border-neutral-200">
-              <p className="text-xs text-neutral-400">Total Pelanggan</p>
-              <p className="text-2xl font-bold text-neutral-800">{customers.length}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-neutral-200">
-              <p className="text-xs text-neutral-400">Ada Tagihan</p>
-              <p className="text-2xl font-bold text-red-600">
-                {customers.filter((c) => c.outstandingBalance > 0).length}
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Broadcast WA Button - Admin only */}
         {isAdmin && !loading && !error && customersWithUnpaid.length > 0 && (
@@ -222,13 +216,13 @@ export default function HomePage() {
                 <div
                   key={customer.id}
                   onClick={() => router.push(`/customers/${customer.id}`)}
-                  className="bg-white rounded-xl border border-neutral-200 p-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                  className="bg-white rounded-xl p-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <div className="flex items-center justify-between">
                     {/* Left: Number & Name */}
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-blue-600 font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                        <span className="text-neutral-600 font-bold text-sm">
                           {customer.customerNumber}
                         </span>
                       </div>
@@ -263,18 +257,6 @@ export default function HomePage() {
           </div>
         )}
       </main>
-
-      {/* Add Customer Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Tambah Pelanggan"
-      >
-        <CustomerForm
-          onSubmit={handleCreateCustomer}
-          onCancel={() => setShowAddModal(false)}
-        />
-      </Modal>
     </div>
   );
 }

@@ -63,7 +63,7 @@
    ============================================= */
 
 body {
-  background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-secondary-50) 100%);
+  background: var(--color-neutral-50);
   min-height: 100vh;
 }
 
