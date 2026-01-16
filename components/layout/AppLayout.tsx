@@ -16,18 +16,21 @@ export const useSidebar = () => useContext(SidebarContext);
 
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
+// Read initial state from data attribute (set by inline script before hydration)
+function getInitialCollapsed(): boolean {
+    if (typeof document !== 'undefined') {
+        const attr = document.documentElement.getAttribute('data-sidebar-collapsed');
+        return attr !== 'false';
+    }
+    return true;
+}
+
 interface AppLayoutProps {
     children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-    // Read initial from data attribute (set by inline script)
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        if (typeof document !== 'undefined') {
-            return document.documentElement.getAttribute('data-sidebar-collapsed') !== 'false';
-        }
-        return true;
-    });
+    const [isCollapsed, setIsCollapsed] = useState(getInitialCollapsed);
 
     const toggleSidebar = () => {
         const newValue = !isCollapsed;
@@ -36,22 +39,21 @@ export default function AppLayout({ children }: AppLayoutProps) {
         document.documentElement.setAttribute('data-sidebar-collapsed', String(newValue));
     };
 
-    // Sync on mount for SSR
+    // Sync with localStorage on mount (for SSR)
     useEffect(() => {
-        const attr = document.documentElement.getAttribute('data-sidebar-collapsed');
-        const collapsed = attr !== 'false';
-        setIsCollapsed(collapsed);
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+        if (saved !== null) {
+            const collapsed = saved === 'true';
+            setIsCollapsed(collapsed);
+            document.documentElement.setAttribute('data-sidebar-collapsed', String(collapsed));
+        }
     }, []);
 
     return (
         <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>
             <div className="min-h-screen bg-neutral-50">
                 <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
-                {/* Use CSS variable for padding to prevent flash */}
-                <div className="hidden md:block main-padding transition-[padding] duration-300">
-                    <div className="md:hidden" />
-                </div>
-                <div className="md:main-padding transition-[padding] duration-300">
+                <div className={`transition-all duration-300 ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
                     {children}
                 </div>
             </div>
