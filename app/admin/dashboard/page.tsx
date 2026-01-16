@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import AppLayout from '@/components/layout/AppLayout';
 import LoadingState from '@/components/state/LoadingState';
 import BackButton from '@/components/BackButton';
 
@@ -51,16 +52,16 @@ export default function AdminDashboard() {
     if (!isAdmin) return null;
 
     return (
-        <div className="min-h-screen bg-neutral-50">
+        <AppLayout>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg mx-auto px-4 py-4">
+                <div className="max-w-lg md:max-w-none mx-auto px-4 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Dashboard Admin</h1>
                     <p className="text-sm text-neutral-500">Ringkasan data pelanggan</p>
                 </div>
             </header>
 
-            <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
-                <BackButton href="/" />
+            <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+                <BackButton href="/" className="md:hidden" />
 
                 {loading && <LoadingState message="Memuat dashboard..." />}
 
@@ -106,6 +107,6 @@ export default function AdminDashboard() {
                     </>
                 )}
             </main>
-        </div>
+        </AppLayout>
     );
 }

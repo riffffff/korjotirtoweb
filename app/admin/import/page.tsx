@@ -2,7 +2,9 @@
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { clearCustomerCaches } from '@/hooks/useCustomer';
 import { customerService } from '@/services/customerService';
+import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
@@ -120,6 +122,7 @@ export default function ImportPage() {
                             const data = JSON.parse(line.slice(6)) as ImportProgress;
                             setProgress(data);
                             if (data.type === 'complete') {
+                                clearCustomerCaches();
                                 setCompleted(true);
                                 setSelectedFile(null);
                             } else if (data.type === 'error') {
@@ -152,6 +155,7 @@ export default function ImportPage() {
         try {
             const response = await customerService.clearAll();
             if (response.success) {
+                clearCustomerCaches();
                 setClearSuccess(true);
             } else {
                 setError(response.error || 'Gagal menghapus data');
@@ -180,16 +184,16 @@ export default function ImportPage() {
     }
 
     return (
-        <div className="min-h-screen bg-neutral-50">
+        <AppLayout>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg mx-auto px-4 py-4">
+                <div className="max-w-lg md:max-w-none mx-auto px-4 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Import Tagihan</h1>
                     <p className="text-sm text-neutral-500">Import tagihan bulanan dari Excel</p>
                 </div>
             </header>
 
-            <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
-                <BackButton href="/" />
+            <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+                <BackButton href="/" className="md:hidden" />
 
                 {/* Period Selector */}
                 <div className="bg-white rounded-xl p-4">
@@ -368,6 +372,6 @@ export default function ImportPage() {
                     </div>
                 )}
             </main>
-        </div>
+        </AppLayout>
     );
 }

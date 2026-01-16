@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { customerService } from '@/services/customerService';
+import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
@@ -14,7 +14,6 @@ export default function CreateBillsPage() {
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-    // Set default period to current month
     useEffect(() => {
         const now = new Date();
         const year = now.getFullYear();
@@ -68,7 +67,6 @@ export default function CreateBillsPage() {
         }
     };
 
-    // Show loading while auth is being checked
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) {
         router.push('/');
@@ -76,17 +74,16 @@ export default function CreateBillsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-neutral-50">
-            {/* Header */}
+        <AppLayout>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg mx-auto px-4 py-4">
+                <div className="max-w-lg md:max-w-none mx-auto px-4 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Tambah Tagihan per Periode</h1>
                     <p className="text-sm text-neutral-500">Buat tagihan untuk semua pelanggan</p>
                 </div>
             </header>
 
-            <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
-                <BackButton href="/admin/dashboard" />
+            <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+                <BackButton href="/admin/dashboard" className="md:hidden" />
 
                 <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">
                     <div>
@@ -102,7 +99,7 @@ export default function CreateBillsPage() {
                     </div>
 
                     <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                        <h3 className="font-semibold text-blue-800 mb-2">ℹ️ Informasi</h3>
+                        <h3 className="font-semibold text-blue-800 mb-2">Informasi</h3>
                         <ul className="text-sm text-blue-700 space-y-1">
                             <li>• Tagihan akan dibuat untuk semua pelanggan aktif</li>
                             <li>• Pelanggan yang sudah memiliki tagihan di periode ini akan dilewati</li>
@@ -124,15 +121,14 @@ export default function CreateBillsPage() {
                         loading={submitting}
                         className="w-full"
                     >
-                        📄 Buat Tagihan untuk {period ? formatPeriod(period) : '...'}
+                        Buat Tagihan untuk {period ? formatPeriod(period) : '...'}
                     </Button>
                 </div>
             </main>
-        </div>
+        </AppLayout>
     );
 }
 
-// Helper to format period "2026-01" to "Januari 2026"
 function formatPeriod(period: string): string {
     const [year, month] = period.split('-');
     const months = [
