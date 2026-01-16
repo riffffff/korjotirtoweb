@@ -63,19 +63,23 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
     const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
+    const handleNavigation = (href: string) => {
+        router.push(href);
+    };
+
     return (
         <aside className={`hidden md:flex md:flex-col md:fixed md:inset-y-0 bg-neutral-800 text-white transition-all duration-300 ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}>
             {/* Logo & Toggle */}
-            <div className="px-4 py-4 border-b border-neutral-700 flex items-center justify-between">
+            <div className="px-3 py-4 border-b border-neutral-700 flex items-center justify-between min-h-[60px]">
                 {!isCollapsed && (
-                    <div className="px-2">
-                        <h1 className="text-lg font-bold">Korjo Tirto</h1>
-                        <p className="text-xs text-neutral-400">Sistem Pembayaran Air</p>
+                    <div className="px-1 overflow-hidden">
+                        <h1 className="text-lg font-bold whitespace-nowrap">Korjo Tirto</h1>
+                        <p className="text-xs text-neutral-400 whitespace-nowrap">Sistem Pembayaran Air</p>
                     </div>
                 )}
                 <button
                     onClick={onToggle}
-                    className="p-2 rounded-lg hover:bg-neutral-700 transition-colors"
+                    className="p-2 rounded-lg hover:bg-neutral-700 transition-colors flex-shrink-0"
                     title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +99,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     return (
                         <button
                             key={item.href}
-                            onClick={() => router.push(item.href)}
+                            onClick={() => handleNavigation(item.href)}
                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
                                 isActive
                                     ? 'bg-blue-600 text-white'
@@ -103,8 +107,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                             } ${isCollapsed ? 'justify-center' : ''}`}
                             title={isCollapsed ? item.label : undefined}
                         >
-                            {item.icon}
-                            {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                            <span className="flex-shrink-0">{item.icon}</span>
+                            {!isCollapsed && <span className="font-medium whitespace-nowrap">{item.label}</span>}
                         </button>
                     );
                 })}

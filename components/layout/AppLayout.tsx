@@ -1,5 +1,5 @@
 'use client';
-import { useState, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import Sidebar from './Sidebar';
 
 interface SidebarContextType {
@@ -8,29 +8,47 @@ interface SidebarContextType {
 }
 
 const SidebarContext = createContext<SidebarContextType>({
-    isCollapsed: false,
+    isCollapsed: true,
     toggleSidebar: () => {},
 });
 
 export const useSidebar = () => useContext(SidebarContext);
+
+// Key for localStorage
+const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed';
 
 interface AppLayoutProps {
     children: React.ReactNode;
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // Default collapsed, hydrated from localStorage
+    const [isCollapsed, setIsCollapsed] = useState(true);
+    const [isHydrated, setIsHydrated] = useState(false);
 
-    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+    // Hydrate from localStorage on mount
+    useEffect(() => {
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+        if (saved !== null) {
+            setIsCollapsed(saved === 'true');
+        }
+        setIsHydrated(true);
+    }, []);
+
+    const toggleSidebar = () => {
+        const newValue = !isCollapsed;
+        setIsCollapsed(newValue);
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newValue));
+    };
 
     return (
         <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>
             <div className="min-h-screen bg-neutral-50">
-                {/* Sidebar - visible on md+ */}
+                {/* Sidebar - visible on md+, no transition until hydrated to prevent flash */}
                 <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
 
                 {/* Main content - shifts right on md+ to accommodate sidebar */}
-                <div className={`transition-all duration-300 ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
+                <div className={`${isHydrated ? 'transition-all duration-300' : ''} ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
                     {children}
                 </div>
             </div>
