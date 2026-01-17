@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettings } from '@/hooks/useSettings';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
@@ -23,28 +24,9 @@ const settingItems: SettingItem[] = [
 export default function SettingsPage() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
-    const [loading, setLoading] = useState(true);
+    const { settings, loading, updateSettings, updateCache } = useSettings();
     const [saving, setSaving] = useState(false);
-    const [settings, setSettings] = useState<Record<string, string>>({});
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-    useEffect(() => {
-        fetchSettings();
-    }, []);
-
-    const fetchSettings = async () => {
-        try {
-            const res = await fetch('/api/settings');
-            const data = await res.json();
-            if (data.success) {
-                setSettings(data.data || {});
-            }
-        } catch (error) {
-            console.error('Failed to fetch settings:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleSave = async () => {
         setSaving(true);
@@ -60,6 +42,8 @@ export default function SettingsPage() {
             });
             const data = await res.json();
             if (data.success) {
+                // Update cache with new settings
+                updateCache(settings);
                 setMessage({ type: 'success', text: 'Pengaturan berhasil disimpan!' });
             } else {
                 setMessage({ type: 'error', text: data.error || 'Gagal menyimpan' });
@@ -73,7 +57,7 @@ export default function SettingsPage() {
     };
 
     const handleChange = (key: string, value: string) => {
-        setSettings(prev => ({ ...prev, [key]: value }));
+        updateSettings(key, value);
     };
 
     const formatCurrency = (value: string) => {

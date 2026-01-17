@@ -17,12 +17,11 @@ export async function GET() {
         });
         const totalRevenue = Number(revenueResult._sum.amount || 0);
 
-        // Get total outstanding (sum of remaining from unpaid bills)
-        const outstandingResult = await prisma.bill.aggregate({
-            where: { paymentStatus: { not: 'paid' } },
-            _sum: { remaining: true, penalty: true }
+        // Get total customer balance (saldo yang tersimpan di sistem dari semua pelanggan)
+        const balanceResult = await prisma.customer.aggregate({
+            _sum: { balance: true }
         });
-        const totalOutstanding = Number(outstandingResult._sum.remaining || 0) + Number(outstandingResult._sum.penalty || 0);
+        const totalCustomerBalance = Number(balanceResult._sum.balance || 0);
 
         // Get all unique periods with bills
         const periods = await prisma.meterReading.findMany({
@@ -75,7 +74,7 @@ export async function GET() {
             data: {
                 totalCustomers,
                 totalRevenue,
-                totalOutstanding,
+                totalOutstanding: totalCustomerBalance,
                 periods: periodStats,
             },
         }, {

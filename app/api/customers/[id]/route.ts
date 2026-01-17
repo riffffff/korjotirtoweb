@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 phone: true,
                 totalBill: true,
                 totalPaid: true,
-                outstandingBalance: true,
+                balance: true,
                 lastNotifiedAt: true,
                 payments: {
                     orderBy: {
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                     phone: customer.phone,
                     totalBill: totalBillWithPenalty,
                     totalPaid: totalPaid,
-                    outstandingBalance: outstandingWithPenalty,
+                    balance: outstandingWithPenalty,
                     lastNotifiedAt: customer.lastNotifiedAt,
                 },
                 bills: formattedBills,

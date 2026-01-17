@@ -8,7 +8,7 @@ export interface CustomerListItem {
     phone: string | null;
     totalBill: number;
     totalPaid: number;
-    outstandingBalance: number;
+    balance: number;
     lastNotifiedAt: string | null;
 }
 
@@ -84,10 +84,10 @@ export const customerService = {
         return res.data;
     },
 
-    // PATCH /customers/:id/pay - Pay customer (FIFO)
-    pay: async (id: number, amount: number) => {
+    // PATCH /customers/:id/pay - Pay customer (FIFO) with optional balance saving
+    pay: async (id: number, amount: number, saveToBalance: number = 0) => {
         const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
-        const res = await api.patch(`/customers/${id}/pay`, { amount, role });
+        const res = await api.patch(`/customers/${id}/pay`, { amount, role, saveToBalance });
         return res.data;
     },
 

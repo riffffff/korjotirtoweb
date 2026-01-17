@@ -17,7 +17,7 @@ export async function GET() {
                 phone: true,
                 totalBill: true,
                 totalPaid: true,
-                outstandingBalance: true,
+                balance: true,
                 lastNotifiedAt: true,
             },
         });
@@ -29,7 +29,7 @@ export async function GET() {
             phone: customer.phone,
             totalBill: Number(customer.totalBill),
             totalPaid: Number(customer.totalPaid),
-            outstandingBalance: Number(customer.outstandingBalance),
+            balance: Number(customer.balance),
             lastNotifiedAt: customer.lastNotifiedAt,
         }));
 

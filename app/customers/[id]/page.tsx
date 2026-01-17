@@ -41,10 +41,10 @@ export default function CustomerDetailPage() {
     const [newBillMeterEnd, setNewBillMeterEnd] = useState('');
     const [addingBill, setAddingBill] = useState(false);
 
-    const handlePayment = async (amount: number) => {
+    const handlePayment = async (amount: number, saveToBalance: number = 0) => {
         if (!customerId) return;
         try {
-            await customerService.pay(customerId, amount);
+            await customerService.pay(customerId, amount, saveToBalance);
             clearCustomerCaches();
             refetch();
         } catch (err) {
@@ -276,13 +276,13 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Outstanding Balance Card */}
-                <div className={`rounded-xl p-4 ${customer.outstandingBalance > 0
+                <div className={`rounded-xl p-4 ${customer.balance > 0
                     ? 'bg-gradient-to-r from-orange-500 to-red-500'
                     : 'bg-gradient-to-r from-green-500 to-emerald-500'
                     }`}>
                     <p className="text-white/80 text-sm font-medium">Total Tagihan</p>
                     <p className="text-white text-3xl font-bold">
-                        {formatCurrency(customer.outstandingBalance)}
+                        {formatCurrency(customer.balance)}
                     </p>
 
                     {/* Breakdown per bulan */}
@@ -334,15 +334,15 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Payment Section - Admin only */}
-                {isAdmin && customer.outstandingBalance > 0 && (
+                {isAdmin && customer.balance > 0 && (
                     <PaymentSection
-                        totalAmount={customer.outstandingBalance}
+                        totalAmount={customer.balance}
                         onPay={handlePayment}
                     />
                 )}
 
                 {/* All Paid */}
-                {customer.outstandingBalance === 0 && (
+                {customer.balance === 0 && (
                     <div className="py-4 bg-green-50 rounded-xl text-center border border-green-200">
                         <p className="text-green-600 font-semibold text-lg">✓ LUNAS SEMUA</p>
                         <p className="text-green-500 text-sm">Tidak ada tagihan</p>

@@ -164,7 +164,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 where: { id: customerId },
                 data: {
                     totalBill: { increment: totalAmount },
-                    outstandingBalance: { increment: totalAmount },
+                    balance: { increment: totalAmount },
                 },
             });
 

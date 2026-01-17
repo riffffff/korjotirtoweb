@@ -29,7 +29,7 @@ export interface CustomerSimple {
     phone?: string;
     totalBill?: number;
     totalPaid?: number;
-    outstandingBalance?: number;
+    balance?: number;
 }
 
 export interface BillItem {
@@ -84,7 +84,7 @@ export interface Customer {
     id: number;
     name: string;
     customerNumber: number;
-    outstandingBalance: number;
+    balance: number;
     createdAt?: string;
     updatedAt?: string;
 }

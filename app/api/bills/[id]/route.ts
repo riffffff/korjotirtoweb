@@ -80,7 +80,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
                 (sum, b) => sum + Number(b.amountPaid),
                 0
             );
-            const outstandingBalance = totalBill - totalPaid;
+            const balance = totalBill - totalPaid;
 
             // Update customer totals
             await tx.customer.update({
@@ -88,7 +88,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
                 data: {
                     totalBill: totalBill,
                     totalPaid: totalPaid,
-                    outstandingBalance: outstandingBalance,
+                    balance: balance,
                 },
             });
         });

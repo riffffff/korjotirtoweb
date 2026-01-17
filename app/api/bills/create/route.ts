@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
                     where: { id: customer.id },
                     data: {
                         totalBill: { increment: totalAmount },
-                        outstandingBalance: { increment: totalAmount },
+                        balance: { increment: totalAmount },
                     },
                 });
 

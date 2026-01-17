@@ -22,13 +22,14 @@ type RouteParams = {
  * PATCH /api/customers/:id/pay
  * Process payment for a customer using FIFO allocation
  * Allocates payment to oldest unpaid bills first
+ * Optionally saves part of change to customer balance
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
         const customerId = parseInt(id, 10);
         const body = await request.json();
-        const { amount, role } = body;
+        const { amount, role, saveToBalance = 0 } = body;
 
         // Validate admin role
         if (role !== 'admin') {
@@ -42,6 +43,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         if (typeof amount !== 'number' || amount <= 0) {
             return NextResponse.json(
                 { success: false, error: 'Invalid payment amount' },
+                { status: 400 }
+            );
+        }
+
+        // Validate saveToBalance
+        if (typeof saveToBalance !== 'number' || saveToBalance < 0) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid saveToBalance amount' },
                 { status: 400 }
             );
         }
@@ -120,15 +129,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             remainingPayment -= paymentForThisBill;
         }
 
+        // Calculate change (if payment exceeds total outstanding)
+        const change = remainingPayment > 0 ? remainingPayment : 0;
+
+        // Validate that saveToBalance doesn't exceed change
+        if (saveToBalance > change) {
+            return NextResponse.json(
+                { success: false, error: `Simpan ke saldo tidak boleh melebihi kembalian (Rp ${change.toLocaleString()})` },
+                { status: 400 }
+            );
+        }
+
+        // Calculate cash change (change minus what's saved to balance)
+        const cashChange = change - saveToBalance;
+
         // Update customer totals
         const newTotalPaid = Number(customer.totalPaid) + amount;
-        const newOutstanding = Number(customer.totalBill) - newTotalPaid;
+        // balance is CREDIT/SALDO (positive = customer has credit stored)
+        // Add saveToBalance to existing balance
+        const newBalance = Number(customer.balance) + saveToBalance;
 
         const updatedCustomer = await prisma.customer.update({
             where: { id: customerId },
             data: {
                 totalPaid: newTotalPaid,
-                outstandingBalance: Math.max(0, newOutstanding),
+                balance: newBalance,
             },
         });
 
@@ -139,7 +164,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             .join(', ');
 
         let description = paidPeriods ? `Lunas: ${paidPeriods}` : 'Pembayaran';
-
+        if (saveToBalance > 0) {
+            description += ` | +Rp ${saveToBalance.toLocaleString()} ke saldo`;
+        }
 
         // Create Payment Record
         await prisma.payment.create({
@@ -150,9 +177,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             }
         });
 
-        // Calculate change (if payment exceeds total outstanding)
-        const change = remainingPayment > 0 ? remainingPayment : 0;
-
         return NextResponse.json({
             success: true,
             data: {
@@ -161,20 +185,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
                     name: updatedCustomer.name,
                     totalBill: Number(updatedCustomer.totalBill),
                     totalPaid: Number(updatedCustomer.totalPaid),
-                    outstandingBalance: Number(updatedCustomer.outstandingBalance),
+                    balance: Number(updatedCustomer.balance),
                 },
                 payment: {
                     amount: amount,
                     allocated: amount - change,
                     change: change,
+                    savedToBalance: saveToBalance,
+                    cashChange: cashChange,
                 },
                 billsUpdated: updatedBills,
             },
-            message: change > 0
-                ? `Payment complete! Change: Rp ${change.toLocaleString()}`
-                : updatedBills.some(b => b.status === 'paid')
-                    ? `Payment processed. ${updatedBills.filter(b => b.status === 'paid').length} bill(s) paid.`
-                    : 'Partial payment recorded.',
+            message: saveToBalance > 0
+                ? `Pembayaran berhasil! Kembalian cash: Rp ${cashChange.toLocaleString()}, Simpan ke saldo: Rp ${saveToBalance.toLocaleString()}`
+                : change > 0
+                    ? `Pembayaran berhasil! Kembalian: Rp ${change.toLocaleString()}`
+                    : updatedBills.some(b => b.status === 'paid')
+                        ? `${updatedBills.filter(b => b.status === 'paid').length} tagihan lunas.`
+                        : 'Pembayaran sebagian tercatat.',
         });
     } catch (error) {
         console.error('Error processing payment:', error);
