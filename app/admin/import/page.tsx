@@ -43,6 +43,15 @@ export default function ImportPage() {
     // Password confirmation states
     const [showImportConfirm, setShowImportConfirm] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
+    const [showDeletePeriodConfirm, setShowDeletePeriodConfirm] = useState(false);
+
+    // Delete by period states
+    const [deletingPeriod, setDeletingPeriod] = useState(false);
+    const [deletePeriodValue, setDeletePeriodValue] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [deletePeriodSuccess, setDeletePeriodSuccess] = useState<string | null>(null);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -189,7 +198,33 @@ export default function ImportPage() {
         return `${months[parseInt(month) - 1]} ${year}`;
     };
 
-    const isProcessing = importing || clearing;
+    const handleDeletePeriodClick = () => {
+        setShowDeletePeriodConfirm(true);
+    };
+
+    const handleDeletePeriodConfirmed = async () => {
+        setShowDeletePeriodConfirm(false);
+        setDeletingPeriod(true);
+        setError(null);
+        setDeletePeriodSuccess(null);
+
+        try {
+            const response = await customerService.deleteBillsByPeriod(deletePeriodValue);
+            if (response.success) {
+                clearCustomerCaches();
+                setDeletePeriodSuccess(`Berhasil menghapus ${response.count} tagihan periode ${formatPeriod(deletePeriodValue)}`);
+            } else {
+                setError(response.error || 'Gagal menghapus tagihan periode');
+            }
+        } catch (err) {
+            console.error('Delete period failed:', err);
+            setError('Gagal menghapus tagihan. Cek console untuk detail.');
+        } finally {
+            setDeletingPeriod(false);
+        }
+    };
+
+    const isProcessing = importing || clearing || deletingPeriod;
 
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) {
@@ -328,17 +363,57 @@ export default function ImportPage() {
                     >
                         {importing ? 'Mengimport...' : 'Import Data'}
                     </Button>
-
-                    <Button
-                        onClick={handleClearClick}
-                        loading={clearing}
-                        variant="danger"
-                        className="w-full"
-                        disabled={isProcessing}
-                    >
-                        {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
-                    </Button>
                 </div>
+
+                {/* Separator */}
+                <div className="border-t border-neutral-200 pt-4">
+                    <h3 className="font-semibold text-neutral-700 mb-3">Hapus Data</h3>
+
+                    {/* Delete by Period */}
+                    <div className="bg-orange-50 rounded-xl p-4 space-y-3 mb-3">
+                        <div>
+                            <label className="block text-sm font-medium text-orange-700 mb-2">Hapus Tagihan Periode</label>
+                            <p className="text-xs text-orange-600 mb-2">Menghapus tagihan periode tertentu (pelanggan tetap ada)</p>
+                            <input
+                                type="month"
+                                value={deletePeriodValue}
+                                onChange={(e) => setDeletePeriodValue(e.target.value)}
+                                className="w-full px-4 py-3 bg-white rounded-xl border border-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            />
+                        </div>
+                        <Button
+                            onClick={handleDeletePeriodClick}
+                            loading={deletingPeriod}
+                            variant="danger"
+                            className="w-full"
+                            disabled={isProcessing}
+                        >
+                            {deletingPeriod ? 'Menghapus...' : `Hapus Tagihan ${formatPeriod(deletePeriodValue)}`}
+                        </Button>
+                    </div>
+
+                    {/* Delete All Data */}
+                    <div className="bg-red-50 rounded-xl p-4">
+                        <p className="text-sm font-medium text-red-700 mb-2">Hapus Semua Data</p>
+                        <p className="text-xs text-red-600 mb-3">Menghapus SEMUA pelanggan, tagihan, dan pembayaran</p>
+                        <Button
+                            onClick={handleClearClick}
+                            loading={clearing}
+                            variant="danger"
+                            className="w-full"
+                            disabled={isProcessing}
+                        >
+                            {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Delete Period Success */}
+                {deletePeriodSuccess && (
+                    <div className="bg-green-50 rounded-xl p-4">
+                        <p className="text-green-700 font-medium">{deletePeriodSuccess}</p>
+                    </div>
+                )}
 
                 {/* Clear Success */}
                 {clearSuccess && (
@@ -410,6 +485,16 @@ export default function ImportPage() {
                 description="PERINGATAN! Semua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN. Masukkan password admin untuk melanjutkan."
                 confirmText="Hapus Semua"
                 loading={clearing}
+            />
+
+            <PasswordConfirm
+                isOpen={showDeletePeriodConfirm}
+                onClose={() => setShowDeletePeriodConfirm(false)}
+                onConfirm={handleDeletePeriodConfirmed}
+                title="Konfirmasi Hapus Tagihan Periode"
+                description={`Tagihan periode ${formatPeriod(deletePeriodValue)} akan dihapus. Pelanggan tetap ada. Masukkan password admin untuk melanjutkan.`}
+                confirmText="Hapus Periode"
+                loading={deletingPeriod}
             />
         </AppLayout>
     );
