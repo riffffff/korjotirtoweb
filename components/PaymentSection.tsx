@@ -72,8 +72,15 @@ export default function PaymentSection({
     const quickSaveAmounts = [100, 200, 300, 500, 1000].filter(amt => amt <= change);
 
     return (
-        <div className="border border-neutral-200 rounded-lg p-3 space-y-3">
-            <p className="text-xs font-medium text-neutral-400">Pembayaran</p>
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 space-y-4 shadow-sm">
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <p className="text-sm font-semibold text-blue-700">Pembayaran</p>
+            </div>
 
             {/* Input */}
             <div>
