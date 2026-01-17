@@ -302,12 +302,12 @@ export default function CustomerDetailPage() {
                 </div>
                 )}
 
-                {/* Customer Balance/Deposit Card - Show when customer has saved balance (overpaid) */}
-                {customer.totalPaid > customer.totalBill && (
+                {/* Customer Balance/Deposit Card - Show when customer has saved balance */}
+                {customer.balance > 0 && (
                     <div className="rounded-xl p-4 bg-gradient-to-r from-blue-500 to-cyan-500">
                         <p className="text-white/80 text-sm font-medium">Saldo Simpanan</p>
                         <p className="text-white text-3xl font-bold">
-                            {formatCurrency(customer.totalPaid - customer.totalBill)}
+                            {formatCurrency(customer.balance)}
                         </p>
                         <p className="text-white/70 text-xs mt-1">
                             Dapat digunakan untuk pembayaran selanjutnya
@@ -348,7 +348,7 @@ export default function CustomerDetailPage() {
                 {isAdmin && (customer.totalBill - customer.totalPaid) > 0 && (
                     <PaymentSection
                         totalAmount={customer.totalBill - customer.totalPaid}
-                        customerBalance={Math.max(0, customer.totalPaid - customer.totalBill)}
+                        customerBalance={customer.balance}
                         onPay={handlePayment}
                     />
                 )}

@@ -94,14 +94,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
                     (sum, b) => sum + Number(b.amountPaid),
                     0
                 );
-                const balance = totalBill - totalPaid;
+                // Do NOT recalculate balance - it's for saveToBalance deposits only
 
                 await tx.customer.update({
                     where: { id: customerId },
                     data: {
                         totalBill: totalBill,
                         totalPaid: totalPaid,
-                        balance: balance,
                     },
                 });
             }
