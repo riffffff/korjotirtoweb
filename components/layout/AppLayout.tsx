@@ -22,23 +22,24 @@ interface SidebarProviderProps {
 
 // This component should be placed in root layout.tsx so sidebar doesn't remount
 export function SidebarProvider({ children }: SidebarProviderProps) {
-    const [isCollapsed, setIsCollapsed] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-            return saved === null ? true : saved === 'true';
-        }
-        return true;
-    });
-    
-    const isInitialMount = useRef(true);
+    const [isCollapsed, setIsCollapsed] = useState(true);
+    const [isHydrated, setIsHydrated] = useState(false);
 
+    // Read from localStorage after hydration
     useEffect(() => {
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-            return;
+        const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+        if (saved !== null) {
+            setIsCollapsed(saved === 'true');
         }
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
-    }, [isCollapsed]);
+        setIsHydrated(true);
+    }, []);
+    
+    // Save to localStorage when changed (after hydration)
+    useEffect(() => {
+        if (isHydrated) {
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+        }
+    }, [isCollapsed, isHydrated]);
 
     const toggleSidebar = () => {
         setIsCollapsed(prev => !prev);
