@@ -20,6 +20,12 @@ interface ExcelCustomerRow {
 /**
  * POST /api/import/upload
  * Import customers + bills from uploaded Excel file with progress streaming
+ * 
+ * Logic:
+ * - Match Excel names to existing customers (case-insensitive)
+ * - If customer exists AND already has bill for this period → skip
+ * - If customer exists BUT no bill for this period → add bill
+ * - If customer doesn't exist → create new customer + bill
  */
 export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
@@ -67,7 +73,7 @@ export async function POST(request: NextRequest) {
 
                 sendProgress({ type: 'status', message: 'Parsing data...', percent: 10 });
 
-                const customers: ExcelCustomerRow[] = [];
+                const excelRows: ExcelCustomerRow[] = [];
 
                 for (let row = 8; row <= range.e.r; row++) {
                     const getVal = (col: number) => {
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
                     const totalAmount = Number(getVal(10)) || (beban + beayaK1 + beayaK2);
 
                     if (customerNumber && name) {
-                        customers.push({
+                        excelRows.push({
                             customerNumber, name, phone,
                             meterStart, meterEnd, usage,
                             usageK1, usageK2, beban, beayaK1, beayaK2, totalAmount,
@@ -110,161 +116,224 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                if (customers.length === 0) {
+                if (excelRows.length === 0) {
                     sendProgress({ type: 'error', message: 'Tidak ada data valid di file Excel' });
                     controller.close();
                     return;
                 }
 
-                sendProgress({ type: 'status', message: `Ditemukan ${customers.length} pelanggan`, percent: 15 });
+                sendProgress({ type: 'status', message: `Ditemukan ${excelRows.length} data`, percent: 15 });
 
-                // Check existing customers by name and customerNumber
+                // Get all existing customers with their meter readings for this period
                 const existingCustomers = await prisma.customer.findMany({
-                    select: { id: true, name: true, customerNumber: true },
+                    select: { 
+                        id: true, 
+                        name: true, 
+                        customerNumber: true,
+                        meterReadings: {
+                            where: { period },
+                            select: { id: true }
+                        }
+                    },
                 });
-                const existingNames = new Set(existingCustomers.map(c => c.name));
-                const existingNumbers = new Set(existingCustomers.map(c => c.customerNumber));
 
-                const skippedNames: string[] = [];
-                const toCreate: ExcelCustomerRow[] = [];
-
-                for (const customer of customers) {
-                    if (existingNames.has(customer.name) || existingNumbers.has(customer.customerNumber)) {
-                        skippedNames.push(customer.name);
-                    } else {
-                        toCreate.push(customer);
-                    }
+                // Create a map for case-insensitive name matching
+                const customerByNameLower = new Map<string, typeof existingCustomers[0]>();
+                const customerByNumber = new Map<number, typeof existingCustomers[0]>();
+                for (const c of existingCustomers) {
+                    customerByNameLower.set(c.name.toLowerCase(), c);
+                    customerByNumber.set(c.customerNumber, c);
                 }
 
-                if (toCreate.length === 0) {
-                    sendProgress({
-                        type: 'complete',
-                        total: customers.length,
-                        added: 0,
-                        skipped: skippedNames.length,
-                        message: 'Semua pelanggan sudah ada'
-                    });
-                    controller.close();
-                    return;
+                // Categorize rows
+                const toCreateNew: ExcelCustomerRow[] = [];
+                const toAddBill: { row: ExcelCustomerRow; customerId: number }[] = [];
+                const skippedDuplicate: string[] = [];
+
+                for (const row of excelRows) {
+                    // Try to find existing customer by name (case-insensitive) or customerNumber
+                    const existingByName = customerByNameLower.get(row.name.toLowerCase());
+                    const existingByNumber = customerByNumber.get(row.customerNumber);
+                    const existing = existingByName || existingByNumber;
+
+                    if (existing) {
+                        // Customer exists - check if already has bill for this period
+                        if (existing.meterReadings.length > 0) {
+                            // Already has bill for this period - skip
+                            skippedDuplicate.push(row.name);
+                        } else {
+                            // No bill for this period - add new bill
+                            toAddBill.push({ row, customerId: existing.id });
+                        }
+                    } else {
+                        // Customer doesn't exist - create new
+                        toCreateNew.push(row);
+                    }
                 }
 
                 sendProgress({
                     type: 'status',
-                    message: `${skippedNames.length} sudah ada, ${toCreate.length} akan diimport`
+                    message: `${toCreateNew.length} pelanggan baru, ${toAddBill.length} tagihan baru, ${skippedDuplicate.length} dilewati`,
+                    percent: 20
                 });
 
-                // period is already received from formData
-
-                let customersAdded = 0;
-                let billsCreated = 0;
+                let newCustomers = 0;
+                let existingUpdated = 0;
                 let failed = 0;
+                const totalToProcess = toCreateNew.length + toAddBill.length;
 
-                // Process one by one for progress
-                for (let i = 0; i < toCreate.length; i++) {
-                    const customer = toCreate[i];
-                    const percent = Math.round(20 + ((i + 1) / toCreate.length) * 75);
+                // Helper function to create bill for a customer
+                const createBillForCustomer = async (
+                    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+                    customerId: number,
+                    row: ExcelCustomerRow
+                ) => {
+                    // Create meter reading
+                    const meterReading = await tx.meterReading.create({
+                        data: {
+                            customerId,
+                            period,
+                            meterStart: row.meterStart,
+                            meterEnd: row.meterEnd,
+                            usage: row.usage,
+                        },
+                    });
+
+                    // Create bill
+                    const bill = await tx.bill.create({
+                        data: {
+                            meterReadingId: meterReading.id,
+                            totalAmount: row.totalAmount,
+                            amountPaid: 0,
+                            remaining: row.totalAmount,
+                            paymentStatus: 'unpaid',
+                        },
+                    });
+
+                    // Create bill items
+                    const billItems: {
+                        billId: number;
+                        type: string;
+                        usage: number;
+                        rate: number;
+                        amount: number;
+                    }[] = [
+                        {
+                            billId: bill.id,
+                            type: 'beban',
+                            usage: 0,
+                            rate: row.beban,
+                            amount: row.beban,
+                        },
+                    ];
+
+                    if (row.usageK1 > 0) {
+                        billItems.push({
+                            billId: bill.id,
+                            type: 'k1',
+                            usage: row.usageK1,
+                            rate: 1800,
+                            amount: row.beayaK1,
+                        });
+                    }
+
+                    if (row.usageK2 > 0) {
+                        billItems.push({
+                            billId: bill.id,
+                            type: 'k2',
+                            usage: row.usageK2,
+                            rate: 3000,
+                            amount: row.beayaK2,
+                        });
+                    }
+
+                    await tx.billItem.createMany({ data: billItems });
+
+                    // Update customer totalBill
+                    await tx.customer.update({
+                        where: { id: customerId },
+                        data: {
+                            totalBill: { increment: row.totalAmount }
+                        }
+                    });
+                };
+
+                // Process new customers
+                let processed = 0;
+                for (const row of toCreateNew) {
+                    processed++;
+                    const percent = Math.round(20 + (processed / totalToProcess) * 75);
 
                     sendProgress({
                         type: 'progress',
-                        current: i + 1,
-                        total: toCreate.length,
+                        current: processed,
+                        total: totalToProcess,
                         percent,
-                        currentName: customer.name,
-                        message: `Mengimport ${customer.name}...`
+                        currentName: row.name,
+                        message: `Membuat pelanggan baru: ${row.name}...`
                     });
 
                     try {
                         await prisma.$transaction(async (tx) => {
-                            // Create customer
+                            // Create customer with totalBill = 0
+                            // createBillForCustomer will increment totalBill
                             const newCustomer = await tx.customer.create({
                                 data: {
-                                    customerNumber: customer.customerNumber,
-                                    name: customer.name,
-                                    phone: customer.phone,
-                                    totalBill: customer.totalAmount,
+                                    customerNumber: row.customerNumber,
+                                    name: row.name,
+                                    phone: row.phone,
+                                    totalBill: 0,
                                     totalPaid: 0,
                                     balance: 0,
                                 },
                             });
 
-                            // Create meter reading
-                            const meterReading = await tx.meterReading.create({
-                                data: {
-                                    customerId: newCustomer.id,
-                                    period,
-                                    meterStart: customer.meterStart,
-                                    meterEnd: customer.meterEnd,
-                                    usage: customer.usage,
-                                },
-                            });
-
-                            // Create bill
-                            const bill = await tx.bill.create({
-                                data: {
-                                    meterReadingId: meterReading.id,
-                                    totalAmount: customer.totalAmount,
-                                    amountPaid: 0,
-                                    remaining: customer.totalAmount,
-                                    paymentStatus: 'unpaid',
-                                },
-                            });
-
-                            // Create bill items
-                            const billItems: {
-                                billId: number;
-                                type: string;
-                                usage: number;
-                                rate: number;
-                                amount: number;
-                            }[] = [
-                                    {
-                                        billId: bill.id,
-                                        type: 'beban',
-                                        usage: 0,
-                                        rate: customer.beban,
-                                        amount: customer.beban,
-                                    },
-                                ];
-
-                            if (customer.usageK1 > 0) {
-                                billItems.push({
-                                    billId: bill.id,
-                                    type: 'k1',
-                                    usage: customer.usageK1,
-                                    rate: 1800,
-                                    amount: customer.beayaK1,
-                                });
-                            }
-
-                            if (customer.usageK2 > 0) {
-                                billItems.push({
-                                    billId: bill.id,
-                                    type: 'k2',
-                                    usage: customer.usageK2,
-                                    rate: 3000,
-                                    amount: customer.beayaK2,
-                                });
-                            }
-
-                            await tx.billItem.createMany({ data: billItems });
+                            await createBillForCustomer(tx, newCustomer.id, row);
                         });
 
-                        customersAdded++;
-                        billsCreated++;
+                        newCustomers++;
                     } catch (err) {
-                        console.error(`Failed to import ${customer.name}:`, err);
+                        console.error(`Failed to create customer ${row.name}:`, err);
+                        failed++;
+                    }
+                }
+
+                // Process existing customers (add bills)
+                for (const { row, customerId } of toAddBill) {
+                    processed++;
+                    const percent = Math.round(20 + (processed / totalToProcess) * 75);
+
+                    sendProgress({
+                        type: 'progress',
+                        current: processed,
+                        total: totalToProcess,
+                        percent,
+                        currentName: row.name,
+                        message: `Menambah tagihan: ${row.name}...`
+                    });
+
+                    try {
+                        await prisma.$transaction(async (tx) => {
+                            await createBillForCustomer(tx, customerId, row);
+                        });
+
+                        existingUpdated++;
+                    } catch (err) {
+                        console.error(`Failed to add bill for ${row.name}:`, err);
                         failed++;
                     }
                 }
 
                 sendProgress({
                     type: 'complete',
-                    total: customers.length,
-                    added: customersAdded,
-                    skipped: skippedNames.length,
+                    total: excelRows.length,
+                    added: newCustomers + existingUpdated,
+                    newCustomers,
+                    existingUpdated,
+                    skipped: skippedDuplicate.length,
                     failed,
                     percent: 100,
-                    message: `Selesai! ${customersAdded} pelanggan berhasil diimport`
+                    message: `Selesai! ${newCustomers} pelanggan baru, ${existingUpdated} tagihan ditambahkan`
                 });
                 controller.close();
             } catch (error) {

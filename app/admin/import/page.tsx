@@ -16,6 +16,8 @@ interface ImportProgress {
     total?: number;
     currentName?: string;
     added?: number;
+    newCustomers?: number;
+    existingUpdated?: number;
     skipped?: number;
     failed?: number;
 }
@@ -347,14 +349,18 @@ export default function ImportPage() {
                     <div className="bg-green-50 rounded-xl p-4 space-y-3">
                         <p className="text-green-700 font-semibold">Import Selesai!</p>
 
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="grid grid-cols-4 gap-2 text-center">
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-neutral-800">{progress.total}</p>
                                 <p className="text-xs text-neutral-500">Total</p>
                             </div>
                             <div className="bg-white rounded-lg p-2">
-                                <p className="text-2xl font-bold text-green-600">{progress.added}</p>
-                                <p className="text-xs text-neutral-500">Berhasil</p>
+                                <p className="text-2xl font-bold text-blue-600">{progress.newCustomers || 0}</p>
+                                <p className="text-xs text-neutral-500">Baru</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-2">
+                                <p className="text-2xl font-bold text-green-600">{progress.existingUpdated || 0}</p>
+                                <p className="text-xs text-neutral-500">Ditambah</p>
                             </div>
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-orange-500">{progress.skipped}</p>
