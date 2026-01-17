@@ -72,43 +72,39 @@ export default function AdminDashboard() {
                     <LoadingState variant="skeleton-list" count={3} />
                 ) : data && (
                     <div className="space-y-6">
-                        {/* Top Row: Pelanggan + Donut Chart */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Total Pelanggan */}
-                            <div className="relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 rounded-2xl p-6 text-white shadow-xl shadow-violet-500/20">
-                                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-                                <div className="relative flex items-center justify-between">
-                                    <div>
-                                        <p className="text-violet-200 text-sm font-medium mb-1">Total Pelanggan</p>
-                                        <p className="text-5xl font-bold tracking-tight">{data.totalCustomers}</p>
-                                        <p className="text-violet-200/80 text-sm mt-2">pelanggan terdaftar</p>
-                                    </div>
-                                    <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {/* Top Row: Pelanggan (small) + Ring Chart (large) */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Total Pelanggan - Compact */}
+                            <div className="relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 rounded-2xl p-5 text-white shadow-xl shadow-violet-500/20">
+                                <div className="absolute -top-8 -right-8 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-violet-200 text-xs font-medium">Total Pelanggan</p>
+                                        <p className="text-3xl font-bold tracking-tight">{data.totalCustomers}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Status Pembayaran with Ring Chart */}
-                            <div className="bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
-                                <p className="text-sm font-medium text-neutral-500 mb-4">Status Pembayaran</p>
-                                <div className="flex items-center gap-8">
-                                    {/* Ring Chart */}
-                                    <div className="relative w-28 h-28 flex-shrink-0">
+                            {/* Status Pembayaran with Large Ring Chart */}
+                            <div className="md:col-span-2 bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
+                                <p className="text-sm font-medium text-neutral-500 mb-4">Status Pembayaran Keseluruhan</p>
+                                <div className="flex items-center justify-center gap-10">
+                                    {/* Large Ring Chart */}
+                                    <div className="relative w-40 h-40 flex-shrink-0">
                                         <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                                            {/* Background ring */}
-                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#fee2e2" strokeWidth="12" />
-                                            {/* Progress ring */}
+                                            <circle cx="50" cy="50" r="42" fill="none" stroke="#fee2e2" strokeWidth="10" />
                                             <circle
-                                                cx="50" cy="50" r="40"
+                                                cx="50" cy="50" r="42"
                                                 fill="none"
                                                 stroke="url(#progressGradient)"
-                                                strokeWidth="12"
+                                                strokeWidth="10"
                                                 strokeLinecap="round"
-                                                strokeDasharray={`${paidRate * 2.51} ${251 - paidRate * 2.51}`}
+                                                strokeDasharray={`${paidRate * 2.64} ${264 - paidRate * 2.64}`}
                                                 className="transition-all duration-1000 ease-out"
                                             />
                                             <defs>
@@ -119,27 +115,27 @@ export default function AdminDashboard() {
                                             </defs>
                                         </svg>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                            <span className="text-2xl font-bold text-neutral-800">{paidRate}%</span>
-                                            <span className="text-xs text-neutral-500">Lunas</span>
+                                            <span className="text-3xl font-bold text-neutral-800">{paidRate}%</span>
+                                            <span className="text-sm text-neutral-500">Lunas</span>
                                         </div>
                                     </div>
                                     {/* Legend */}
-                                    <div className="flex-1 space-y-3">
-                                        <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                                                <span className="text-sm font-medium text-neutral-700">Lunas</span>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-4 p-3 rounded-xl bg-emerald-50 min-w-[160px]">
+                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500" />
+                                            <div>
+                                                <p className="text-xs text-neutral-500">Sudah Bayar</p>
+                                                <p className="text-xl font-bold text-emerald-600">{totalPaid}</p>
                                             </div>
-                                            <span className="text-sm font-bold text-emerald-600">{totalPaid}</span>
                                         </div>
-                                        <div className="flex items-center justify-between p-2 rounded-lg bg-rose-50">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-                                                <span className="text-sm font-medium text-neutral-700">Belum</span>
+                                        <div className="flex items-center gap-4 p-3 rounded-xl bg-rose-50 min-w-[160px]">
+                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-rose-300 to-rose-400" />
+                                            <div>
+                                                <p className="text-xs text-neutral-500">Belum Bayar</p>
+                                                <p className="text-xl font-bold text-rose-500">{totalUnpaid}</p>
                                             </div>
-                                            <span className="text-sm font-bold text-rose-500">{totalUnpaid}</span>
                                         </div>
-                                        <p className="text-xs text-neutral-400 text-center pt-1">Total {totalBills} tagihan</p>
+                                        <p className="text-xs text-neutral-400 text-center">Total {totalBills} tagihan</p>
                                     </div>
                                 </div>
                             </div>
