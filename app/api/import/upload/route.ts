@@ -15,6 +15,7 @@ interface ExcelCustomerRow {
     beayaK1: number;
     beayaK2: number;
     totalAmount: number;
+    keterangan: string | null; // If empty, bill is considered lunas
 }
 
 /**
@@ -106,12 +107,17 @@ export async function POST(request: NextRequest) {
                     const beayaK1 = Number(getVal(8)) || (usageK1 * 1800);
                     const beayaK2 = Number(getVal(9)) || (usageK2 * 3000);
                     const totalAmount = Number(getVal(10)) || (beban + beayaK1 + beayaK2);
+                    
+                    // Column 11 is keterangan - if empty, bill is considered lunas
+                    const keteranganVal = getVal(11);
+                    const keterangan = keteranganVal ? String(keteranganVal).trim() : null;
 
                     if (customerNumber && name) {
                         excelRows.push({
                             customerNumber, name, phone,
                             meterStart, meterEnd, usage,
                             usageK1, usageK2, beban, beayaK1, beayaK2, totalAmount,
+                            keterangan,
                         });
                     }
                 }
@@ -199,14 +205,18 @@ export async function POST(request: NextRequest) {
                         },
                     });
 
+                    // Determine if bill should be marked as paid (keterangan empty = lunas)
+                    const isPaid = !row.keterangan || row.keterangan === '';
+                    
                     // Create bill
                     const bill = await tx.bill.create({
                         data: {
                             meterReadingId: meterReading.id,
                             totalAmount: row.totalAmount,
-                            amountPaid: 0,
-                            remaining: row.totalAmount,
-                            paymentStatus: 'unpaid',
+                            amountPaid: isPaid ? row.totalAmount : 0,
+                            remaining: isPaid ? 0 : row.totalAmount,
+                            paymentStatus: isPaid ? 'paid' : 'unpaid',
+                            paidAt: isPaid ? new Date() : null,
                         },
                     });
 
@@ -249,11 +259,12 @@ export async function POST(request: NextRequest) {
 
                     await tx.billItem.createMany({ data: billItems });
 
-                    // Update customer totalBill
+                    // Update customer totals
                     await tx.customer.update({
                         where: { id: customerId },
                         data: {
-                            totalBill: { increment: row.totalAmount }
+                            totalBill: { increment: row.totalAmount },
+                            totalPaid: isPaid ? { increment: row.totalAmount } : undefined,
                         }
                     });
                 };
