@@ -49,15 +49,15 @@ export default function AdminDashboard() {
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) return null;
 
-    const getPaymentRate = (period: PeriodStats) => {
-        if (period.totalBills === 0) return 100;
-        return Math.round((period.paidCount / period.totalBills) * 100);
-    };
-
     const totalPaid = data?.periods.reduce((sum, p) => sum + p.paidCount, 0) || 0;
     const totalUnpaid = data?.periods.reduce((sum, p) => sum + p.unpaidCount, 0) || 0;
     const totalBills = totalPaid + totalUnpaid;
     const paidRate = totalBills > 0 ? Math.round((totalPaid / totalBills) * 100) : 0;
+
+    const getPaymentRate = (period: PeriodStats) => {
+        if (period.totalBills === 0) return 100;
+        return Math.round((period.paidCount / period.totalBills) * 100);
+    };
 
     return (
         <>
@@ -71,153 +71,174 @@ export default function AdminDashboard() {
                 {loading ? (
                     <LoadingState variant="skeleton-list" count={3} />
                 ) : data && (
-                    <div className="space-y-6">
-                        {/* Top Row: Pelanggan (small) + Ring Chart (large) */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {/* Total Pelanggan - Compact */}
-                            <div className="relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-500 to-indigo-600 rounded-2xl p-5 text-white shadow-xl shadow-violet-500/20">
-                                <div className="absolute -top-8 -right-8 w-24 h-24 bg-white/10 rounded-full blur-xl" />
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0">
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <div className="space-y-8">
+                        {/* Stats Cards Row */}
+                        <div className="grid grid-cols-3 gap-6">
+                            <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
                                     </div>
                                     <div>
-                                        <p className="text-violet-200 text-xs font-medium">Total Pelanggan</p>
-                                        <p className="text-3xl font-bold tracking-tight">{data.totalCustomers}</p>
+                                        <p className="text-sm text-neutral-500">Total Pelanggan</p>
+                                        <p className="text-3xl font-bold text-neutral-800">{data.totalCustomers}</p>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Status Pembayaran with Large Ring Chart */}
-                            <div className="md:col-span-2 bg-white rounded-2xl border border-neutral-100 p-6 shadow-sm">
-                                <p className="text-sm font-medium text-neutral-500 mb-4">Status Pembayaran Keseluruhan</p>
-                                <div className="flex items-center justify-center gap-10">
-                                    {/* Large Ring Chart */}
-                                    <div className="relative w-40 h-40 flex-shrink-0">
-                                        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-                                            <circle cx="50" cy="50" r="42" fill="none" stroke="#fee2e2" strokeWidth="10" />
-                                            <circle
-                                                cx="50" cy="50" r="42"
-                                                fill="none"
-                                                stroke="url(#progressGradient)"
-                                                strokeWidth="10"
-                                                strokeLinecap="round"
-                                                strokeDasharray={`${paidRate * 2.64} ${264 - paidRate * 2.64}`}
-                                                className="transition-all duration-1000 ease-out"
-                                            />
-                                            <defs>
-                                                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                    <stop offset="0%" stopColor="#10b981" />
-                                                    <stop offset="100%" stopColor="#34d399" />
-                                                </linearGradient>
-                                            </defs>
+                            <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                            <span className="text-3xl font-bold text-neutral-800">{paidRate}%</span>
-                                            <span className="text-sm text-neutral-500">Lunas</span>
-                                        </div>
                                     </div>
-                                    {/* Legend */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-4 p-3 rounded-xl bg-emerald-50 min-w-[160px]">
-                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500" />
-                                            <div>
-                                                <p className="text-xs text-neutral-500">Sudah Bayar</p>
-                                                <p className="text-xl font-bold text-emerald-600">{totalPaid}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 p-3 rounded-xl bg-rose-50 min-w-[160px]">
-                                            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-rose-300 to-rose-400" />
-                                            <div>
-                                                <p className="text-xs text-neutral-500">Belum Bayar</p>
-                                                <p className="text-xl font-bold text-rose-500">{totalUnpaid}</p>
-                                            </div>
-                                        </div>
-                                        <p className="text-xs text-neutral-400 text-center">Total {totalBills} tagihan</p>
+                                    <div>
+                                        <p className="text-sm text-neutral-500">Sudah Bayar</p>
+                                        <p className="text-3xl font-bold text-emerald-600">{totalPaid}</p>
                                     </div>
                                 </div>
+                                <div className="text-xs text-neutral-400">{paidRate}% dari total tagihan</div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="w-12 h-12 rounded-xl bg-rose-500 flex items-center justify-center">
+                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-neutral-500">Belum Bayar</p>
+                                        <p className="text-3xl font-bold text-rose-600">{totalUnpaid}</p>
+                                    </div>
+                                </div>
+                                <div className="text-xs text-neutral-400">{100 - paidRate}% dari total tagihan</div>
                             </div>
                         </div>
 
-                        {/* Payment Progress by Month */}
-                        <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-                                <h2 className="font-semibold text-neutral-800">Pembayaran per Bulan</h2>
-                                <div className="flex items-center gap-4 text-xs">
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                                        <span className="text-neutral-500">Lunas</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-                                        <span className="text-neutral-500">Belum</span>
-                                    </div>
-                                </div>
+                        {/* Chart & Table Section */}
+                        <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+                            <div className="p-6 border-b border-neutral-100">
+                                <h2 className="text-lg font-semibold text-neutral-800">Statistik Pembayaran</h2>
+                                <p className="text-sm text-neutral-500">Perbandingan pembayaran per bulan</p>
                             </div>
-                            <div className="p-6 space-y-5">
+
+                            {/* Horizontal Bar Chart */}
+                            <div className="p-6">
                                 {data.periods.length === 0 ? (
-                                    <div className="py-10 text-center text-neutral-400">
+                                    <div className="py-12 text-center text-neutral-400">
                                         Belum ada data tagihan
                                     </div>
                                 ) : (
-                                    data.periods.map((period) => {
-                                        const rate = getPaymentRate(period);
-                                        return (
-                                            <div key={period.period}>
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <span className="text-sm font-medium text-neutral-700">{period.periodLabel}</span>
-                                                    <div className="flex items-center gap-3 text-xs">
-                                                        <span className="text-emerald-600 font-medium">{period.paidCount} lunas</span>
-                                                        <span className="text-rose-500 font-medium">{period.unpaidCount} belum</span>
-                                                        <span className={`px-2 py-0.5 rounded font-bold ${
-                                                            rate >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                                                            rate >= 50 ? 'bg-amber-100 text-amber-700' :
-                                                            'bg-rose-100 text-rose-700'
+                                    <div className="space-y-6">
+                                        {data.periods.map((period) => {
+                                            const rate = getPaymentRate(period);
+                                            return (
+                                                <div key={period.period} className="flex items-center gap-6">
+                                                    <div className="w-28 flex-shrink-0">
+                                                        <p className="font-medium text-neutral-800 text-sm">{period.periodLabel}</p>
+                                                        <p className="text-xs text-neutral-400">{period.totalBills} tagihan</p>
+                                                    </div>
+                                                    
+                                                    <div className="flex-1">
+                                                        <div className="h-8 bg-neutral-100 rounded-lg overflow-hidden flex">
+                                                            <div
+                                                                className="bg-emerald-500 flex items-center justify-center transition-all duration-500"
+                                                                style={{ width: `${rate}%` }}
+                                                            >
+                                                                {rate >= 10 && <span className="text-xs text-white font-medium">{period.paidCount}</span>}
+                                                            </div>
+                                                            <div
+                                                                className="bg-rose-400 flex items-center justify-center transition-all duration-500"
+                                                                style={{ width: `${100 - rate}%` }}
+                                                            >
+                                                                {(100 - rate) >= 10 && <span className="text-xs text-white font-medium">{period.unpaidCount}</span>}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="w-16 text-right">
+                                                        <span className={`text-sm font-bold ${
+                                                            rate >= 80 ? 'text-emerald-600' :
+                                                            rate >= 50 ? 'text-amber-600' :
+                                                            'text-rose-600'
                                                         }`}>
                                                             {rate}%
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="h-2 bg-neutral-100 rounded-full overflow-hidden flex">
-                                                    <div
-                                                        className="bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-700"
-                                                        style={{ width: `${rate}%` }}
-                                                    />
-                                                    <div
-                                                        className="bg-gradient-to-r from-rose-300 to-rose-400 transition-all duration-700"
-                                                        style={{ width: `${100 - rate}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })
+                                            );
+                                        })}
+                                    </div>
                                 )}
+                            </div>
+
+                            {/* Legend */}
+                            <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-100 flex items-center justify-center gap-8">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-emerald-500" />
+                                    <span className="text-sm text-neutral-600">Sudah Bayar</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 rounded bg-rose-400" />
+                                    <span className="text-sm text-neutral-600">Belum Bayar</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Quick Actions - Simple Grid */}
-                        <div className="grid grid-cols-4 gap-3">
-                            {[
-                                { label: 'Pelanggan', href: '/', color: 'violet', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-                                { label: 'Import', href: '/admin/import', color: 'emerald', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
-                                { label: 'Tambah', href: '/admin/customer/new', color: 'blue', icon: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z' },
-                                { label: 'Setting', href: '/admin/settings', color: 'amber', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
-                            ].map((item) => (
+                        {/* Quick Actions */}
+                        <div>
+                            <h3 className="text-sm font-medium text-neutral-500 mb-4">Menu Cepat</h3>
+                            <div className="grid grid-cols-4 gap-4">
                                 <button
-                                    key={item.href}
-                                    onClick={() => router.push(item.href)}
-                                    className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-neutral-100 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                                    onClick={() => router.push('/')}
+                                    className="bg-white rounded-xl p-4 border border-neutral-200 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col items-center gap-3"
                                 >
-                                    <div className={`w-10 h-10 rounded-xl bg-${item.color}-100 flex items-center justify-center`}>
-                                        <svg className={`w-5 h-5 text-${item.color}-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                                    <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
                                     </div>
-                                    <span className="text-xs font-medium text-neutral-600">{item.label}</span>
+                                    <span className="text-sm font-medium text-neutral-700">Pelanggan</span>
                                 </button>
-                            ))}
+                                <button
+                                    onClick={() => router.push('/admin/import')}
+                                    className="bg-white rounded-xl p-4 border border-neutral-200 hover:border-emerald-300 hover:shadow-md transition-all flex flex-col items-center gap-3"
+                                >
+                                    <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm font-medium text-neutral-700">Import</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/admin/customer/new')}
+                                    className="bg-white rounded-xl p-4 border border-neutral-200 hover:border-blue-300 hover:shadow-md transition-all flex flex-col items-center gap-3"
+                                >
+                                    <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm font-medium text-neutral-700">Tambah</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/admin/settings')}
+                                    className="bg-white rounded-xl p-4 border border-neutral-200 hover:border-amber-300 hover:shadow-md transition-all flex flex-col items-center gap-3"
+                                >
+                                    <div className="w-11 h-11 rounded-xl bg-amber-100 flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </div>
+                                    <span className="text-sm font-medium text-neutral-700">Setting</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
