@@ -8,6 +8,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
+import PasswordConfirm from '@/components/ui/PasswordConfirm';
 
 interface ImportProgress {
     type: 'status' | 'progress' | 'complete' | 'error';
@@ -38,6 +39,10 @@ export default function ImportPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Password confirmation states
+    const [showImportConfirm, setShowImportConfirm] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -77,7 +82,7 @@ export default function ImportPage() {
         }
     };
 
-    const handleImport = async () => {
+    const handleImportClick = () => {
         if (!selectedFile) {
             setError('Pilih file Excel terlebih dahulu');
             return;
@@ -86,6 +91,11 @@ export default function ImportPage() {
             setError('Pilih periode tagihan terlebih dahulu');
             return;
         }
+        setShowImportConfirm(true);
+    };
+
+    const handleImportConfirmed = async () => {
+        setShowImportConfirm(false);
 
         setImporting(true);
         setError(null);
@@ -95,7 +105,7 @@ export default function ImportPage() {
 
         try {
             const formData = new FormData();
-            formData.append('file', selectedFile);
+            formData.append('file', selectedFile!);
             formData.append('role', localStorage.getItem('role') || '');
             formData.append('period', selectedPeriod);
 
@@ -144,10 +154,12 @@ export default function ImportPage() {
         }
     };
 
-    const handleClearAll = async () => {
-        if (!confirm('PERINGATAN!\n\nSemua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN.\n\nLanjutkan?')) {
-            return;
-        }
+    const handleClearClick = () => {
+        setShowClearConfirm(true);
+    };
+
+    const handleClearConfirmed = async () => {
+        setShowClearConfirm(false);
         setClearing(true);
         setError(null);
         setClearSuccess(false);
@@ -308,7 +320,7 @@ export default function ImportPage() {
                 {/* Actions */}
                 <div className="space-y-2">
                     <Button
-                        onClick={handleImport}
+                        onClick={handleImportClick}
                         loading={importing}
                         variant="primary"
                         className="w-full"
@@ -318,7 +330,7 @@ export default function ImportPage() {
                     </Button>
 
                     <Button
-                        onClick={handleClearAll}
+                        onClick={handleClearClick}
                         loading={clearing}
                         variant="danger"
                         className="w-full"
@@ -378,6 +390,27 @@ export default function ImportPage() {
                     </div>
                 )}
             </main>
+
+            {/* Password Confirmation Modals */}
+            <PasswordConfirm
+                isOpen={showImportConfirm}
+                onClose={() => setShowImportConfirm(false)}
+                onConfirm={handleImportConfirmed}
+                title="Konfirmasi Import"
+                description="Masukkan password admin untuk mengimport data."
+                confirmText="Import"
+                loading={importing}
+            />
+
+            <PasswordConfirm
+                isOpen={showClearConfirm}
+                onClose={() => setShowClearConfirm(false)}
+                onConfirm={handleClearConfirmed}
+                title="Konfirmasi Hapus Semua Data"
+                description="PERINGATAN! Semua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN. Masukkan password admin untuk melanjutkan."
+                confirmText="Hapus Semua"
+                loading={clearing}
+            />
         </AppLayout>
     );
 }

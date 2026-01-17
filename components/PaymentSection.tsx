@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { formatCurrency } from '@/lib/formatCurrency';
+import PasswordConfirm from '@/components/ui/PasswordConfirm';
 
 type PaymentSectionProps = {
     totalAmount: number;
@@ -14,6 +15,8 @@ export default function PaymentSection({
     const [amountPaid, setAmountPaid] = useState<string>('');
     const [saveToBalance, setSaveToBalance] = useState<string>('');
     const [showResult, setShowResult] = useState(false);
+    const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+    const [isPaying, setIsPaying] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const paidValue = parseInt(amountPaid.replace(/\D/g, '')) || 0;
@@ -51,11 +54,18 @@ export default function PaymentSection({
         }, 300);
     };
 
-    const handlePay = () => {
+    const handlePayClick = () => {
         if (paidValue > 0) {
-            setShowResult(true);
-            onPay?.(paidValue, saveValue);
+            setShowPasswordConfirm(true);
         }
+    };
+
+    const handlePayConfirmed = () => {
+        setShowPasswordConfirm(false);
+        setIsPaying(true);
+        setShowResult(true);
+        onPay?.(paidValue, saveValue);
+        setIsPaying(false);
     };
 
     // Quick amounts for saving to balance (common small change)
@@ -155,15 +165,26 @@ export default function PaymentSection({
 
             {/* Pay Button */}
             <button
-                onClick={handlePay}
-                disabled={paidValue === 0}
-                className={`w-full py-3 rounded-lg font-semibold text-white transition ${paidValue > 0
+                onClick={handlePayClick}
+                disabled={paidValue === 0 || isPaying}
+                className={`w-full py-3 rounded-lg font-semibold text-white transition ${paidValue > 0 && !isPaying
                     ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
                     : 'bg-neutral-300 cursor-not-allowed'
                     }`}
             >
-                {paidValue === 0 ? 'Masukkan Nominal' : 'Bayar'}
+                {isPaying ? 'Memproses...' : paidValue === 0 ? 'Masukkan Nominal' : 'Bayar'}
             </button>
+
+            {/* Password Confirmation Modal */}
+            <PasswordConfirm
+                isOpen={showPasswordConfirm}
+                onClose={() => setShowPasswordConfirm(false)}
+                onConfirm={handlePayConfirmed}
+                title="Konfirmasi Pembayaran"
+                description={`Masukkan password admin untuk memproses pembayaran ${formatCurrency(paidValue)}.`}
+                confirmText="Bayar"
+                loading={isPaying}
+            />
         </div>
     );
 }

@@ -24,7 +24,7 @@ export default function CustomerForm({
 }: CustomerFormProps) {
     const [formData, setFormData] = useState<CustomerFormData>({
         name: '',
-        customerNumber: '',
+        customerNumber: 'auto', // Will be auto-generated
         phone: '',
     });
     const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
@@ -43,10 +43,9 @@ export default function CustomerForm({
             newErrors.name = 'Nama wajib diisi';
         }
 
-        if (!formData.customerNumber.trim()) {
+        // Customer number validation only for edit mode
+        if (isEdit && !formData.customerNumber.trim()) {
             newErrors.customerNumber = 'Nomor pelanggan wajib diisi';
-        } else if (isNaN(Number(formData.customerNumber))) {
-            newErrors.customerNumber = 'Nomor pelanggan harus angka';
         }
 
         setErrors(newErrors);
@@ -84,14 +83,26 @@ export default function CustomerForm({
                 error={errors.name}
             />
 
-            <Input
-                label="Nomor Pelanggan"
-                placeholder="Contoh: 6"
-                value={formData.customerNumber}
-                onChange={handleChange('customerNumber')}
-                error={errors.customerNumber}
-                disabled={isEdit}
-            />
+            {/* Only show customer number field in edit mode */}
+            {isEdit && (
+                <Input
+                    label="Nomor Pelanggan"
+                    placeholder="Contoh: 6"
+                    value={formData.customerNumber}
+                    onChange={handleChange('customerNumber')}
+                    error={errors.customerNumber}
+                    disabled={true}
+                />
+            )}
+
+            {/* For new customers, show info that number will be auto-generated */}
+            {!isEdit && (
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                    <p className="text-sm text-blue-700">
+                        <span className="font-medium">Nomor Pelanggan:</span> akan digenerate otomatis
+                    </p>
+                </div>
+            )}
 
             <Input
                 label="Nomor HP (WhatsApp)"

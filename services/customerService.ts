@@ -53,7 +53,8 @@ export interface DashboardStats {
 export const customerService = {
     // GET /customers - List all customers
     getAll: async (): Promise<CustomerListItem[]> => {
-        const res = await api.get('/customers');
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.get(`/customers${role ? `?role=${role}` : ''}`);
         return res.data.data || [];
     },
 
