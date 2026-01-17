@@ -17,9 +17,9 @@ interface DashboardData {
     periods: PeriodStats[];
 }
 
-// Mini Ring Chart Component
-function MiniRingChart({ percentage, size = 80 }: { percentage: number; size?: number }) {
-    const strokeWidth = 8;
+// Ring Chart Component
+function RingChart({ percentage, size = 80 }: { percentage: number; size?: number }) {
+    const strokeWidth = size > 60 ? 8 : 6;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (percentage / 100) * circumference;
@@ -33,7 +33,7 @@ function MiniRingChart({ percentage, size = 80 }: { percentage: number; size?: n
     const colors = getColor(percentage);
     
     return (
-        <div className="relative" style={{ width: size, height: size }}>
+        <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="-rotate-90">
                 <circle
                     cx={size / 2}
@@ -57,7 +57,7 @@ function MiniRingChart({ percentage, size = 80 }: { percentage: number; size?: n
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold text-neutral-800">{percentage}%</span>
+                <span className={`font-bold text-neutral-800 ${size > 60 ? 'text-lg' : 'text-sm'}`}>{percentage}%</span>
             </div>
         </div>
     );
@@ -113,41 +113,20 @@ export default function AdminDashboard() {
                     <LoadingState variant="skeleton-list" count={3} />
                 ) : data && (
                     <div className="space-y-6">
-                        {/* Stats Overview */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            {/* Total Pelanggan */}
-                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-5 text-white">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-white/70 text-xs">Pelanggan</p>
-                                        <p className="text-2xl font-bold">{data.totalCustomers}</p>
-                                    </div>
-                                </div>
+                        {/* Total Pelanggan */}
+                        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-5 text-white flex items-center gap-4">
+                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
                             </div>
-
-                            {/* Per month mini stats */}
-                            {data.periods.slice(0, 3).map((period, idx) => {
-                                const rate = getPaymentRate(period);
-                                return (
-                                    <div key={period.period} className="bg-white rounded-2xl border border-neutral-200 p-5 flex items-center gap-4">
-                                        <MiniRingChart percentage={rate} size={60} />
-                                        <div>
-                                            <p className="text-xs text-neutral-500">{period.periodLabel}</p>
-                                            <p className="text-sm font-semibold text-neutral-800">
-                                                {period.paidCount}/{period.totalBills} lunas
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                            <div>
+                                <p className="text-white/70 text-sm">Total Pelanggan</p>
+                                <p className="text-3xl font-bold">{data.totalCustomers}</p>
+                            </div>
                         </div>
 
-                        {/* Detailed Monthly Stats with Ring Charts */}
+                        {/* Monthly Stats Grid with Ring Charts */}
                         <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
                             <div className="p-5 border-b border-neutral-100">
                                 <h2 className="font-semibold text-neutral-800">Statistik Pembayaran per Bulan</h2>
@@ -158,27 +137,18 @@ export default function AdminDashboard() {
                                     Belum ada data tagihan
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-neutral-100">
+                                <div className="divide-y divide-neutral-100">
                                     {data.periods.map((period) => {
                                         const rate = getPaymentRate(period);
                                         return (
-                                            <div key={period.period} className="bg-white p-6 flex items-center gap-5 hover:bg-neutral-50 transition-colors">
-                                                <MiniRingChart percentage={rate} size={80} />
-                                                <div className="flex-1">
-                                                    <h3 className="font-semibold text-neutral-800 mb-1">{period.periodLabel}</h3>
-                                                    <div className="space-y-1 text-sm">
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-neutral-500">Total Tagihan</span>
-                                                            <span className="font-medium text-neutral-800">{period.totalBills}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-emerald-600">Sudah Bayar</span>
-                                                            <span className="font-medium text-emerald-600">{period.paidCount}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className="text-rose-500">Belum Bayar</span>
-                                                            <span className="font-medium text-rose-500">{period.unpaidCount}</span>
-                                                        </div>
+                                            <div key={period.period} className="p-5 flex items-center gap-5 hover:bg-neutral-50 transition-colors">
+                                                <RingChart percentage={rate} size={70} />
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-neutral-800">{period.periodLabel}</h3>
+                                                    <div className="flex items-center gap-4 mt-1 text-sm">
+                                                        <span className="text-neutral-500">{period.totalBills} tagihan</span>
+                                                        <span className="text-emerald-600">{period.paidCount} lunas</span>
+                                                        <span className="text-rose-500">{period.unpaidCount} belum</span>
                                                     </div>
                                                 </div>
                                             </div>
