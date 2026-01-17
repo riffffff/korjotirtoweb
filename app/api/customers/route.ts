@@ -26,16 +26,21 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        const formattedCustomers = customers.map((customer) => ({
-            id: customer.id,
-            name: customer.name,
-            customerNumber: customer.customerNumber,
-            phone: isAdmin ? customer.phone : null, // Hide phone for non-admin
-            totalBill: Number(customer.totalBill),
-            totalPaid: Number(customer.totalPaid),
-            balance: Number(customer.balance),
-            lastNotifiedAt: customer.lastNotifiedAt,
-        }));
+        const formattedCustomers = customers.map((customer) => {
+            const totalBill = Number(customer.totalBill);
+            const totalPaid = Number(customer.totalPaid);
+            return {
+                id: customer.id,
+                name: customer.name,
+                customerNumber: customer.customerNumber,
+                phone: isAdmin ? customer.phone : null, // Hide phone for non-admin
+                totalBill: totalBill,
+                totalPaid: totalPaid,
+                outstanding: Math.max(0, totalBill - totalPaid), // sisa tagihan
+                balance: Number(customer.balance), // saldo simpanan
+                lastNotifiedAt: customer.lastNotifiedAt,
+            };
+        });
 
         return NextResponse.json({
             success: true,
