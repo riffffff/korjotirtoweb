@@ -142,7 +142,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                     phone: customer.phone,
                     totalBill: totalBillWithPenalty,
                     totalPaid: totalPaid,
-                    balance: outstandingWithPenalty,
+                    outstanding: outstandingWithPenalty, // sisa tagihan
+                    balance: Number(customer.balance),   // saldo simpanan (dari saveToBalance)
                     lastNotifiedAt: customer.lastNotifiedAt,
                 },
                 bills: formattedBills,

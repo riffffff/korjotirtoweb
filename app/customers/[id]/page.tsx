@@ -276,11 +276,11 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Outstanding Balance Card - Only show when there's outstanding balance */}
-                {(customer.totalBill - customer.totalPaid) > 0 && (
+                {customer.outstanding > 0 && (
                     <div className="rounded-xl p-4 bg-gradient-to-r from-orange-500 to-red-500">
                     <p className="text-white/80 text-sm font-medium">Sisa Tagihan</p>
                     <p className="text-white text-3xl font-bold">
-                        {formatCurrency(customer.totalBill - customer.totalPaid)}
+                        {formatCurrency(customer.outstanding)}
                     </p>
 
                     {/* Breakdown per bulan */}
@@ -345,16 +345,16 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Payment Section - Admin only, show when there's outstanding balance */}
-                {isAdmin && (customer.totalBill - customer.totalPaid) > 0 && (
+                {isAdmin && customer.outstanding > 0 && (
                     <PaymentSection
-                        totalAmount={customer.totalBill - customer.totalPaid}
+                        totalAmount={customer.outstanding}
                         customerBalance={customer.balance}
                         onPay={handlePayment}
                     />
                 )}
 
                 {/* All Paid */}
-                {(customer.totalBill - customer.totalPaid) <= 0 && (
+                {customer.outstanding <= 0 && (
                     <div className="py-4 bg-green-50 rounded-xl text-center border border-green-200">
                         <p className="text-green-600 font-semibold text-lg">✓ LUNAS SEMUA</p>
                         <p className="text-green-500 text-sm">Tidak ada tagihan</p>

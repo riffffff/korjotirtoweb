@@ -8,7 +8,8 @@ export interface CustomerListItem {
     phone: string | null;
     totalBill: number;
     totalPaid: number;
-    balance: number;
+    outstanding: number; // sisa tagihan (totalBill - totalPaid + penalties)
+    balance: number;     // saldo simpanan (dari saveToBalance)
     lastNotifiedAt: string | null;
 }
 
