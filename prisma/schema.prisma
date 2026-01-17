@@ -13,7 +13,7 @@ model Customer {
   phone          String?        @db.VarChar(20)
   totalBill      Decimal        @default(0) @map("total_bill") @db.Decimal(12, 2)
   totalPaid      Decimal        @default(0) @map("total_paid") @db.Decimal(12, 2)
-  balance        Decimal        @default(0) @map("outstanding_balance") @db.Decimal(12, 2)
+  balance        Decimal        @default(0) @map("balance") @db.Decimal(12, 2)
   lastNotifiedAt DateTime?      @map("last_notified_at") @db.Timestamp(6)
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
