@@ -75,12 +75,6 @@ export default function PaymentSection({
         <div className="border border-neutral-200 rounded-lg p-3 space-y-3">
             <p className="text-xs font-medium text-neutral-400">Pembayaran</p>
 
-            {/* Total */}
-            <div className="flex justify-between items-center py-2 bg-blue-50 rounded-md px-3">
-                <span className="text-sm text-blue-600">Total Tagihan</span>
-                <span className="font-bold text-blue-700">{formatCurrency(totalAmount)}</span>
-            </div>
-
             {/* Input */}
             <div>
                 <label className="text-xs text-neutral-400 block mb-1">Jumlah Uang</label>

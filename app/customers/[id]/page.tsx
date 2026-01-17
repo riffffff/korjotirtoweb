@@ -275,11 +275,9 @@ export default function CustomerDetailPage() {
                     )}
                 </div>
 
-                {/* Outstanding Balance Card */}
-                <div className={`rounded-xl p-4 ${customer.balance > 0
-                    ? 'bg-gradient-to-r from-orange-500 to-red-500'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-500'
-                    }`}>
+                {/* Outstanding Balance Card - Only show when there's outstanding balance */}
+                {customer.balance > 0 && (
+                    <div className="rounded-xl p-4 bg-gradient-to-r from-orange-500 to-red-500">
                     <p className="text-white/80 text-sm font-medium">Total Tagihan</p>
                     <p className="text-white text-3xl font-bold">
                         {formatCurrency(customer.balance)}
@@ -302,6 +300,7 @@ export default function CustomerDetailPage() {
                         </div>
                     )}
                 </div>
+                )}
 
                 {/* Customer Balance/Deposit Card */}
                 {(customer.totalPaid > customer.totalBill || customer.balance < 0) && (
