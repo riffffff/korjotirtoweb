@@ -123,7 +123,7 @@ export default function AdminDashboard() {
                 ) : data && (
                     <div className="space-y-8">
                         {/* Top Section: Pelanggan + Ring Chart - Side by Side */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Pelanggan Card */}
                             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
                                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-3">
