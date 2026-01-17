@@ -47,10 +47,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         });
 
         if (bills.length === 0) {
-            return NextResponse.json(
-                { success: false, error: 'No bills found for this period' },
-                { status: 404 }
-            );
+            return NextResponse.json({
+                success: true,
+                message: `Tidak ada tagihan untuk periode ${period}`,
+                count: 0,
+            });
         }
 
         // Get unique customer IDs affected
