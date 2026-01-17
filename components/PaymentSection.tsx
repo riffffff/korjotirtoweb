@@ -5,15 +5,18 @@ import PasswordConfirm from '@/components/ui/PasswordConfirm';
 
 type PaymentSectionProps = {
     totalAmount: number;
+    customerBalance?: number; // Customer's saved balance (deposit)
     onPay?: (amountPaid: number, saveToBalance: number) => void;
 }
 
 export default function PaymentSection({
     totalAmount,
+    customerBalance = 0,
     onPay
 }: PaymentSectionProps) {
     const [amountPaid, setAmountPaid] = useState<string>('');
     const [saveToBalance, setSaveToBalance] = useState<string>('');
+    const [useBalance, setUseBalance] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
     const [isPaying, setIsPaying] = useState(false);
@@ -21,8 +24,11 @@ export default function PaymentSection({
 
     const paidValue = parseInt(amountPaid.replace(/\D/g, '')) || 0;
     const saveValue = parseInt(saveToBalance.replace(/\D/g, '')) || 0;
-    const difference = paidValue - totalAmount;
-    const isEnough = paidValue >= totalAmount;
+    
+    // If using balance, add customer balance to payment
+    const effectivePaid = useBalance ? paidValue + customerBalance : paidValue;
+    const difference = effectivePaid - totalAmount;
+    const isEnough = effectivePaid >= totalAmount;
     const change = Math.max(0, difference);
     const cashChange = change - saveValue;
 
@@ -30,13 +36,12 @@ export default function PaymentSection({
         const value = e.target.value.replace(/\D/g, '');
         setAmountPaid(value);
         setShowResult(false);
-        setSaveToBalance(''); // Reset save amount when payment changes
+        setSaveToBalance('');
     };
 
     const handleSaveChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/\D/g, '');
         const numValue = parseInt(value) || 0;
-        // Can't save more than change
         if (numValue <= change) {
             setSaveToBalance(value);
         }
@@ -55,7 +60,7 @@ export default function PaymentSection({
     };
 
     const handlePayClick = () => {
-        if (paidValue > 0) {
+        if (effectivePaid > 0) {
             setShowPasswordConfirm(true);
         }
     };
@@ -64,11 +69,11 @@ export default function PaymentSection({
         setShowPasswordConfirm(false);
         setIsPaying(true);
         setShowResult(true);
-        onPay?.(paidValue, saveValue);
+        // Pass effectivePaid (including balance used) to parent
+        onPay?.(effectivePaid, saveValue);
         setIsPaying(false);
     };
 
-    // Quick amounts for saving to balance (common small change)
     const quickSaveAmounts = [100, 200, 300, 500, 1000].filter(amt => amt <= change);
 
     return (
@@ -82,9 +87,40 @@ export default function PaymentSection({
                 <p className="text-sm font-semibold text-blue-700">Pembayaran</p>
             </div>
 
+            {/* Use Customer Balance Toggle */}
+            {customerBalance > 0 && (
+                <div className="bg-cyan-50 rounded-lg p-3 border border-cyan-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-cyan-700">Gunakan Saldo</p>
+                            <p className="text-xs text-cyan-600">{formatCurrency(customerBalance)} tersedia</p>
+                        </div>
+                        <button
+                            onClick={() => setUseBalance(!useBalance)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                useBalance ? 'bg-cyan-500' : 'bg-neutral-300'
+                            }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    useBalance ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                            />
+                        </button>
+                    </div>
+                    {useBalance && (
+                        <p className="text-xs text-cyan-600 mt-2 pt-2 border-t border-cyan-200">
+                            ✓ Saldo {formatCurrency(customerBalance)} akan digunakan
+                        </p>
+                    )}
+                </div>
+            )}
+
             {/* Input */}
             <div>
-                <label className="text-xs text-neutral-400 block mb-1">Jumlah Uang</label>
+                <label className="text-xs text-blue-600 block mb-1">
+                    {useBalance ? 'Tambahan Uang Cash' : 'Jumlah Uang'}
+                </label>
                 <input
                     ref={inputRef}
                     type="text"
@@ -93,8 +129,13 @@ export default function PaymentSection({
                     onChange={handleInputChange}
                     onFocus={handleFocus}
                     placeholder="0"
-                    className="w-full px-3 py-2 text-lg font-semibold border border-neutral-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                    className="w-full px-3 py-3 text-xl font-bold border-2 border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-center bg-white"
                 />
+                {useBalance && paidValue > 0 && (
+                    <p className="text-xs text-blue-600 text-center mt-1">
+                        Total: {formatCurrency(effectivePaid)} (Saldo + Cash)
+                    </p>
+                )}
             </div>
 
             {/* Save to Balance - only show if there's change */}
@@ -113,11 +154,10 @@ export default function PaymentSection({
                             value={saveToBalance ? formatCurrency(parseInt(saveToBalance)).replace('Rp', '').trim() : ''}
                             onChange={handleSaveChange}
                             placeholder="0"
-                            className="w-full px-3 py-2 text-sm font-semibold border border-emerald-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-right bg-white"
+                            className="w-full px-3 py-2 text-sm font-semibold border border-emerald-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center bg-white"
                         />
                     </div>
 
-                    {/* Quick amounts */}
                     {quickSaveAmounts.length > 0 && (
                         <div className="flex gap-1 flex-wrap">
                             {quickSaveAmounts.map(amt => (
@@ -146,7 +186,7 @@ export default function PaymentSection({
             )}
 
             {/* Result */}
-            {showResult && paidValue > 0 && (
+            {showResult && effectivePaid > 0 && (
                 <div className={`py-3 rounded-md text-center ${isEnough ? 'bg-green-50' : 'bg-orange-50'}`}>
                     <p className={`text-xs mb-1 ${isEnough ? 'text-green-600' : 'text-orange-600'}`}>
                         {!isEnough ? 'Sisa Tagihan' : saveValue > 0 ? 'Kembalian Cash' : change === 0 ? '✓ Status' : 'Kembalian'}
@@ -167,13 +207,13 @@ export default function PaymentSection({
             {/* Pay Button */}
             <button
                 onClick={handlePayClick}
-                disabled={paidValue === 0 || isPaying}
-                className={`w-full py-3 rounded-lg font-semibold text-white transition ${paidValue > 0 && !isPaying
+                disabled={effectivePaid === 0 || isPaying}
+                className={`w-full py-3 rounded-xl font-semibold text-white transition ${effectivePaid > 0 && !isPaying
                     ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
                     : 'bg-neutral-300 cursor-not-allowed'
                     }`}
             >
-                {isPaying ? 'Memproses...' : paidValue === 0 ? 'Masukkan Nominal' : 'Bayar'}
+                {isPaying ? 'Memproses...' : effectivePaid === 0 ? 'Masukkan Nominal' : `Bayar ${formatCurrency(effectivePaid)}`}
             </button>
 
             {/* Password Confirmation Modal */}
@@ -182,7 +222,7 @@ export default function PaymentSection({
                 onClose={() => setShowPasswordConfirm(false)}
                 onConfirm={handlePayConfirmed}
                 title="Konfirmasi Pembayaran"
-                description={`Masukkan password admin untuk memproses pembayaran ${formatCurrency(paidValue)}.`}
+                description={`Masukkan password admin untuk memproses pembayaran ${formatCurrency(effectivePaid)}.`}
                 confirmText="Bayar"
                 loading={isPaying}
             />

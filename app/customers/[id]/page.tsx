@@ -348,6 +348,7 @@ export default function CustomerDetailPage() {
                 {isAdmin && customer.balance > 0 && (
                     <PaymentSection
                         totalAmount={customer.balance}
+                        customerBalance={customer.totalPaid > customer.totalBill ? customer.totalPaid - customer.totalBill : 0}
                         onPay={handlePayment}
                     />
                 )}
