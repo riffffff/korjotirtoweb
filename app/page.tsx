@@ -315,18 +315,10 @@ export default function HomePage() {
 
                     {/* Right: Outstanding */}
                     <div className="text-right">
-                      {customer.balance > 0 ? (
-                        <>
-                          <p className="text-xs text-neutral-400">Tagihan</p>
-                          <p className="font-bold text-red-600">
-                            {formatCurrency(customer.balance)}
-                          </p>
-                        </>
-                      ) : (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
-                          ✓ Lunas
-                        </span>
-                      )}
+                      <p className="text-xs text-neutral-400">Saldo Simpanan</p>
+                      <p className={`font-bold ${customer.balance > 0 ? 'text-emerald-600' : 'text-neutral-400'}`}>
+                        {formatCurrency(customer.balance)}
+                      </p>
                     </div>
                   </div>
 

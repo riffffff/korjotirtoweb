@@ -85,9 +85,9 @@ export default function CustomerCard({
             <p className="font-bold text-neutral-700">{formatCurrency(totalAmount)}</p>
           </div>
           <div className="text-right">
-            <span className="text-xs text-neutral-400">Tunggakan</span>
-            <p className={`font-bold ${hasOutstanding ? 'text-red-600' : 'text-green-600'}`}>
-              {hasOutstanding ? formatCurrency(balance) : '✓ Lunas'}
+            <span className="text-xs text-neutral-400">Saldo Simpanan</span>
+            <p className={`font-bold ${balance > 0 ? 'text-emerald-600' : 'text-neutral-400'}`}>
+              {formatCurrency(balance)}
             </p>
           </div>
         </div>
