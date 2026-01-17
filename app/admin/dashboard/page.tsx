@@ -100,7 +100,6 @@ export default function AdminDashboard() {
                                         <p className="text-3xl font-bold text-emerald-600">{totalPaid}</p>
                                     </div>
                                 </div>
-                                <div className="text-xs text-neutral-400">{paidRate}% dari total tagihan</div>
                             </div>
 
                             <div className="bg-white rounded-2xl p-6 border border-neutral-200 shadow-sm hover:shadow-md transition-shadow">
@@ -115,7 +114,6 @@ export default function AdminDashboard() {
                                         <p className="text-3xl font-bold text-rose-600">{totalUnpaid}</p>
                                     </div>
                                 </div>
-                                <div className="text-xs text-neutral-400">{100 - paidRate}% dari total tagihan</div>
                             </div>
                         </div>
 
