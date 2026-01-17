@@ -1,6 +1,8 @@
 import "./globals.css";
 import { ThemeModeScript } from 'flowbite-react';
 import { Inter, Poppins } from 'next/font/google';
+import { SidebarProvider } from '@/components/layout/AppLayout';
+import type { Metadata, Viewport } from 'next';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -15,16 +17,24 @@ const poppins = Poppins({
   display: 'swap',
 });
 
-// Inline script to set sidebar state before React hydration to prevent flash
-const sidebarScript = `
-(function() {
-  try {
-    var collapsed = localStorage.getItem('sidebar-collapsed');
-    if (collapsed === null) collapsed = 'true';
-    document.documentElement.setAttribute('data-sidebar-collapsed', collapsed);
-  } catch (e) {}
-})();
-`;
+export const metadata: Metadata = {
+  title: 'Korjo Tirto - Sistem Pembayaran Air',
+  description: 'Sistem Pembayaran Air HIPPAM Sukorejo',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Korjo Tirto',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#0288d1',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export default function RootLayout({
   children,
@@ -35,13 +45,12 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning className={`${inter.variable} ${poppins.variable}`}>
       <head>
         <ThemeModeScript />
-        <script dangerouslySetInnerHTML={{ __html: sidebarScript }} />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className="font-sans bg-neutral-50 min-h-screen">
-        {children}
-        <footer className="bg-neutral-800 text-white text-center py-3 text-sm">
-          <p className="text-neutral-400">© 2025 Korjo Tirto - Sukorejo</p>
-        </footer>
+      <body className="font-sans">
+        <SidebarProvider>
+          {children}
+        </SidebarProvider>
       </body>
     </html>
   );

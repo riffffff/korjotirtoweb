@@ -76,13 +76,13 @@ export default function CreateBillsPage() {
     return (
         <AppLayout>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg md:max-w-none mx-auto px-4 py-4">
+                <div className="max-w-7xl mx-auto px-6 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Tambah Tagihan per Periode</h1>
                     <p className="text-sm text-neutral-500">Buat tagihan untuk semua pelanggan</p>
                 </div>
             </header>
 
-            <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+            <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
                 <BackButton href="/admin/dashboard" className="md:hidden" />
 
                 <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">

@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
                         phone: c.phone,
                         totalBill: c.totalAmount,
                         totalPaid: 0,
-                        outstandingBalance: c.totalAmount,
+                        balance: c.totalAmount,
                     })),
                     skipDuplicates: true,
                 });

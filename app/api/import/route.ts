@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
                             phone: customer.phone,
                             totalBill: customer.totalAmount,
                             totalPaid: 0,
-                            outstandingBalance: customer.totalAmount,
+                            balance: customer.totalAmount,
                         },
                     });
                     customersAdded++;

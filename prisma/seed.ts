@@ -161,7 +161,7 @@ async function main() {
                     data: {
                         totalBill: { increment: totalAmount },
                         totalPaid: { increment: isPaid ? totalAmount : 0 },
-                        outstandingBalance: { increment: isPaid ? 0 : totalAmount },
+                        balance: { increment: isPaid ? 0 : totalAmount },
                     },
                 });
             }

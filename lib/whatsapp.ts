@@ -7,7 +7,7 @@ interface Customer {
     id: number;
     name: string;
     phone: string | null;
-    outstandingBalance: number;
+    balance: number;
 }
 
 /**
@@ -64,7 +64,7 @@ Dengan hormat, kami dari PAMSIMAS Korjo Tirto menginformasikan rincian tagihan a
 
 ${billLines}
 
-*Total Tagihan: ${formatCurrency(customer.outstandingBalance)}*
+*Total Tagihan: ${formatCurrency(customer.balance)}*
 
 Silakan lakukan pembayaran melalui admin atau lihat detail tagihan di:
 ${WEB_URL}/customers/${customer.id}

@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCustomers } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
@@ -9,14 +9,28 @@ import AppLayout from '@/components/layout/AppLayout';
 import LoadingState from '@/components/state/LoadingState';
 import ErrorState from '@/components/state/ErrorState';
 import { formatCurrency } from '@/lib/formatCurrency';
+import CustomerForm from '@/components/CustomerForm';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [sendingWA, setSendingWA] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Redirect admin to dashboard on first load
+  useEffect(() => {
+    if (!authLoading && isAdmin) {
+      const hasVisitedHome = sessionStorage.getItem('hasVisitedHome');
+      if (!hasVisitedHome) {
+        sessionStorage.setItem('hasVisitedHome', 'true');
+        router.push('/admin/dashboard');
+      }
+    }
+  }, [isAdmin, authLoading, router]);
 
   // Filter customers by search term
   const filteredCustomers = customers.filter((customer) =>
@@ -26,7 +40,7 @@ export default function HomePage() {
 
   // Customers with unpaid bills and phone
   const customersWithUnpaid = customers.filter(
-    (c) => c.outstandingBalance > 0 && c.phone
+    (c) => c.balance > 0 && c.phone
   );
 
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number } | null>(null);
@@ -80,18 +94,38 @@ export default function HomePage() {
     setTimeout(() => setBroadcastResult(null), 5000);
   };
 
+  // Handle inline customer creation
+  const handleCreateCustomer = async (data: { name: string; customerNumber: string; phone: string }) => {
+    setSubmitting(true);
+    try {
+      const result = await customerService.create(data);
+      if (result.success) {
+        setShowAddForm(false);
+        refetch();
+      } else {
+        alert(result.error || 'Gagal menambah pelanggan');
+      }
+    } catch (error) {
+      console.error('Failed to create customer:', error);
+      alert('Gagal menambah pelanggan');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   return (
     <AppLayout>
       {/* Header - simplified on tablet/laptop since sidebar handles navigation */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-        <div className="max-w-lg md:max-w-none mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="md:hidden">
             <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
             <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
           </div>
           <div className="hidden md:block">
             <h1 className="text-xl font-bold text-neutral-800">Daftar Pelanggan</h1>
+            <p className="text-sm text-neutral-500">Kelola data pelanggan air</p>
           </div>
           {/* Mobile-only admin buttons - hidden on tablet/laptop where sidebar is used */}
           {isAdmin && (
@@ -121,7 +155,7 @@ export default function HomePage() {
                     <button
                       onClick={() => {
                         setShowAddMenu(false);
-                        router.push('/admin/customer/new');
+                        setShowAddForm(true);
                       }}
                       className="w-full px-4 py-3 text-left hover:bg-neutral-50 flex items-center gap-3 text-neutral-700"
                     >
@@ -150,29 +184,65 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Cari nama atau nomor pelanggan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-4 py-3 pl-10 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+        {/* Add Customer Form - Inline collapsible */}
+        {isAdmin && showAddForm && (
+          <div className="bg-white rounded-xl border border-neutral-200 p-4 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-neutral-800">Tambah Pelanggan Baru</h2>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="p-1 rounded-lg hover:bg-neutral-100 text-neutral-500"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <CustomerForm
+              onSubmit={handleCreateCustomer}
+              onCancel={() => setShowAddForm(false)}
             />
-          </svg>
+          </div>
+        )}
+
+        {/* Header with Search and Add Button */}
+        <div className="flex gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Cari nama atau nomor pelanggan..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-3 pl-10 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          {/* Desktop Add Button */}
+          {isAdmin && !showAddForm && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="hidden md:flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span>Tambah</span>
+            </button>
+          )}
         </div>
 
         {/* Broadcast WA Button - Admin only */}
@@ -245,11 +315,11 @@ export default function HomePage() {
 
                     {/* Right: Outstanding */}
                     <div className="text-right">
-                      {customer.outstandingBalance > 0 ? (
+                      {customer.balance > 0 ? (
                         <>
                           <p className="text-xs text-neutral-400">Tagihan</p>
                           <p className="font-bold text-red-600">
-                            {formatCurrency(customer.outstandingBalance)}
+                            {formatCurrency(customer.balance)}
                           </p>
                         </>
                       ) : (

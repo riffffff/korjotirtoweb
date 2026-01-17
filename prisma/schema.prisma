@@ -7,19 +7,19 @@ datasource db {
 }
 
 model Customer {
-  id                 Int            @id(map: "PK_133ec679a801fab5e070f73d3ea") @default(autoincrement())
-  name               String         @db.VarChar
-  customerNumber     Int            @unique @map("customer_number")
-  phone              String?        @db.VarChar(20)
-  totalBill          Decimal        @default(0) @map("total_bill") @db.Decimal(12, 2)
-  totalPaid          Decimal        @default(0) @map("total_paid") @db.Decimal(12, 2)
-  outstandingBalance Decimal        @default(0) @map("outstanding_balance") @db.Decimal(12, 2)
-  lastNotifiedAt     DateTime?      @map("last_notified_at") @db.Timestamp(6)
-  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  deletedAt          DateTime?      @map("deleted_at") @db.Timestamp(6)
-  meterReadings      MeterReading[]
-  payments           Payment[]
+  id             Int            @id(map: "PK_133ec679a801fab5e070f73d3ea") @default(autoincrement())
+  name           String         @db.VarChar
+  customerNumber Int            @unique @map("customer_number")
+  phone          String?        @db.VarChar(20)
+  totalBill      Decimal        @default(0) @map("total_bill") @db.Decimal(12, 2)
+  totalPaid      Decimal        @default(0) @map("total_paid") @db.Decimal(12, 2)
+  balance        Decimal        @default(0) @map("balance") @db.Decimal(12, 2)
+  lastNotifiedAt DateTime?      @map("last_notified_at") @db.Timestamp(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamp(6)
+  meterReadings  MeterReading[]
+  payments       Payment[]
 
   @@map("customers")
 }
