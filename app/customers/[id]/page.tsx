@@ -276,11 +276,11 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Outstanding Balance Card - Only show when there's outstanding balance */}
-                {customer.balance > 0 && (
+                {(customer.totalBill - customer.totalPaid) > 0 && (
                     <div className="rounded-xl p-4 bg-gradient-to-r from-orange-500 to-red-500">
-                    <p className="text-white/80 text-sm font-medium">Total Tagihan</p>
+                    <p className="text-white/80 text-sm font-medium">Sisa Tagihan</p>
                     <p className="text-white text-3xl font-bold">
-                        {formatCurrency(customer.balance)}
+                        {formatCurrency(customer.totalBill - customer.totalPaid)}
                     </p>
 
                     {/* Breakdown per bulan */}
@@ -302,12 +302,12 @@ export default function CustomerDetailPage() {
                 </div>
                 )}
 
-                {/* Customer Balance/Deposit Card */}
-                {(customer.totalPaid > customer.totalBill || customer.balance < 0) && (
+                {/* Customer Balance/Deposit Card - Show when customer has saved balance */}
+                {customer.balance > 0 && (
                     <div className="rounded-xl p-4 bg-gradient-to-r from-blue-500 to-cyan-500">
                         <p className="text-white/80 text-sm font-medium">Saldo Simpanan</p>
                         <p className="text-white text-3xl font-bold">
-                            {formatCurrency(Math.abs(customer.totalPaid - customer.totalBill))}
+                            {formatCurrency(customer.balance)}
                         </p>
                         <p className="text-white/70 text-xs mt-1">
                             Dapat digunakan untuk pembayaran selanjutnya
@@ -344,17 +344,17 @@ export default function CustomerDetailPage() {
                     )}
                 </div>
 
-                {/* Payment Section - Admin only */}
-                {isAdmin && customer.balance > 0 && (
+                {/* Payment Section - Admin only, show when there's outstanding balance */}
+                {isAdmin && (customer.totalBill - customer.totalPaid) > 0 && (
                     <PaymentSection
-                        totalAmount={customer.balance}
-                        customerBalance={customer.totalPaid > customer.totalBill ? customer.totalPaid - customer.totalBill : 0}
+                        totalAmount={customer.totalBill - customer.totalPaid}
+                        customerBalance={customer.balance}
                         onPay={handlePayment}
                     />
                 )}
 
                 {/* All Paid */}
-                {customer.balance === 0 && (
+                {(customer.totalBill - customer.totalPaid) <= 0 && (
                     <div className="py-4 bg-green-50 rounded-xl text-center border border-green-200">
                         <p className="text-green-600 font-semibold text-lg">✓ LUNAS SEMUA</p>
                         <p className="text-green-500 text-sm">Tidak ada tagihan</p>
