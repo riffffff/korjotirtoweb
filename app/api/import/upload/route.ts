@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
                                     phone: customer.phone,
                                     totalBill: customer.totalAmount,
                                     totalPaid: 0,
-                                    balance: customer.totalAmount,
+                                    balance: 0,
                                 },
                             });
 
