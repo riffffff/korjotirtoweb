@@ -156,9 +156,9 @@ export default function AdminDashboard() {
                                     </select>
                                 </div>
 
-                                <div className="flex items-center justify-center gap-8">
+                                <div className="flex items-center justify-center gap-10">
                                     {/* Ring Chart */}
-                                    <RingChart percentage={paymentRate} size={100} strokeWidth={10} />
+                                    <RingChart percentage={paymentRate} size={120} strokeWidth={12} />
 
                                     {/* Stats */}
                                     <div className="space-y-3">
