@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCustomers } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
@@ -12,11 +12,22 @@ import { formatCurrency } from '@/lib/formatCurrency';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [sendingWA, setSendingWA] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+
+  // Redirect admin to dashboard on first load
+  useEffect(() => {
+    if (!authLoading && isAdmin) {
+      const hasVisitedHome = sessionStorage.getItem('hasVisitedHome');
+      if (!hasVisitedHome) {
+        sessionStorage.setItem('hasVisitedHome', 'true');
+        router.push('/admin/dashboard');
+      }
+    }
+  }, [isAdmin, authLoading, router]);
 
   // Filter customers by search term
   const filteredCustomers = customers.filter((customer) =>
@@ -92,6 +103,7 @@ export default function HomePage() {
           </div>
           <div className="hidden md:block">
             <h1 className="text-xl font-bold text-neutral-800">Daftar Pelanggan</h1>
+            <p className="text-sm text-neutral-500">Kelola data pelanggan air</p>
           </div>
           {/* Mobile-only admin buttons - hidden on tablet/laptop where sidebar is used */}
           {isAdmin && (
