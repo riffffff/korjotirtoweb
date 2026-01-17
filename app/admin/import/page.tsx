@@ -186,13 +186,13 @@ export default function ImportPage() {
     return (
         <AppLayout>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-lg md:max-w-none mx-auto px-4 py-4">
+                <div className="max-w-7xl mx-auto px-6 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Import Tagihan</h1>
                     <p className="text-sm text-neutral-500">Import tagihan bulanan dari Excel</p>
                 </div>
             </header>
 
-            <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+            <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
                 <BackButton href="/" className="md:hidden" />
 
                 {/* Period Selector */}

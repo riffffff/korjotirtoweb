@@ -205,7 +205,7 @@ export default function CustomerDetailPage() {
 
     return (<>
         <AppLayout>
-            <div className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+            <div className="max-w-7xl mx-auto px-6 py-6 space-y-4">
                 <BackButton href="/" />
 
                 {/* Customer Header */}

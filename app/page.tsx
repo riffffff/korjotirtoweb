@@ -85,7 +85,7 @@ export default function HomePage() {
     <AppLayout>
       {/* Header - simplified on tablet/laptop since sidebar handles navigation */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-        <div className="max-w-lg md:max-w-none mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="md:hidden">
             <h1 className="text-xl font-bold text-neutral-800">Korjo Tirto</h1>
             <p className="text-sm text-neutral-500">Sistem Pembayaran Air</p>
@@ -150,7 +150,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-lg md:max-w-none mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
         {/* Search */}
         <div className="relative">
           <input
