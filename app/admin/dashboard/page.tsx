@@ -122,31 +122,30 @@ export default function AdminDashboard() {
                     <LoadingState variant="skeleton-list" count={3} />
                 ) : data && (
                     <div className="space-y-8">
-                        {/* Top Section: Pelanggan + Ring Chart */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Top Section: Pelanggan + Ring Chart - Side by Side */}
+                        <div className="grid grid-cols-2 gap-4">
                             {/* Pelanggan Card */}
-                            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-4">
-                                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-3">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
                                 </div>
-                                <p className="text-sm font-medium text-slate-500">Total Pelanggan</p>
-                                <p className="text-4xl font-bold text-slate-800 mt-1">{data.totalCustomers}</p>
+                                <p className="text-xs font-medium text-slate-500">Total Pelanggan</p>
+                                <p className="text-3xl font-bold text-slate-800 mt-1">{data.totalCustomers}</p>
                             </div>
 
                             {/* Ring Chart Card */}
-                            <div className="lg:col-span-2 bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
-                                <div className="flex items-center justify-between mb-4">
+                            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                                <div className="flex items-center justify-between mb-3">
                                     <div>
-                                        <h2 className="font-bold text-slate-800">Statistik Pembayaran</h2>
-                                        <p className="text-xs text-slate-500">Persentase per periode</p>
+                                        <h2 className="text-sm font-bold text-slate-800">Statistik</h2>
+                                        <p className="text-xs text-slate-500">per periode</p>
                                     </div>
-                                    {/* Period Selector */}
                                     <select
                                         value={selectedPeriod}
                                         onChange={(e) => setSelectedPeriod(e.target.value)}
-                                        className="px-3 py-1.5 bg-slate-100 border-0 rounded-lg text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500"
+                                        className="px-2 py-1 bg-slate-100 border-0 rounded-lg text-xs font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500"
                                     >
                                         {data.periods.map((p) => (
                                             <option key={p.period} value={p.period}>
@@ -156,35 +155,26 @@ export default function AdminDashboard() {
                                     </select>
                                 </div>
 
-                                <div className="flex items-center justify-center gap-10">
-                                    {/* Ring Chart */}
-                                    <RingChart percentage={paymentRate} size={120} strokeWidth={12} />
-
-                                    {/* Stats */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                                                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
+                                <div className="flex items-center gap-4">
+                                    <RingChart percentage={paymentRate} size={80} strokeWidth={8} />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                <span className="text-xs text-slate-500">Lunas</span>
                                             </div>
-                                            <div>
-                                                <p className="text-xs text-slate-500">Sudah Bayar</p>
-                                                <p className="text-xl font-bold text-emerald-600">{paidCount}</p>
-                                            </div>
+                                            <span className="text-sm font-bold text-emerald-600">{paidCount}</span>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center">
-                                                <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01" />
-                                                </svg>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-rose-400" />
+                                                <span className="text-xs text-slate-500">Belum</span>
                                             </div>
-                                            <div>
-                                                <p className="text-xs text-slate-500">Belum Bayar</p>
-                                                <p className="text-xl font-bold text-rose-500">{unpaidCount}</p>
-                                            </div>
+                                            <span className="text-sm font-bold text-rose-500">{unpaidCount}</span>
                                         </div>
-                                        <p className="text-xs text-slate-400 pt-1 border-t border-slate-100">Total {totalBills} tagihan</p>
+                                        <div className="pt-1 border-t border-slate-100">
+                                            <p className="text-xs text-slate-400">Total {totalBills}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
