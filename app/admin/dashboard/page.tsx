@@ -110,9 +110,7 @@ export default function AdminDashboard() {
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
             <header className="sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-white/20">
                 <div className="max-w-7xl mx-auto px-6 py-5">
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                        Dashboard
-                    </h1>
+                    <h1 className="text-xl font-bold text-neutral-800">Dashboard</h1>
                     <p className="text-sm text-slate-500 mt-0.5">Ringkasan statistik pembayaran</p>
                 </div>
             </header>
