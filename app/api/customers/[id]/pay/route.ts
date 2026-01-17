@@ -143,11 +143,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Calculate cash change (change minus what's saved to balance)
         const cashChange = change - saveToBalance;
 
+        // Calculate amount allocated to bills (payment minus change)
+        const allocatedToBills = amount - change;
+
         // Update customer totals
         const newTotalPaid = Number(customer.totalPaid) + amount;
-        // balance is CREDIT/SALDO (positive = customer has credit stored)
-        // Add saveToBalance to existing balance
-        const newBalance = Number(customer.balance) + saveToBalance;
+        // balance is "sisa tagihan" (outstanding) - decreases when bills are paid
+        // It should NOT be affected by saveToBalance (saveToBalance is just for cash management)
+        // The saldo simpanan is calculated as: totalPaid - totalBill (if positive)
+        const newBalance = Number(customer.balance) - allocatedToBills;
 
         const updatedCustomer = await prisma.customer.update({
             where: { id: customerId },
