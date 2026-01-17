@@ -122,61 +122,53 @@ export default function AdminDashboard() {
                     <LoadingState variant="skeleton-list" count={3} />
                 ) : data && (
                     <div className="space-y-8">
-                        {/* Top Section: Pelanggan + Ring Chart - Side by Side */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Pelanggan Card */}
-                            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-slate-500">Total Pelanggan</p>
-                                    <p className="text-3xl font-bold text-slate-800">{data.totalCustomers}</p>
-                                    <p className="text-xs text-slate-400">pelanggan aktif</p>
-                                </div>
+                        {/* Combined Stats Card */}
+                        <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="font-bold text-slate-800">Ringkasan</h2>
+                                <select
+                                    value={selectedPeriod}
+                                    onChange={(e) => setSelectedPeriod(e.target.value)}
+                                    className="px-3 py-1.5 bg-slate-100 border-0 rounded-lg text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    {data.periods.map((p) => (
+                                        <option key={p.period} value={p.period}>
+                                            {p.periodLabel}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-
-                            {/* Ring Chart Card */}
-                            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div>
-                                        <h2 className="text-sm font-bold text-slate-800">Statistik</h2>
-                                        <p className="text-xs text-slate-500">per periode</p>
+                            
+                            <div className="flex items-center">
+                                {/* Pelanggan Section */}
+                                <div className="flex items-center gap-3 flex-1">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
                                     </div>
-                                    <select
-                                        value={selectedPeriod}
-                                        onChange={(e) => setSelectedPeriod(e.target.value)}
-                                        className="px-2 py-1 bg-slate-100 border-0 rounded-lg text-xs font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500"
-                                    >
-                                        {data.periods.map((p) => (
-                                            <option key={p.period} value={p.period}>
-                                                {p.periodLabel}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div>
+                                        <p className="text-xs text-slate-500">Total Pelanggan</p>
+                                        <p className="text-2xl font-bold text-slate-800">{data.totalCustomers}</p>
+                                    </div>
                                 </div>
-
-                                <div className="flex items-center gap-4">
-                                    <RingChart percentage={paymentRate} size={80} strokeWidth={8} />
-                                    <div className="flex-1 space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                                <span className="text-xs text-slate-500">Lunas</span>
-                                            </div>
+                                
+                                {/* Divider */}
+                                <div className="w-px h-16 bg-slate-200 mx-4" />
+                                
+                                {/* Ring Chart Section */}
+                                <div className="flex items-center gap-4 flex-1">
+                                    <RingChart percentage={paymentRate} size={64} strokeWidth={6} />
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <span className="text-xs text-slate-500">Lunas</span>
                                             <span className="text-sm font-bold text-emerald-600">{paidCount}</span>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-rose-400" />
-                                                <span className="text-xs text-slate-500">Belum</span>
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full bg-rose-400" />
+                                            <span className="text-xs text-slate-500">Belum</span>
                                             <span className="text-sm font-bold text-rose-500">{unpaidCount}</span>
-                                        </div>
-                                        <div className="pt-1 border-t border-slate-100">
-                                            <p className="text-xs text-slate-400">Total {totalBills}</p>
                                         </div>
                                     </div>
                                 </div>
