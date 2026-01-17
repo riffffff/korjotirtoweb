@@ -5,7 +5,7 @@ type CustomerCardProps = {
   name: string;
   meterEnd: number;
   totalAmount: number;
-  balance?: number;
+  remainingBill?: number;
   paymentStatus: 'pending' | 'partial' | 'paid';
   onClick?: () => void;
 };
@@ -15,13 +15,10 @@ export default function CustomerCard({
   name,
   meterEnd,
   totalAmount,
-  balance = 0,
+  remainingBill = 0,
   paymentStatus,
   onClick
 }: CustomerCardProps) {
-
-  // Determine status based on outstanding balance
-  const hasOutstanding = balance > 0;
 
   const statusConfig = {
     pending: {
@@ -85,9 +82,9 @@ export default function CustomerCard({
             <p className="font-bold text-neutral-700">{formatCurrency(totalAmount)}</p>
           </div>
           <div className="text-right">
-            <span className="text-xs text-neutral-400">Saldo Simpanan</span>
-            <p className={`font-bold ${balance > 0 ? 'text-emerald-600' : 'text-neutral-400'}`}>
-              {formatCurrency(balance)}
+            <span className="text-xs text-neutral-400">Sisa Tagihan</span>
+            <p className={`font-bold ${remainingBill > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+              {remainingBill > 0 ? formatCurrency(remainingBill) : 'Lunas'}
             </p>
           </div>
         </div>
