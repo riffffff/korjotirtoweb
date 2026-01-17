@@ -462,9 +462,10 @@ export default function CustomerDetailPage() {
                                             {bill.items.map((item, i) => (
                                                 <div key={i} className="flex justify-between text-sm">
                                                     <span className="text-neutral-600">
-                                                        {item.type === 'K1' ? `K1 (${item.usage}m³ × Rp${item.rate})` :
-                                                            item.type === 'K2' ? `K2 (${item.usage}m³ × Rp${item.rate})` :
-                                                                'Biaya Admin'}
+                                                        {['K1', 'k1'].includes(item.type) ? `Pemakaian Air K1 (${item.usage}m³ × Rp${item.rate})` :
+                                                            ['K2', 'k2'].includes(item.type) ? `Pemakaian Air K2 (${item.usage}m³ × Rp${item.rate})` :
+                                                            ['beban', 'ADMIN_FEE'].includes(item.type) ? 'Biaya Admin / Beban' :
+                                                                'Biaya Lainnya'}
                                                     </span>
                                                     <span className="font-medium text-neutral-800">
                                                         {formatCurrency(item.amount)}
