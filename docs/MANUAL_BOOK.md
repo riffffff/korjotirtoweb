@@ -17,10 +17,16 @@ Selamat datang di Buku Panduan Penggunaan Aplikasi **Korjo Tirto**, sistem infor
 
 ## 1. Akses & Login
 
-Untuk mengakses aplikasi, buka alamat website di browser Anda (contoh: `https://korjotirto.my.id`).
+### Akses Publik (Pencarian Pelanggan)
 
-1.  **Halaman Login**: Anda akan disambut halaman login.
-2.  **Kredensial Admin**:
+Saat Anda membuka `https://korjotirto.my.id`, Anda akan langsung disambut oleh halaman **Daftar Pelanggan**. Siapapun bisa melihat daftar ini untuk mengecek tagihan mereka sendiri.
+
+### Login Admin
+
+Untuk masuk sebagai pengelola (Admin) agar bisa mengedit data:
+
+1.  Tambahkan `/login` di belakang alamat website, contoh: `https://korjotirto.my.id/login`
+2.  Masukkan Kredensial Admin:
     - **Username**: `admin`
     - **Password**: `admin123` (Default)
 3.  Klik tombol **Login**.
