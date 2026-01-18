@@ -159,12 +159,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
             await tx.billItem.createMany({ data: billItems });
 
-            // Update customer totals
+            // Update customer totals - only increment totalBill
+            // balance is NOT touched here - it only stores saveToBalance deposits
             await tx.customer.update({
                 where: { id: customerId },
                 data: {
                     totalBill: { increment: totalAmount },
-                    balance: { increment: totalAmount },
                 },
             });
 

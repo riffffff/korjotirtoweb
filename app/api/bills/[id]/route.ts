@@ -80,15 +80,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
                 (sum, b) => sum + Number(b.amountPaid),
                 0
             );
-            const balance = totalBill - totalPaid;
 
-            // Update customer totals
+            // Update customer totals - do NOT touch balance
+            // balance is for saveToBalance deposits only, not sisa tagihan
             await tx.customer.update({
                 where: { id: customerId },
                 data: {
                     totalBill: totalBill,
                     totalPaid: totalPaid,
-                    balance: balance,
                 },
             });
         });

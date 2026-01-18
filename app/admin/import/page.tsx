@@ -8,6 +8,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
+import PasswordConfirm from '@/components/ui/PasswordConfirm';
 
 interface ImportProgress {
     type: 'status' | 'progress' | 'complete' | 'error';
@@ -16,6 +17,8 @@ interface ImportProgress {
     total?: number;
     currentName?: string;
     added?: number;
+    newCustomers?: number;
+    existingUpdated?: number;
     skipped?: number;
     failed?: number;
 }
@@ -36,6 +39,19 @@ export default function ImportPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Password confirmation states
+    const [showImportConfirm, setShowImportConfirm] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
+    const [showDeletePeriodConfirm, setShowDeletePeriodConfirm] = useState(false);
+
+    // Delete by period states
+    const [deletingPeriod, setDeletingPeriod] = useState(false);
+    const [deletePeriodValue, setDeletePeriodValue] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+    const [deletePeriodSuccess, setDeletePeriodSuccess] = useState<string | null>(null);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -75,7 +91,7 @@ export default function ImportPage() {
         }
     };
 
-    const handleImport = async () => {
+    const handleImportClick = () => {
         if (!selectedFile) {
             setError('Pilih file Excel terlebih dahulu');
             return;
@@ -84,6 +100,11 @@ export default function ImportPage() {
             setError('Pilih periode tagihan terlebih dahulu');
             return;
         }
+        setShowImportConfirm(true);
+    };
+
+    const handleImportConfirmed = async () => {
+        setShowImportConfirm(false);
 
         setImporting(true);
         setError(null);
@@ -93,7 +114,7 @@ export default function ImportPage() {
 
         try {
             const formData = new FormData();
-            formData.append('file', selectedFile);
+            formData.append('file', selectedFile!);
             formData.append('role', localStorage.getItem('role') || '');
             formData.append('period', selectedPeriod);
 
@@ -142,10 +163,12 @@ export default function ImportPage() {
         }
     };
 
-    const handleClearAll = async () => {
-        if (!confirm('PERINGATAN!\n\nSemua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN.\n\nLanjutkan?')) {
-            return;
-        }
+    const handleClearClick = () => {
+        setShowClearConfirm(true);
+    };
+
+    const handleClearConfirmed = async () => {
+        setShowClearConfirm(false);
         setClearing(true);
         setError(null);
         setClearSuccess(false);
@@ -175,7 +198,33 @@ export default function ImportPage() {
         return `${months[parseInt(month) - 1]} ${year}`;
     };
 
-    const isProcessing = importing || clearing;
+    const handleDeletePeriodClick = () => {
+        setShowDeletePeriodConfirm(true);
+    };
+
+    const handleDeletePeriodConfirmed = async () => {
+        setShowDeletePeriodConfirm(false);
+        setDeletingPeriod(true);
+        setError(null);
+        setDeletePeriodSuccess(null);
+
+        try {
+            const response = await customerService.deleteBillsByPeriod(deletePeriodValue);
+            if (response.success) {
+                clearCustomerCaches();
+                setDeletePeriodSuccess(`Berhasil menghapus ${response.count} tagihan periode ${formatPeriod(deletePeriodValue)}`);
+            } else {
+                setError(response.error || 'Gagal menghapus tagihan periode');
+            }
+        } catch (err) {
+            console.error('Delete period failed:', err);
+            setError('Gagal menghapus tagihan. Cek console untuk detail.');
+        } finally {
+            setDeletingPeriod(false);
+        }
+    };
+
+    const isProcessing = importing || clearing || deletingPeriod;
 
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) {
@@ -306,7 +355,7 @@ export default function ImportPage() {
                 {/* Actions */}
                 <div className="space-y-2">
                     <Button
-                        onClick={handleImport}
+                        onClick={handleImportClick}
                         loading={importing}
                         variant="primary"
                         className="w-full"
@@ -314,17 +363,57 @@ export default function ImportPage() {
                     >
                         {importing ? 'Mengimport...' : 'Import Data'}
                     </Button>
-
-                    <Button
-                        onClick={handleClearAll}
-                        loading={clearing}
-                        variant="danger"
-                        className="w-full"
-                        disabled={isProcessing}
-                    >
-                        {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
-                    </Button>
                 </div>
+
+                {/* Separator */}
+                <div className="border-t border-neutral-200 pt-4">
+                    <h3 className="font-semibold text-neutral-700 mb-3">Hapus Data</h3>
+
+                    {/* Delete by Period */}
+                    <div className="bg-orange-50 rounded-xl p-4 space-y-3 mb-3">
+                        <div>
+                            <label className="block text-sm font-medium text-orange-700 mb-2">Hapus Tagihan Periode</label>
+                            <p className="text-xs text-orange-600 mb-2">Menghapus tagihan periode tertentu (pelanggan tetap ada)</p>
+                            <input
+                                type="month"
+                                value={deletePeriodValue}
+                                onChange={(e) => setDeletePeriodValue(e.target.value)}
+                                className="w-full px-4 py-3 bg-white rounded-xl border border-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            />
+                        </div>
+                        <Button
+                            onClick={handleDeletePeriodClick}
+                            loading={deletingPeriod}
+                            variant="danger"
+                            className="w-full"
+                            disabled={isProcessing}
+                        >
+                            {deletingPeriod ? 'Menghapus...' : `Hapus Tagihan ${formatPeriod(deletePeriodValue)}`}
+                        </Button>
+                    </div>
+
+                    {/* Delete All Data */}
+                    <div className="bg-red-50 rounded-xl p-4">
+                        <p className="text-sm font-medium text-red-700 mb-2">Hapus Semua Data</p>
+                        <p className="text-xs text-red-600 mb-3">Menghapus SEMUA pelanggan, tagihan, dan pembayaran</p>
+                        <Button
+                            onClick={handleClearClick}
+                            loading={clearing}
+                            variant="danger"
+                            className="w-full"
+                            disabled={isProcessing}
+                        >
+                            {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Delete Period Success */}
+                {deletePeriodSuccess && (
+                    <div className="bg-green-50 rounded-xl p-4">
+                        <p className="text-green-700 font-medium">{deletePeriodSuccess}</p>
+                    </div>
+                )}
 
                 {/* Clear Success */}
                 {clearSuccess && (
@@ -347,14 +436,18 @@ export default function ImportPage() {
                     <div className="bg-green-50 rounded-xl p-4 space-y-3">
                         <p className="text-green-700 font-semibold">Import Selesai!</p>
 
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="grid grid-cols-4 gap-2 text-center">
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-neutral-800">{progress.total}</p>
                                 <p className="text-xs text-neutral-500">Total</p>
                             </div>
                             <div className="bg-white rounded-lg p-2">
-                                <p className="text-2xl font-bold text-green-600">{progress.added}</p>
-                                <p className="text-xs text-neutral-500">Berhasil</p>
+                                <p className="text-2xl font-bold text-blue-600">{progress.newCustomers || 0}</p>
+                                <p className="text-xs text-neutral-500">Baru</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-2">
+                                <p className="text-2xl font-bold text-green-600">{progress.existingUpdated || 0}</p>
+                                <p className="text-xs text-neutral-500">Ditambah</p>
                             </div>
                             <div className="bg-white rounded-lg p-2">
                                 <p className="text-2xl font-bold text-orange-500">{progress.skipped}</p>
@@ -372,6 +465,37 @@ export default function ImportPage() {
                     </div>
                 )}
             </main>
+
+            {/* Password Confirmation Modals */}
+            <PasswordConfirm
+                isOpen={showImportConfirm}
+                onClose={() => setShowImportConfirm(false)}
+                onConfirm={handleImportConfirmed}
+                title="Konfirmasi Import"
+                description="Masukkan password admin untuk mengimport data."
+                confirmText="Import"
+                loading={importing}
+            />
+
+            <PasswordConfirm
+                isOpen={showClearConfirm}
+                onClose={() => setShowClearConfirm(false)}
+                onConfirm={handleClearConfirmed}
+                title="Konfirmasi Hapus Semua Data"
+                description="PERINGATAN! Semua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN. Masukkan password admin untuk melanjutkan."
+                confirmText="Hapus Semua"
+                loading={clearing}
+            />
+
+            <PasswordConfirm
+                isOpen={showDeletePeriodConfirm}
+                onClose={() => setShowDeletePeriodConfirm(false)}
+                onConfirm={handleDeletePeriodConfirmed}
+                title="Konfirmasi Hapus Tagihan Periode"
+                description={`Tagihan periode ${formatPeriod(deletePeriodValue)} akan dihapus. Pelanggan tetap ada. Masukkan password admin untuk melanjutkan.`}
+                confirmText="Hapus Periode"
+                loading={deletingPeriod}
+            />
         </AppLayout>
     );
 }

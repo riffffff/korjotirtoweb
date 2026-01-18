@@ -41,10 +41,10 @@ export default function CustomerDetailPage() {
     const [newBillMeterEnd, setNewBillMeterEnd] = useState('');
     const [addingBill, setAddingBill] = useState(false);
 
-    const handlePayment = async (amount: number, saveToBalance: number = 0) => {
+    const handlePayment = async (amount: number, saveToBalance: number = 0, balanceUsed: number = 0) => {
         if (!customerId) return;
         try {
-            await customerService.pay(customerId, amount, saveToBalance);
+            await customerService.pay(customerId, amount, saveToBalance, balanceUsed);
             clearCustomerCaches();
             refetch();
         } catch (err) {
@@ -275,14 +275,12 @@ export default function CustomerDetailPage() {
                     )}
                 </div>
 
-                {/* Outstanding Balance Card */}
-                <div className={`rounded-xl p-4 ${customer.balance > 0
-                    ? 'bg-gradient-to-r from-orange-500 to-red-500'
-                    : 'bg-gradient-to-r from-green-500 to-emerald-500'
-                    }`}>
-                    <p className="text-white/80 text-sm font-medium">Total Tagihan</p>
+                {/* Outstanding Balance Card - Only show when there's outstanding balance */}
+                {customer.outstanding > 0 && (
+                    <div className="rounded-xl p-4 bg-gradient-to-r from-orange-500 to-red-500">
+                    <p className="text-white/80 text-sm font-medium">Sisa Tagihan</p>
                     <p className="text-white text-3xl font-bold">
-                        {formatCurrency(customer.balance)}
+                        {formatCurrency(customer.outstanding)}
                     </p>
 
                     {/* Breakdown per bulan */}
@@ -302,7 +300,20 @@ export default function CustomerDetailPage() {
                         </div>
                     )}
                 </div>
+                )}
 
+                {/* Customer Balance/Deposit Card - Show when customer has saved balance */}
+                {customer.balance > 0 && (
+                    <div className="rounded-xl p-4 bg-gradient-to-r from-blue-500 to-cyan-500">
+                        <p className="text-white/80 text-sm font-medium">Saldo Simpanan</p>
+                        <p className="text-white text-3xl font-bold">
+                            {formatCurrency(customer.balance)}
+                        </p>
+                        <p className="text-white/70 text-xs mt-1">
+                            Dapat digunakan untuk pembayaran selanjutnya
+                        </p>
+                    </div>
+                )}
 
 
                 {/* Riwayat Pembayaran (Payment History) */}
@@ -333,16 +344,17 @@ export default function CustomerDetailPage() {
                     )}
                 </div>
 
-                {/* Payment Section - Admin only */}
-                {isAdmin && customer.balance > 0 && (
+                {/* Payment Section - Admin only, show when there's outstanding balance */}
+                {isAdmin && customer.outstanding > 0 && (
                     <PaymentSection
-                        totalAmount={customer.balance}
+                        totalAmount={customer.outstanding}
+                        customerBalance={customer.balance}
                         onPay={handlePayment}
                     />
                 )}
 
                 {/* All Paid */}
-                {customer.balance === 0 && (
+                {customer.outstanding <= 0 && (
                     <div className="py-4 bg-green-50 rounded-xl text-center border border-green-200">
                         <p className="text-green-600 font-semibold text-lg">✓ LUNAS SEMUA</p>
                         <p className="text-green-500 text-sm">Tidak ada tagihan</p>

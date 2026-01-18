@@ -62,33 +62,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         // Helper: Calculate penalty for overdue bills
         // Bills are due at end of their period month
-        // Penalty = Rp 5,000 per month overdue
-        const PENALTY_PER_MONTH = 5000;
+        // Penalty = Rp 5,000 FLAT per bill that is overdue (not per month late)
+        const PENALTY_PER_BILL = 5000;
         const calculatePenalty = (period: string, paymentStatus: string, paidAt: Date | null): number => {
             const [year, month] = period.split('-').map(Number);
             const dueDate = new Date(year, month, 0); // Last day of period month
 
-            // For paid bills, calculate penalty based on when it was paid
+            // For paid bills, check if was paid on time
             if (paymentStatus === 'paid' && paidAt) {
-                if (paidAt <= dueDate) return 0; // Paid on time
-
-                // Calculate months between due date and payment date
-                const monthsOverdue =
-                    (paidAt.getFullYear() - dueDate.getFullYear()) * 12 +
-                    (paidAt.getMonth() - dueDate.getMonth());
-
-                return Math.max(0, monthsOverdue) * PENALTY_PER_MONTH;
+                if (paidAt <= dueDate) return 0; // Paid on time - no penalty
+                return PENALTY_PER_BILL; // Paid late - flat penalty
             }
 
-            // For unpaid/partial bills, calculate based on current date
+            // For unpaid/partial bills, check if overdue
             const today = new Date();
-            if (today <= dueDate) return 0;
+            if (today <= dueDate) return 0; // Not yet due
 
-            const monthsOverdue =
-                (today.getFullYear() - dueDate.getFullYear()) * 12 +
-                (today.getMonth() - dueDate.getMonth());
-
-            return Math.max(0, monthsOverdue) * PENALTY_PER_MONTH;
+            return PENALTY_PER_BILL; // Overdue - flat penalty
         };
 
         const formattedBills = bills.map((bill) => {
@@ -142,7 +132,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                     phone: customer.phone,
                     totalBill: totalBillWithPenalty,
                     totalPaid: totalPaid,
-                    balance: outstandingWithPenalty,
+                    outstanding: outstandingWithPenalty, // sisa tagihan
+                    balance: Number(customer.balance),   // saldo simpanan (dari saveToBalance)
                     lastNotifiedAt: customer.lastNotifiedAt,
                 },
                 bills: formattedBills,

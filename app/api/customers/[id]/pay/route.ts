@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         const { id } = await params;
         const customerId = parseInt(id, 10);
         const body = await request.json();
-        const { amount, role, saveToBalance = 0 } = body;
+        const { amount, role, saveToBalance = 0, balanceUsed = 0 } = body;
 
         // Validate admin role
         if (role !== 'admin') {
@@ -47,10 +47,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Validate saveToBalance
+        // Validate saveToBalance & balanceUsed
         if (typeof saveToBalance !== 'number' || saveToBalance < 0) {
             return NextResponse.json(
                 { success: false, error: 'Invalid saveToBalance amount' },
+                { status: 400 }
+            );
+        }
+        if (typeof balanceUsed !== 'number' || balanceUsed < 0) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid balanceUsed amount' },
                 { status: 400 }
             );
         }
@@ -64,6 +70,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json(
                 { success: false, error: 'Customer not found' },
                 { status: 404 }
+            );
+        }
+
+        if (balanceUsed > Number(customer.balance)) {
+            return NextResponse.json(
+                { success: false, error: 'Saldo tidak mencukupi' },
+                { status: 400 }
             );
         }
 
@@ -143,11 +156,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // Calculate cash change (change minus what's saved to balance)
         const cashChange = change - saveToBalance;
 
+        // Calculate NET Cash In (Revenue)
+        // amount (Total Input) - balanceUsed = Net Cash Received
+        // But if user takes cash OUT (Refund scenario if balanceUsed > allocated), handled by cashChange?
+        // Let's stick to core definition: Revenue = Cash In handed by user - Cash Out handed back
+        // Cash In = (amount - balanceUsed). Cash Out = cashChange.
+        // Revenue = (amount - balanceUsed) - cashChange.
+        // = amount - balanceUsed - (change - saveToBalance).
+        // = (amount - change) - balanceUsed + saveToBalance.
+        // = allocatedAmount - balanceUsed + saveToBalance.
+        
         // Update customer totals
-        const newTotalPaid = Number(customer.totalPaid) + amount;
-        // balance is CREDIT/SALDO (positive = customer has credit stored)
-        // Add saveToBalance to existing balance
-        const newBalance = Number(customer.balance) + saveToBalance;
+        // totalPaid increases by ALLOCATED amount (amount - change) covers the bill
+        const allocatedAmount = amount - change;
+        const newTotalPaid = Number(customer.totalPaid) + allocatedAmount;
+
+        // balance decreases by usage, increases by save
+        const newBalance = Number(customer.balance) - balanceUsed + saveToBalance;
 
         const updatedCustomer = await prisma.customer.update({
             where: { id: customerId },
@@ -164,15 +189,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             .join(', ');
 
         let description = paidPeriods ? `Lunas: ${paidPeriods}` : 'Pembayaran';
-        if (saveToBalance > 0) {
-            description += ` | +Rp ${saveToBalance.toLocaleString()} ke saldo`;
-        }
+        if (balanceUsed > 0) description += ` | Pakai Saldo: Rp ${balanceUsed.toLocaleString()}`;
+        if (saveToBalance > 0) description += ` | +Rp ${saveToBalance.toLocaleString()} ke saldo`;
 
         // Create Payment Record
+        // Revenue = Cash Flow
+        const netCashIn = allocatedAmount - balanceUsed + saveToBalance;
+
         await prisma.payment.create({
             data: {
                 customerId,
-                amount,
+                amount: netCashIn, 
                 description: description.trim(),
             }
         });

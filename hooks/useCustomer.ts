@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { customerService, CustomerListItem, CustomerDetail } from '@/services/customerService';
+import { clearDashboardCache } from './useDashboard';
 
 // In-memory cache for customer list
 let customerListCache: CustomerListItem[] | null = null;
@@ -142,9 +143,12 @@ export function useCustomerDetail(id: number | null) {
 
 /**
  * Utility to clear all caches (call after import/delete operations)
+ * Also clears dashboard cache to keep stats in sync
  */
 export function clearCustomerCaches() {
     customerListCache = null;
     customerListCacheTime = 0;
     customerDetailCache.clear();
+    // Also clear dashboard cache to sync stats
+    clearDashboardCache();
 }

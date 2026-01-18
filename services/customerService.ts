@@ -8,7 +8,8 @@ export interface CustomerListItem {
     phone: string | null;
     totalBill: number;
     totalPaid: number;
-    balance: number;
+    outstanding: number; // sisa tagihan (totalBill - totalPaid + penalties)
+    balance: number;     // saldo simpanan (dari saveToBalance)
     lastNotifiedAt: string | null;
 }
 
@@ -53,7 +54,8 @@ export interface DashboardStats {
 export const customerService = {
     // GET /customers - List all customers
     getAll: async (): Promise<CustomerListItem[]> => {
-        const res = await api.get('/customers');
+        const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
+        const res = await api.get(`/customers${role ? `?role=${role}` : ''}`);
         return res.data.data || [];
     },
 
@@ -85,9 +87,9 @@ export const customerService = {
     },
 
     // PATCH /customers/:id/pay - Pay customer (FIFO) with optional balance saving
-    pay: async (id: number, amount: number, saveToBalance: number = 0) => {
+    pay: async (id: number, amount: number, saveToBalance: number = 0, balanceUsed: number = 0) => {
         const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
-        const res = await api.patch(`/customers/${id}/pay`, { amount, role, saveToBalance });
+        const res = await api.patch(`/customers/${id}/pay`, { amount, role, saveToBalance, balanceUsed });
         return res.data;
     },
 
