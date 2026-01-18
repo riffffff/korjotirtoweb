@@ -298,6 +298,7 @@ export async function POST(request: NextRequest) {
                     await tx.billItem.createMany({ data: billItems });
 
                     // Update customer totals
+                    // Logic: Balance is Outstanding (Unpaid) amount
                     await tx.customer.update({
                         where: { id: customerId },
                         data: {
@@ -319,7 +320,7 @@ export async function POST(request: NextRequest) {
                         total: totalToProcess,
                         percent,
                         currentName: row.name,
-                        message: `Membuat baru: ${row.name}...`
+                        message: `Membuat pelanggan baru: ${row.name}...`
                     });
 
                     try {
@@ -394,9 +395,11 @@ export async function POST(request: NextRequest) {
                         await prisma.$transaction(async (tx) => {
                             // 1. Revert balance if bill existed
                             if (oldBillData) {
-                                // Important: We assume paid means fully paid for balance calculation simplicity in revert
-                                const isOldPaid = oldBillData.paymentStatus === 'paid' || oldBillData.amountPaid >= oldBillData.totalAmount;
-                                
+                                const isOldPaid = oldBillData.paymentStatus === 'paid';
+                                // Calculate old remaining balance to revert
+                                // If paid, remaining is 0. If unpaid, it's roughly totalAmount (or total - paid)
+                                const oldRemaining = isOldPaid ? 0 : (oldBillData.totalAmount - oldBillData.amountPaid);
+
                                 await tx.customer.update({
                                     where: { id: customerId },
                                     data: {

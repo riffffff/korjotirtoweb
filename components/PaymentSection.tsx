@@ -6,7 +6,7 @@ import PasswordConfirm from '@/components/ui/PasswordConfirm';
 type PaymentSectionProps = {
     totalAmount: number;
     customerBalance?: number; // Customer's saved balance (deposit)
-    onPay?: (amountPaid: number, saveToBalance: number) => void;
+    onPay?: (amountPaid: number, saveToBalance: number, balanceUsed: number) => void;
 }
 
 export default function PaymentSection({
@@ -70,7 +70,7 @@ export default function PaymentSection({
         setIsPaying(true);
         setShowResult(true);
         // Pass effectivePaid (including balance used) to parent
-        onPay?.(effectivePaid, saveValue);
+        onPay?.(effectivePaid, saveValue, useBalance ? customerBalance : 0);
         setIsPaying(false);
     };
 

@@ -87,9 +87,9 @@ export const customerService = {
     },
 
     // PATCH /customers/:id/pay - Pay customer (FIFO) with optional balance saving
-    pay: async (id: number, amount: number, saveToBalance: number = 0) => {
+    pay: async (id: number, amount: number, saveToBalance: number = 0, balanceUsed: number = 0) => {
         const role = typeof window !== 'undefined' ? localStorage.getItem('role') : null;
-        const res = await api.patch(`/customers/${id}/pay`, { amount, role, saveToBalance });
+        const res = await api.patch(`/customers/${id}/pay`, { amount, role, saveToBalance, balanceUsed });
         return res.data;
     },
 

@@ -41,10 +41,10 @@ export default function CustomerDetailPage() {
     const [newBillMeterEnd, setNewBillMeterEnd] = useState('');
     const [addingBill, setAddingBill] = useState(false);
 
-    const handlePayment = async (amount: number, saveToBalance: number = 0) => {
+    const handlePayment = async (amount: number, saveToBalance: number = 0, balanceUsed: number = 0) => {
         if (!customerId) return;
         try {
-            await customerService.pay(customerId, amount, saveToBalance);
+            await customerService.pay(customerId, amount, saveToBalance, balanceUsed);
             clearCustomerCaches();
             refetch();
         } catch (err) {

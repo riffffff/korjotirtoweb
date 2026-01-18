@@ -106,9 +106,9 @@ async function main() {
             const k2Amount = k2Usage * RATE_K2;
             const totalAmount = k1Amount + k2Amount + ADMIN_FEE;
 
-            // Determine payment status: Feb-Nov 2025 = paid, Dec 2025 & Jan 2026 = unpaid
+            // Determine payment status: All paid for clean start (Saldo 0)
             const [year, month] = period.split('-').map(Number);
-            const isPaid = year === 2025 && month >= 2 && month <= 11;
+            const isPaid = true;
 
             // For paid bills, set paidAt to end of that month
             const paidAt = isPaid ? new Date(year, month, 0) : null; // Last day of month
