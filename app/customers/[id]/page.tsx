@@ -414,7 +414,7 @@ export default function CustomerDetailPage() {
                                                     <p className="text-xs text-neutral-400">
                                                         Pemakaian: {bill.usage} m³
                                                     </p>
-                                                    {bill.penalty > 0 && bill.paymentStatus !== 'paid' && (
+                                                    {bill.penalty > 0 && (
                                                         <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
                                                             +Denda
                                                         </span>
@@ -426,7 +426,7 @@ export default function CustomerDetailPage() {
                                         <div className="text-right flex items-center gap-2">
                                             <div>
                                                     <p className="font-bold text-neutral-800">
-                                                    {formatCurrency(bill.penalty > 0 && bill.paymentStatus !== 'paid' ? bill.totalWithPenalty : bill.totalAmount)}
+                                                    {formatCurrency(bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount)}
                                                 </p>
                                                 <p className={`text-xs ${bill.paymentStatus === 'paid' ? 'text-green-600' :
                                                     bill.paymentStatus === 'partial' ? 'text-yellow-600' :
@@ -484,7 +484,7 @@ export default function CustomerDetailPage() {
                                                     </span>
                                                 </div>
                                             ))}
-                                            {bill.penalty > 0 && bill.paymentStatus !== 'paid' && (
+                                            {bill.penalty > 0 && (
                                                 <div className="flex justify-between text-sm">
                                                     <span className="text-red-600">Denda Keterlambatan</span>
                                                     <span className="font-medium text-red-600">
@@ -495,7 +495,7 @@ export default function CustomerDetailPage() {
                                             <div className="flex justify-between pt-2 border-t border-dashed border-neutral-200">
                                                 <span className="font-semibold">Total</span>
                                                 <span className="font-bold text-neutral-800">
-                                                    {formatCurrency(bill.penalty > 0 && bill.paymentStatus !== 'paid' ? bill.totalWithPenalty : bill.totalAmount)}
+                                                    {formatCurrency(bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount)}
                                                 </span>
                                             </div>
                                         </div>
