@@ -69,14 +69,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             const dueDate = new Date(year, month, 0); // Last day of period month
             dueDate.setHours(23, 59, 59, 999); // End of the day
 
-            // For paid bills:
-            // If paidAt is set, check if paid after due date
-            // If paidAt is NULL (legacy/import), assume on time -> NO PENALTY
+            // For paid bills: ALWAYS 0 Penalty (User Rule)
+            // "kalau di keterangan kosong brrti lunas tanpa denda walaupun pembayaran melewati bulan tersebut"
             if (paymentStatus === 'paid') {
-                if (paidAt && paidAt > dueDate) {
-                    return PENALTY_PER_BILL;
-                }
-                return 0; // Paid on time or assume on time
+                return 0;
             }
 
             // For unpaid/partial bills, check if overdue
