@@ -33,10 +33,9 @@ Untuk mengakses aplikasi, buka alamat website di browser Anda (contoh: `https://
 
 Setelah berhasil login, Anda akan masuk ke halaman Dashboard. Di sini Anda bisa melihat ringkasan performa HIPPAM:
 
-- **Total Pelanggan**: Jumlah pelanggan aktif.
-- **Pembayaran Bulan Ini**: Total uang yang masuk bulan ini.
-- **Tagihan Belum Lunas**: Total piutang atau tagihan yang belum dibayar warga.
-- **Penggunaan Air**: Grafik konsumsi air bulan ini vs bulan lalu.
+- **Statistik Pembayaran**: Grafik ringkasan tagihan (Lunas vs Belum Lunas) baik per periode maupun keseluruhan.
+- **Total Pelanggan**: Jumlah total pelanggan yang terdaftar.
+- **Saldo Pelanggan**: Jumlah total saldo (uang lebih bayar/deposit) milik pelanggan yang tersimpan di sistem. ini uang warga yang "titip" di admin.
 
 ---
 
