@@ -2,7 +2,7 @@ import os
 from PIL import Image
 
 # Configuration
-SOURCE_IMAGE = "/home/rifai/.gemini/antigravity/brain/b916059b-db28-4f59-bdd5-ba25f0b8376a/transparent_logo_1768751464982.png"
+SOURCE_IMAGE = "/home/rifai/.gemini/antigravity/brain/b916059b-db28-4f59-bdd5-ba25f0b8376a/transparent_logo_v2_1768751707416.png"
 TARGET_DIR = "/home/rifai/korjo_tirto/web/public/icons"
 SIZES = [72, 96, 128, 144, 152, 192, 384, 512]
 
