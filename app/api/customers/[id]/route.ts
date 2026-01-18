@@ -67,11 +67,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const calculatePenalty = (period: string, paymentStatus: string, paidAt: Date | null): number => {
             const [year, month] = period.split('-').map(Number);
             const dueDate = new Date(year, month, 0); // Last day of period month
+            dueDate.setHours(23, 59, 59, 999); // End of the day
 
-            // For paid bills, check if was paid on time
-            if (paymentStatus === 'paid' && paidAt) {
-                if (paidAt <= dueDate) return 0; // Paid on time - no penalty
-                return PENALTY_PER_BILL; // Paid late - flat penalty
+            // For paid bills:
+            // If paidAt is set, check if paid after due date
+            // If paidAt is NULL (legacy/import), assume on time -> NO PENALTY
+            if (paymentStatus === 'paid') {
+                if (paidAt && paidAt > dueDate) {
+                    return PENALTY_PER_BILL;
+                }
+                return 0; // Paid on time or assume on time
             }
 
             // For unpaid/partial bills, check if overdue

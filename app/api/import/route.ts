@@ -84,12 +84,19 @@ export async function POST(request: NextRequest) {
             const beayaK2 = Number(getVal(9)) || (usageK2 * 3000);
             const totalAmount = Number(getVal(10)) || (beban + beayaK1 + beayaK2);
 
+            const keterangan = getVal(11); // Col L (index 11)
+            const isLunas = !keterangan || String(keterangan).trim() === '';
+
             if (customerNumber && name) {
+                // Determine paidAt date for paid bills (set to due date to avoid penalty)
+                const paidAt = isLunas ? new Date(2025, 12, 0) : null; // Late 2025-12 due date
+
                 customers.push({
                     customerNumber, name, phone,
                     meterStart, meterEnd, usage,
                     usageK1, usageK2, beban, beayaK1, beayaK2, totalAmount,
-                });
+                    isLunas, paidAt // Add these custom props
+                } as any);
             }
         }
 
@@ -107,7 +114,7 @@ export async function POST(request: NextRequest) {
         const existingNames = new Map(existingCustomers.map(c => [c.name, c.id]));
 
         const skippedNames: string[] = [];
-        const toCreate: ExcelCustomerRow[] = [];
+        const toCreate: any[] = []; // Use any to support custom props
 
         for (const customer of customers) {
             if (existingNames.has(customer.name)) {
@@ -135,7 +142,7 @@ export async function POST(request: NextRequest) {
                             name: customer.name,
                             phone: customer.phone,
                             totalBill: customer.totalAmount,
-                            totalPaid: 0,
+                            totalPaid: customer.isLunas ? customer.totalAmount : 0,
                             balance: 0,
                         },
                     });
@@ -157,9 +164,10 @@ export async function POST(request: NextRequest) {
                         data: {
                             meterReadingId: meterReading.id,
                             totalAmount: customer.totalAmount,
-                            amountPaid: 0,
-                            remaining: customer.totalAmount,
-                            paymentStatus: 'unpaid',
+                            amountPaid: customer.isLunas ? customer.totalAmount : 0,
+                            remaining: customer.isLunas ? 0 : customer.totalAmount,
+                            paymentStatus: customer.isLunas ? 'paid' : 'unpaid',
+                            paidAt: customer.paidAt,
                         },
                     });
                     billsCreated++;
