@@ -1,6 +1,6 @@
 import { BillHistoryItem } from '@/services/customerService';
 
-const WEB_URL = 'http://localhost:3001'; // TODO: Change to production URL
+const WEB_URL = 'https://korjotirto.vercel.app';
 const FONNTE_TOKEN = 'vJqCcZq5xQ1uEEV91jFk';
 
 interface Customer {
@@ -57,23 +57,25 @@ export function generateBillMessage(
         `• ${formatPeriod(bill.period)}: ${formatCurrency(bill.totalAmount)}`
     ).join('\n');
 
+    const totalDebt = unpaidBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+
     const message = `
 Yth. Bpk/Ibu *${customer.name}*,
 
-Dengan hormat, kami dari PAMSIMAS Korjo Tirto menginformasikan rincian tagihan air Anda:
+Dengan hormat, kami dari Korjo Tirto menginformasikan rincian tagihan air Anda:
 
 ${billLines}
 
-*Total Tagihan: ${formatCurrency(customer.balance)}*
+*Total Tagihan: ${formatCurrency(totalDebt)}*
 
 Silakan lakukan pembayaran melalui admin atau lihat detail tagihan di:
 ${WEB_URL}/customers/${customer.id}
 
-_Pesan ini dikirim secara otomatis oleh sistem._
+_Pesan ini dikirim secara otomatis oleh sistem. Mohon jangan membalas pesan ini._
 
 Terima kasih atas perhatiannya.
 Salam,
-PAMSIMAS Korjo Tirto
+Korjo Tirto
 `.trim();
 
     return message;
