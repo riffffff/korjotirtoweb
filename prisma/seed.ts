@@ -13,13 +13,21 @@ async function main() {
     console.log('Starting seed...');
 
     // Clear existing data (optional - comment out if you want to keep existing data)
-    await prisma.payment.deleteMany();
-    await prisma.billItem.deleteMany();
-    await prisma.bill.deleteMany();
-    await prisma.meterReading.deleteMany();
-    await prisma.customer.deleteMany();
-    await prisma.setting.deleteMany();
-    await prisma.users.deleteMany();
+    // Clear existing data AND reset IDs (Restart Identity)
+    try {
+        await prisma.$executeRawUnsafe(`TRUNCATE TABLE "payments", "bill_items", "bills", "meter_readings", "customers", "settings", "users" RESTART IDENTITY CASCADE;`);
+        console.log('Database cleared and IDs reset.');
+    } catch (error) {
+        console.error('Error truncating tables:', error);
+        // Fallback for non-Postgres or permissions issues
+        await prisma.payment.deleteMany();
+        await prisma.billItem.deleteMany();
+        await prisma.bill.deleteMany();
+        await prisma.meterReading.deleteMany();
+        await prisma.customer.deleteMany();
+        await prisma.setting.deleteMany();
+        await prisma.users.deleteMany();
+    }
 
     // 1. Create Settings
     const settings = await prisma.setting.createMany({
