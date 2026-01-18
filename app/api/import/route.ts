@@ -125,6 +125,13 @@ export async function POST(request: NextRequest) {
         }
 
         const period = '2025-12';
+        
+        // Helper: Get end of month date for the period
+        const [pYear, pMonth] = period.split('-').map(Number);
+        const periodDueDate = new Date(pYear, pMonth, 0); // Last day of month
+        // Set to noon to avoid timezone edge cases (safer than 00:00)
+        periodDueDate.setHours(12, 0, 0, 0);
+
         let customersAdded = 0;
         let billsCreated = 0;
 
@@ -135,6 +142,10 @@ export async function POST(request: NextRequest) {
 
             await prisma.$transaction(async (tx) => {
                 for (const customer of batch) {
+                    // Determine paidAt based on bill period (not hardcoded Dec 31)
+                    // If Lunas, paidAt = periodDueDate (On Time)
+                    const finalPaidAt = customer.isLunas ? periodDueDate : null;
+
                     // Create customer
                     const newCustomer = await tx.customer.create({
                         data: {
@@ -167,7 +178,7 @@ export async function POST(request: NextRequest) {
                             amountPaid: customer.isLunas ? customer.totalAmount : 0,
                             remaining: customer.isLunas ? 0 : customer.totalAmount,
                             paymentStatus: customer.isLunas ? 'paid' : 'unpaid',
-                            paidAt: customer.paidAt,
+                            paidAt: finalPaidAt,
                         },
                     });
                     billsCreated++;
