@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   title: 'Korjo Tirto - Sistem Pembayaran Air',
   description: 'Sistem Pembayaran Air HIPPAM Sukorejo',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icons/icon-192x192.png',
+    apple: '/icons/icon-192x192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -45,7 +49,7 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning className={`${inter.variable} ${poppins.variable}`}>
       <head>
         <ThemeModeScript />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
       </head>
       <body className="font-sans">
         <SidebarProvider>
