@@ -138,35 +138,72 @@ export async function POST(request: NextRequest) {
                         customerNumber: true,
                         meterReadings: {
                             where: { period },
-                            select: { id: true }
+                            select: { 
+                                id: true,
+                                bill: {
+                                    select: {
+                                        id: true,
+                                        totalAmount: true,
+                                        amountPaid: true,
+                                        paymentStatus: true,
+                                    }
+                                }
+                            }
                         }
                     },
                 });
 
-                // Create a map for case-insensitive name matching
+                // Create maps for matching
                 const customerByNameLower = new Map<string, typeof existingCustomers[0]>();
-                const customerByNumber = new Map<number, typeof existingCustomers[0]>();
+                
                 for (const c of existingCustomers) {
                     customerByNameLower.set(c.name.toLowerCase(), c);
-                    customerByNumber.set(c.customerNumber, c);
                 }
+
+                // Get highest customer number for auto-increment
+                const aggregations = await prisma.customer.aggregate({
+                    _max: { customerNumber: true },
+                });
+                let nextCustomerNumber = (aggregations._max.customerNumber || 0) + 1;
 
                 // Categorize rows
                 const toCreateNew: ExcelCustomerRow[] = [];
                 const toAddBill: { row: ExcelCustomerRow; customerId: number }[] = [];
-                const skippedDuplicate: string[] = [];
+                // Changed from skippedDuplicate to toUpdateBill (OVERWRITE)
+                const toUpdateBill: { 
+                    row: ExcelCustomerRow; 
+                    customerId: number; 
+                    oldMeterReadingId: number;
+                    oldBillData: {
+                        id: number;
+                        totalAmount: number;
+                        amountPaid: number;
+                        paymentStatus: string;
+                    } | null;
+                }[] = [];
 
                 for (const row of excelRows) {
-                    // Try to find existing customer by name (case-insensitive) or customerNumber
-                    const existingByName = customerByNameLower.get(row.name.toLowerCase());
-                    const existingByNumber = customerByNumber.get(row.customerNumber);
-                    const existing = existingByName || existingByNumber;
+                    // Find existing customer by name ONLY (as requested)
+                    const existing = customerByNameLower.get(row.name.toLowerCase());
 
                     if (existing) {
                         // Customer exists - check if already has bill for this period
                         if (existing.meterReadings.length > 0) {
-                            // Already has bill for this period - skip
-                            skippedDuplicate.push(row.name);
+                            // Already has bill for this period - OVERWRITE
+                            const meterReading = existing.meterReadings[0];
+                            const bill = meterReading.bill;
+                            
+                            toUpdateBill.push({
+                                row,
+                                customerId: existing.id,
+                                oldMeterReadingId: meterReading.id,
+                                oldBillData: bill ? {
+                                    id: bill.id,
+                                    totalAmount: Number(bill.totalAmount),
+                                    amountPaid: Number(bill.amountPaid),
+                                    paymentStatus: bill.paymentStatus
+                                } : null
+                            });
                         } else {
                             // No bill for this period - add new bill
                             toAddBill.push({ row, customerId: existing.id });
@@ -179,14 +216,15 @@ export async function POST(request: NextRequest) {
 
                 sendProgress({
                     type: 'status',
-                    message: `${toCreateNew.length} pelanggan baru, ${toAddBill.length} tagihan baru, ${skippedDuplicate.length} dilewati`,
+                    message: `${toCreateNew.length} baru, ${toAddBill.length} tambah tagihan, ${toUpdateBill.length} overwrite`,
                     percent: 20
                 });
 
                 let newCustomers = 0;
-                let existingUpdated = 0;
+                let existingUpdated = 0; // for adds
+                let overwritten = 0;     // for updates/overwrites
                 let failed = 0;
-                const totalToProcess = toCreateNew.length + toAddBill.length;
+                const totalToProcess = toCreateNew.length + toAddBill.length + toUpdateBill.length;
 
                 // Helper function to create bill for a customer
                 const createBillForCustomer = async (
@@ -281,16 +319,16 @@ export async function POST(request: NextRequest) {
                         total: totalToProcess,
                         percent,
                         currentName: row.name,
-                        message: `Membuat pelanggan baru: ${row.name}...`
+                        message: `Membuat baru: ${row.name}...`
                     });
 
                     try {
+                        const currentCustomerNumber = nextCustomerNumber++; // Auto-increment
+                        
                         await prisma.$transaction(async (tx) => {
-                            // Create customer with totalBill = 0
-                            // createBillForCustomer will increment totalBill
                             const newCustomer = await tx.customer.create({
                                 data: {
-                                    customerNumber: row.customerNumber,
+                                    customerNumber: currentCustomerNumber, // Use auto-incremented number
                                     name: row.name,
                                     phone: row.phone,
                                     totalBill: 0,
@@ -298,10 +336,8 @@ export async function POST(request: NextRequest) {
                                     balance: 0,
                                 },
                             });
-
                             await createBillForCustomer(tx, newCustomer.id, row);
                         });
-
                         newCustomers++;
                     } catch (err) {
                         console.error(`Failed to create customer ${row.name}:`, err);
@@ -309,7 +345,7 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
-                // Process existing customers (add bills)
+                // Process existing customers (add bills - NO overwrite needed)
                 for (const { row, customerId } of toAddBill) {
                     processed++;
                     const percent = Math.round(20 + (processed / totalToProcess) * 75);
@@ -325,17 +361,14 @@ export async function POST(request: NextRequest) {
 
                     try {
                         await prisma.$transaction(async (tx) => {
-                            // Update phone number if provided in Excel and customer doesn't have one
                             if (row.phone) {
                                 await tx.customer.update({
                                     where: { id: customerId },
                                     data: { phone: row.phone },
                                 });
                             }
-                            
                             await createBillForCustomer(tx, customerId, row);
                         });
-
                         existingUpdated++;
                     } catch (err) {
                         console.error(`Failed to add bill for ${row.name}:`, err);
@@ -343,16 +376,65 @@ export async function POST(request: NextRequest) {
                     }
                 }
 
+                // Process overwrites (UPDATE)
+                for (const { row, customerId, oldMeterReadingId, oldBillData } of toUpdateBill) {
+                    processed++;
+                    const percent = Math.round(20 + (processed / totalToProcess) * 75);
+
+                    sendProgress({
+                        type: 'progress',
+                        current: processed,
+                        total: totalToProcess,
+                        percent,
+                        currentName: row.name,
+                        message: `Update tagihan: ${row.name}...`
+                    });
+
+                    try {
+                        await prisma.$transaction(async (tx) => {
+                            // 1. Revert balance if bill existed
+                            if (oldBillData) {
+                                // Important: We assume paid means fully paid for balance calculation simplicity in revert
+                                const isOldPaid = oldBillData.paymentStatus === 'paid' || oldBillData.amountPaid >= oldBillData.totalAmount;
+                                
+                                await tx.customer.update({
+                                    where: { id: customerId },
+                                    data: {
+                                        totalBill: { decrement: oldBillData.totalAmount },
+                                        totalPaid: isOldPaid ? { decrement: oldBillData.totalAmount } : undefined,
+                                        // Update phone too if available
+                                        phone: row.phone || undefined
+                                    }
+                                });
+
+                                // 2. Delete old data (Hard Delete to replace cleanly)
+                                await tx.billItem.deleteMany({ where: { billId: oldBillData.id } });
+                                await tx.bill.delete({ where: { id: oldBillData.id } });
+                            }
+                            
+                            // Delete meter reading (will fail if bill exists, so deleted bill first)
+                            await tx.meterReading.delete({ where: { id: oldMeterReadingId } });
+
+                            // 3. Create new bill with fresh data
+                            await createBillForCustomer(tx, customerId, row);
+                        });
+                        overwritten++;
+                    } catch (err) {
+                        console.error(`Failed to overwrite bill for ${row.name}:`, err);
+                        failed++;
+                    }
+                }
+
                 sendProgress({
                     type: 'complete',
                     total: excelRows.length,
-                    added: newCustomers + existingUpdated,
+                    added: newCustomers + existingUpdated + overwritten,
                     newCustomers,
-                    existingUpdated,
-                    skipped: skippedDuplicate.length,
+                    existingUpdated: existingUpdated + overwritten,
+                    skipped: 0,
                     failed,
                     percent: 100,
-                    message: `Selesai! ${newCustomers} pelanggan baru, ${existingUpdated} tagihan ditambahkan`
+                    message: `Selesai! ${newCustomers} baru, ${existingUpdated} ditambah, ${overwritten} ditimpa`
                 });
                 controller.close();
             } catch (error) {

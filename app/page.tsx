@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { useCustomers } from '@/hooks/useCustomer';
+import { useCustomers, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
 import { generateBillMessage, sendWhatsAppViaFonnte } from '@/lib/whatsapp';
@@ -101,6 +101,7 @@ export default function HomePage() {
       const result = await customerService.create(data);
       if (result.success) {
         setShowAddForm(false);
+        clearCustomerCaches();
         refetch();
       } else {
         alert(result.error || 'Gagal menambah pelanggan');
