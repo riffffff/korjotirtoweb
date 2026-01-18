@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -43,7 +41,5 @@ export async function GET(request: Request) {
         return NextResponse.json({ success: true, message: 'Database reset specific tables, IDs restarted, and Admin recreated' });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
-    } finally {
-        await prisma.$disconnect();
     }
 }
