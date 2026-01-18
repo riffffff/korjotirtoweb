@@ -246,6 +246,19 @@ export async function POST(request: NextRequest) {
                     // Determine if bill should be marked as paid (keterangan empty = lunas)
                     const isPaid = !row.keterangan || row.keterangan === '';
                     
+                    // Determine paidAt based on bill period (Backdate to end of period month)
+                    // If Lunas, paidAt = End of Period Month (On Time)
+                    // Defaults to new Date() if period parsing fails (fallback)
+                    let finalPaidAt = new Date();
+                    try {
+                        const [pYear, pMonth] = period.split('-').map(Number);
+                        const periodDueDate = new Date(pYear, pMonth, 0); // Last day of month
+                        periodDueDate.setHours(12, 0, 0, 0); // Noon to match Safe Date
+                        finalPaidAt = periodDueDate;
+                    } catch (e) {
+                         // Fallback to today if parsing fails
+                    }
+
                     // Create bill
                     const bill = await tx.bill.create({
                         data: {
@@ -254,7 +267,7 @@ export async function POST(request: NextRequest) {
                             amountPaid: isPaid ? row.totalAmount : 0,
                             remaining: isPaid ? 0 : row.totalAmount,
                             paymentStatus: isPaid ? 'paid' : 'unpaid',
-                            paidAt: isPaid ? new Date() : null,
+                            paidAt: isPaid ? finalPaidAt : null,
                         },
                     });
 
