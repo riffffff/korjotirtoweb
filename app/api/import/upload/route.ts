@@ -325,6 +325,14 @@ export async function POST(request: NextRequest) {
 
                     try {
                         await prisma.$transaction(async (tx) => {
+                            // Update phone number if provided in Excel and customer doesn't have one
+                            if (row.phone) {
+                                await tx.customer.update({
+                                    where: { id: customerId },
+                                    data: { phone: row.phone },
+                                });
+                            }
+                            
                             await createBillForCustomer(tx, customerId, row);
                         });
 
