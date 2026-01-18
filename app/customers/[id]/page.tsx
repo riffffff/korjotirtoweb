@@ -426,7 +426,7 @@ export default function CustomerDetailPage() {
                                         <div className="text-right flex items-center gap-2">
                                             <div>
                                                 <p className="font-bold text-neutral-800">
-                                                    {formatCurrency(bill.totalAmount)}
+                                                    {formatCurrency(bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount)}
                                                 </p>
                                                 <p className={`text-xs ${bill.paymentStatus === 'paid' ? 'text-green-600' :
                                                     bill.paymentStatus === 'partial' ? 'text-yellow-600' :
