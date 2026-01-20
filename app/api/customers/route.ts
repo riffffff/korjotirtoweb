@@ -23,20 +23,57 @@ export async function GET(request: NextRequest) {
                 totalPaid: true,
                 balance: true,
                 lastNotifiedAt: true,
+                meterReadings: {
+                    where: {
+                        bill: {
+                            paymentStatus: { not: 'paid' }
+                        }
+                    },
+                    select: {
+                        period: true,
+                        bill: {
+                            select: {
+                                remaining: true,
+                                paymentStatus: true,
+                            }
+                        }
+                    }
+                }
             },
         });
 
+        const now = new Date();
+        const PENALTY_AMOUNT = 5000;
+
         const formattedCustomers = customers.map((customer) => {
-            const totalBill = Number(customer.totalBill);
-            const totalPaid = Number(customer.totalPaid);
+            // Calculate outstanding from actual unpaid bills + penalties
+            let realOutstanding = 0;
+
+            customer.meterReadings.forEach((mr) => {
+                const bill = mr.bill;
+                if (!bill) return;
+
+                realOutstanding += Number(bill.remaining);
+
+                // Calculate penalty using period from MeterReading
+                const [year, month] = mr.period.split('-').map(Number);
+                const dueDate = new Date(year, month, 0); // Last day of month
+                dueDate.setHours(23, 59, 59, 999);
+
+                // If overdue, add penalty
+                if (now > dueDate) {
+                    realOutstanding += PENALTY_AMOUNT;
+                }
+            });
+
             return {
                 id: customer.id,
                 name: customer.name,
                 customerNumber: customer.customerNumber,
                 phone: isAdmin ? customer.phone : null, // Hide phone for non-admin
-                totalBill: totalBill,
-                totalPaid: totalPaid,
-                outstanding: Math.max(0, totalBill - totalPaid), // sisa tagihan
+                totalBill: Number(customer.totalBill),
+                totalPaid: Number(customer.totalPaid),
+                outstanding: realOutstanding, // Uses calculated value with penalties
                 balance: Number(customer.balance), // saldo simpanan
                 lastNotifiedAt: customer.lastNotifiedAt,
             };
