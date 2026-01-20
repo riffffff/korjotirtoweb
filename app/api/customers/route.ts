@@ -42,27 +42,37 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        const now = new Date();
-        const PENALTY_AMOUNT = 5000;
+        // Logic copied exactly from app/api/customers/[id]/route.ts
+        const PENALTY_PER_BILL = 5000;
+        const calculatePenalty = (period: string, paymentStatus: string, paidAt: Date | null): number => {
+            const [year, month] = period.split('-').map(Number);
+            const dueDate = new Date(year, month, 0);
+            dueDate.setHours(23, 59, 59, 999);
+
+            if (paymentStatus === 'paid') {
+                if (paidAt && new Date(paidAt) > dueDate) {
+                    return PENALTY_PER_BILL;
+                }
+                return 0;
+            }
+
+            const today = new Date();
+            if (today <= dueDate) return 0;
+
+            return PENALTY_PER_BILL;
+        };
 
         const formattedCustomers = customers.map((customer) => {
-            // Calculate outstanding from actual unpaid bills + penalties
             let realOutstanding = 0;
 
             customer.meterReadings.forEach((mr) => {
                 const bill = mr.bill;
                 if (!bill) return;
 
-                realOutstanding += Number(bill.remaining);
-
-                // Calculate penalty using period from MeterReading
-                const [year, month] = mr.period.split('-').map(Number);
-                const dueDate = new Date(year, month, 0); // Last day of month
-                dueDate.setHours(23, 59, 59, 999);
-
-                // If overdue, add penalty
-                if (now > dueDate) {
-                    realOutstanding += PENALTY_AMOUNT;
+                // Only calculate outstanding for UNPAID bills (matching detail page logic)
+                if (bill.paymentStatus !== 'paid') {
+                   const penalty = calculatePenalty(mr.period, bill.paymentStatus, null); // passing null for paidAt since it's unpaid
+                   realOutstanding += Number(bill.remaining) + penalty;
                 }
             });
 
