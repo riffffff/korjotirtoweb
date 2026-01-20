@@ -1,6 +1,6 @@
 import { BillHistoryItem } from '@/services/customerService';
 
-const WEB_URL = 'https://korjotirto.vercel.app';
+const WEB_URL = 'https://www.korjotirto.my.id';
 const FONNTE_TOKEN = 'vJqCcZq5xQ1uEEV91jFk';
 
 interface Customer {
@@ -54,10 +54,10 @@ export function generateBillMessage(
     unpaidBills: BillHistoryItem[]
 ): string {
     const billLines = unpaidBills.map((bill) =>
-        `• ${formatPeriod(bill.period)}: ${formatCurrency(bill.totalAmount)}`
+        `• ${formatPeriod(bill.period)}: ${formatCurrency(bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount)}${bill.penalty > 0 ? ' (termasuk denda)' : ''}`
     ).join('\n');
 
-    const totalDebt = unpaidBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+    const totalDebt = unpaidBills.reduce((sum, bill) => sum + (bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount), 0);
 
     const message = `
 Yth. Bpk/Ibu *${customer.name}*,
