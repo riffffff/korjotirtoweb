@@ -339,8 +339,8 @@ export default function HomePage() {
                     {/* Right: Remaining Bill */}
                     <div className="text-right">
                       <p className="text-xs text-neutral-400">Sisa Tagihan</p>
-                      <p className={`font-bold ${(customer.totalBill - customer.totalPaid) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {(customer.totalBill - customer.totalPaid) > 0 ? formatCurrency(customer.totalBill - customer.totalPaid) : 'Lunas'}
+                      <p className={`font-bold ${customer.outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {customer.outstanding > 0 ? formatCurrency(customer.outstanding) : 'Lunas'}
                       </p>
                     </div>
                   </div>
