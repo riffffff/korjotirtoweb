@@ -1,6 +1,6 @@
 import { BillHistoryItem } from '@/services/customerService';
 
-const WEB_URL = 'https://korjotirto.vercel.app';
+const WEB_URL = 'https://www.korjotirto.my.id';
 const FONNTE_TOKEN = 'vJqCcZq5xQ1uEEV91jFk';
 
 interface Customer {
