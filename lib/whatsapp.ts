@@ -1,7 +1,6 @@
 import { BillHistoryItem } from '@/services/customerService';
 
 const WEB_URL = 'https://www.korjotirto.my.id';
-const FONNTE_TOKEN = 'vJqCcZq5xQ1uEEV91jFk';
 
 interface Customer {
     id: number;
@@ -82,48 +81,23 @@ Korjo Tirto
 }
 
 /**
- * Send WhatsApp message via Fonnte API
+ * Open WhatsApp via wa.me link (replaces Fonnte API)
+ * Opens a new tab/window with wa.me URL
  */
-export async function sendWhatsAppViaFonnte(
-    phone: string,
-    message: string
-): Promise<{ success: boolean; error?: string }> {
-    try {
-        const waNumber = formatPhoneForWA(phone);
-
-        const formData = new URLSearchParams();
-        formData.append('target', waNumber);
-        formData.append('message', message);
-
-        const response = await fetch('https://api.fonnte.com/send', {
-            method: 'POST',
-            headers: {
-                'Authorization': FONNTE_TOKEN,
-            },
-            body: formData,
-        });
-
-        const result = await response.json();
-
-        if (result.status === true || result.status === 'true') {
-            return { success: true };
-        } else {
-            console.error('Fonnte error:', result.reason);
-            return { success: false, error: result.reason || 'Gagal kirim' };
-        }
-    } catch (error) {
-        console.error('Fonnte API error:', error);
-        return { success: false, error: 'Gagal kirim pesan' };
-    }
+export function openWhatsAppLink(phone: string, message: string): void {
+    const waNumber = formatPhoneForWA(phone);
+    const encodedMessage = encodeURIComponent(message);
+    const waUrl = `https://wa.me/${waNumber}?text=${encodedMessage}`;
+    window.open(waUrl, '_blank');
 }
 
 /**
- * Send bill notification via WhatsApp (using Fonnte API)
+ * Open bill notification via WhatsApp (using wa.me link)
  */
-export async function sendBillNotification(
+export function openBillNotification(
     customer: Customer,
     unpaidBills: BillHistoryItem[]
-): Promise<{ success: boolean; error?: string }> {
+): { success: boolean; error?: string } {
     if (!customer.phone) {
         return { success: false, error: 'Tidak ada nomor HP' };
     }
@@ -133,5 +107,7 @@ export async function sendBillNotification(
     }
 
     const message = generateBillMessage(customer, unpaidBills);
-    return await sendWhatsAppViaFonnte(customer.phone, message);
+    openWhatsAppLink(customer.phone, message);
+    return { success: true };
 }
+
