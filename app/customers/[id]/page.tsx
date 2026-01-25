@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useCustomerDetail, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { customerService } from '@/services/customerService';
-import { sendBillNotification } from '@/lib/whatsapp';
+import { openBillNotification } from '@/lib/whatsapp';
 import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import PaymentSection from '@/components/PaymentSection';
@@ -61,7 +61,7 @@ export default function CustomerDetailPage() {
         setWaResult(null);
 
         const unpaidBills = bills.filter((b) => b.paymentStatus !== 'paid');
-        const result = await sendBillNotification(customer, unpaidBills);
+        const result = openBillNotification(customer, unpaidBills);
 
         setSendingWA(false);
         if (result.success) {
