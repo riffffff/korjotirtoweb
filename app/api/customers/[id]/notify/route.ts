@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCustomerId } from '@/lib/customerIdentifier';
 
 type RouteParams = {
     params: Promise<{
@@ -14,7 +15,14 @@ type RouteParams = {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
-        const customerId = parseInt(id, 10);
+        const customerId = await resolveCustomerId(id);
+
+        if (!customerId) {
+            return NextResponse.json(
+                { success: false, error: 'Customer not found' },
+                { status: 404 }
+            );
+        }
 
         const customer = await prisma.customer.update({
             where: { id: customerId },

@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useCustomers, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettings } from '@/hooks/useSettings';
 import { customerService } from '@/services/customerService';
 import { generateBillMessage, openWhatsAppLink } from '@/lib/whatsapp';
 import AppLayout from '@/components/layout/AppLayout';
@@ -14,11 +15,11 @@ import CustomerForm from '@/components/CustomerForm';
 export default function HomePage() {
   const router = useRouter();
   const { isAdmin, isLoading: authLoading } = useAuth();
+  const { settings } = useSettings();
   const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
   // Redirect admin to dashboard on first load
   useEffect(() => {
@@ -48,7 +49,11 @@ export default function HomePage() {
       const unpaidBills = detail.bills.filter((b) => b.paymentStatus !== 'paid');
 
       if (unpaidBills.length > 0) {
-        const message = generateBillMessage(customer, unpaidBills);
+        const message = generateBillMessage(
+          customer,
+          unpaidBills,
+          settings.wa_bill_template || settings.wa_message_text
+        );
         openWhatsAppLink(customer.phone, message);
         // Update lastNotifiedAt in database
         await customerService.notify(customer.id);
@@ -62,7 +67,6 @@ export default function HomePage() {
 
   // Handle inline customer creation
   const handleCreateCustomer = async (data: { name: string; customerNumber: string; phone: string }) => {
-    setSubmitting(true);
     try {
       const result = await customerService.create(data);
       if (result.success) {
@@ -75,8 +79,6 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to create customer:', error);
       alert('Gagal menambah pelanggan');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -231,7 +233,7 @@ export default function HomePage() {
               filteredCustomers.map((customer) => (
                 <div
                   key={customer.id}
-                  onClick={() => router.push(`/customers/${customer.id}`)}
+                  onClick={() => router.push(`/customerNumber/${customer.customerNumber}`)}
                   className="bg-white rounded-xl p-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <div className="flex items-center justify-between">
@@ -256,7 +258,7 @@ export default function HomePage() {
                       {isAdmin && customer.phone && customer.outstanding > 0 && (
                         <button
                           onClick={(e) => handleSendWA(e, customer)}
-                          className="w-9 h-9 flex-shrink-0 rounded-full bg-[#25D366] hover:bg-[#22c55e] flex items-center justify-center transition-colors shadow-sm"
+                          className="w-9 h-9 shrink-0 rounded-full bg-[#25D366] hover:bg-success-500 flex items-center justify-center transition-colors shadow-sm"
                           title="Kirim WA"
                         >
                           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -264,7 +266,7 @@ export default function HomePage() {
                           </svg>
                         </button>
                       )}
-                      <div className="text-right min-w-[90px]">
+                      <div className="text-right min-w-22.5">
                         <p className="text-xs text-neutral-400">Sisa Tagihan</p>
                         <p className={`font-bold ${customer.outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                           {customer.outstanding > 0 ? formatCurrency(customer.outstanding) : 'Lunas'}

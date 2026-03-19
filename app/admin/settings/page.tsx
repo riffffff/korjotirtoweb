@@ -1,12 +1,93 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettings } from '@/hooks/useSettings';
+import { DEFAULT_WA_BILL_TEMPLATE } from '@/lib/whatsapp';
 import BackButton from '@/components/BackButton';
 import LoadingState from '@/components/state/LoadingState';
+import Button from '@/components/ui/Button';
+
+const TEMPLATE_KEY = 'wa_bill_template';
+const LEGACY_MESSAGE_KEY = 'wa_message_text';
 
 export default function SettingsPage() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
+    const { settings, loading, error, updateCache } = useSettings();
+    const [saving, setSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ success: boolean; text: string } | null>(null);
+    const [templateDraft, setTemplateDraft] = useState('');
+    const [savedTemplateValue, setSavedTemplateValue] = useState('');
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    const currentTemplate = useMemo(() => templateDraft, [templateDraft]);
+
+    const isDirty = currentTemplate.trim() !== savedTemplateValue.trim();
+
+    useEffect(() => {
+        if (!isInitialized && !loading) {
+            let initialTemplate = DEFAULT_WA_BILL_TEMPLATE;
+
+            if (settings[TEMPLATE_KEY]) {
+                initialTemplate = settings[TEMPLATE_KEY];
+            } else if (settings[LEGACY_MESSAGE_KEY]) {
+                initialTemplate = DEFAULT_WA_BILL_TEMPLATE.replace(
+                    'Dengan hormat, kami dari Korjo Tirto menginformasikan rincian tagihan air Anda:',
+                    settings[LEGACY_MESSAGE_KEY]
+                );
+            }
+
+            setTemplateDraft(initialTemplate);
+            setSavedTemplateValue(initialTemplate);
+            setIsInitialized(true);
+        }
+    }, [isInitialized, loading, settings]);
+
+    const handleSave = async () => {
+        setSaving(true);
+        setSaveMessage(null);
+
+        try {
+            const role = isAdmin ? 'admin' : (localStorage.getItem('role') || 'guest');
+            const payload = {
+                role,
+                settings: {
+                    [TEMPLATE_KEY]: currentTemplate,
+                },
+            };
+
+            const response = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Gagal menyimpan pengaturan');
+            }
+
+            updateCache({
+                ...settings,
+                [TEMPLATE_KEY]: currentTemplate,
+            });
+            setTemplateDraft(currentTemplate);
+            setSavedTemplateValue(currentTemplate);
+            setSaveMessage({ success: true, text: 'Template pesan WA berhasil disimpan.' });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Gagal menyimpan pengaturan';
+            setSaveMessage({ success: false, text: message });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleResetTemplate = () => {
+        setTemplateDraft(DEFAULT_WA_BILL_TEMPLATE);
+        setSaveMessage(null);
+    };
 
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) {
@@ -14,72 +95,85 @@ export default function SettingsPage() {
         return null;
     }
 
+    if (loading && !isInitialized) {
+        return <LoadingState message="Memuat pengaturan..." />;
+    }
+
     return (
         <>
             <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
                 <div className="max-w-7xl mx-auto px-6 py-4">
                     <h1 className="text-xl font-bold text-neutral-800">Pengaturan</h1>
-                    <p className="text-sm text-neutral-500">Konfigurasi tarif dan biaya</p>
+                    <p className="text-sm text-neutral-500">Atur template pesan WhatsApp</p>
                 </div>
             </header>
 
             <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
                 <BackButton href="/admin/dashboard" className="md:hidden" />
 
-                {/* Coming Soon Card */}
-                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 p-8 text-center">
-                    <div className="w-16 h-16 mx-auto bg-slate-200 rounded-full flex items-center justify-center mb-4">
-                        <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <p className="text-sm text-red-700">{error}</p>
                     </div>
-                    <h2 className="text-xl font-bold text-slate-700 mb-2">Fitur Segera Tersedia</h2>
-                    <p className="text-slate-500 max-w-md mx-auto">
-                        Pengaturan tarif K1, K2, biaya admin, dan denda sedang dalam pengembangan. 
-                        Fitur ini akan segera tersedia di update berikutnya.
-                    </p>
-                </div>
+                )}
 
-                {/* Disabled Settings Preview */}
-                <div className="bg-white rounded-xl border border-neutral-200 divide-y divide-neutral-100 opacity-50 pointer-events-none">
-                    <div className="p-4">
-                        <span className="text-sm font-medium text-neutral-400">Tarif K1 (0-10 m³)</span>
-                        <p className="text-xs text-neutral-400 mb-2">Harga per m³ untuk pemakaian 0-10 m³</p>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">Rp</span>
-                            <input disabled className="w-full pl-10 pr-4 py-3 bg-neutral-100 rounded-xl border border-neutral-200 text-neutral-400" placeholder="1.800" />
+                <div className="bg-white rounded-xl border border-neutral-200 p-4 md:p-6 space-y-4">
+                    <div>
+                        <h2 className="text-lg font-semibold text-neutral-800">Template Pesan Tagihan WA</h2>
+                        <p className="text-sm text-neutral-500 mt-1">
+                            Ubah format pesan WA sesuai kebutuhan. Gunakan placeholder supaya data pelanggan dan tagihan tetap muncul.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium text-neutral-700">Isi Template</label>
+                        <textarea
+                            value={currentTemplate}
+                            onChange={(event) => {
+                                setTemplateDraft(event.target.value);
+                            }}
+                            rows={14}
+                            className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder="Tulis template pesan WhatsApp di sini..."
+                        />
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                        <p className="text-sm font-medium text-blue-700 mb-2">Placeholder yang tersedia:</p>
+                        <div className="text-sm text-blue-700 space-y-1">
+                            <p>{'{nama_pelanggan}'} → Nama pelanggan</p>
+                            <p>{'{rincian_tagihan}'} → Daftar rincian tagihan</p>
+                            <p>{'{total_tagihan}'} → Total rupiah tagihan</p>
+                            <p>{'{link_tagihan}'} → Link detail tagihan</p>
                         </div>
                     </div>
-                    <div className="p-4">
-                        <span className="text-sm font-medium text-neutral-400">Tarif K2 (&gt;10 m³)</span>
-                        <p className="text-xs text-neutral-400 mb-2">Harga per m³ untuk pemakaian di atas 10 m³</p>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">Rp</span>
-                            <input disabled className="w-full pl-10 pr-4 py-3 bg-neutral-100 rounded-xl border border-neutral-200 text-neutral-400" placeholder="3.000" />
+
+                    {saveMessage && (
+                        <div className={`rounded-xl p-3 text-sm ${saveMessage.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                            {saveMessage.text}
                         </div>
-                    </div>
-                    <div className="p-4">
-                        <span className="text-sm font-medium text-neutral-400">Biaya Admin</span>
-                        <p className="text-xs text-neutral-400 mb-2">Biaya administrasi per tagihan</p>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">Rp</span>
-                            <input disabled className="w-full pl-10 pr-4 py-3 bg-neutral-100 rounded-xl border border-neutral-200 text-neutral-400" placeholder="3.000" />
-                        </div>
-                    </div>
-                    <div className="p-4">
-                        <span className="text-sm font-medium text-neutral-400">Denda per Bulan</span>
-                        <p className="text-xs text-neutral-400 mb-2">Denda keterlambatan per bulan</p>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">Rp</span>
-                            <input disabled className="w-full pl-10 pr-4 py-3 bg-neutral-100 rounded-xl border border-neutral-200 text-neutral-400" placeholder="5.000" />
-                        </div>
+                    )}
+
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={handleResetTemplate}
+                            className="w-full md:w-auto"
+                        >
+                            Reset Template Default
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSave}
+                            loading={saving}
+                            disabled={saving || !isDirty}
+                            className="w-full md:w-auto"
+                        >
+                            Simpan Pengaturan
+                        </Button>
                     </div>
                 </div>
-
-                <button disabled className="w-full py-3 px-4 bg-neutral-300 text-neutral-500 font-semibold rounded-xl cursor-not-allowed">
-                    Simpan Pengaturan
-                </button>
             </main>
         </>
     );

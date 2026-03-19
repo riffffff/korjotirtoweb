@@ -3,6 +3,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCustomerDetail, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettings } from '@/hooks/useSettings';
 import { customerService } from '@/services/customerService';
 import { openBillNotification } from '@/lib/whatsapp';
 import AppLayout from '@/components/layout/AppLayout';
@@ -20,7 +21,11 @@ export default function CustomerDetailPage() {
     const params = useParams();
     const router = useRouter();
     const { isAdmin } = useAuth();
-    const customerId = params?.id ? Number(params.id) : null;
+    const { settings } = useSettings();
+    const idParam = typeof params?.id === 'string' ? params.id : null;
+    const customerNumberParam = typeof params?.customerNumber === 'string' ? params.customerNumber : null;
+    const routeIdentifier = customerNumberParam || idParam;
+    const customerId = routeIdentifier && !Number.isNaN(Number(routeIdentifier)) ? Number(routeIdentifier) : null;
     const { customer, bills, payments, loading, error, refetch } = useCustomerDetail(customerId);
 
     // Track which bill is expanded (latest by default = index 0)
@@ -61,7 +66,11 @@ export default function CustomerDetailPage() {
         setWaResult(null);
 
         const unpaidBills = bills.filter((b) => b.paymentStatus !== 'paid');
-        const result = openBillNotification(customer, unpaidBills);
+        const result = openBillNotification(
+            customer,
+            unpaidBills,
+            settings.wa_bill_template || settings.wa_message_text
+        );
 
         setSendingWA(false);
         if (result.success) {
@@ -277,7 +286,7 @@ export default function CustomerDetailPage() {
 
                 {/* Outstanding Balance Card - Only show when there's outstanding balance */}
                 {customer.outstanding > 0 && (
-                    <div className="rounded-xl p-4 bg-gradient-to-r from-orange-500 to-red-500">
+                    <div className="rounded-xl p-4 bg-linear-to-r from-orange-500 to-red-500">
                     <p className="text-white/80 text-sm font-medium">Sisa Tagihan</p>
                     <p className="text-white text-3xl font-bold">
                         {formatCurrency(customer.outstanding)}
@@ -304,7 +313,7 @@ export default function CustomerDetailPage() {
 
                 {/* Customer Balance/Deposit Card - Show when customer has saved balance */}
                 {customer.balance > 0 && (
-                    <div className="rounded-xl p-4 bg-gradient-to-r from-blue-500 to-cyan-500">
+                    <div className="rounded-xl p-4 bg-linear-to-r from-blue-500 to-cyan-500">
                         <p className="text-white/80 text-sm font-medium">Saldo Simpanan</p>
                         <p className="text-white text-3xl font-bold">
                             {formatCurrency(customer.balance)}
@@ -329,7 +338,7 @@ export default function CustomerDetailPage() {
                                         <p className="font-medium text-neutral-800">
                                             {formatDateShort(payment.createdAt)}
                                         </p>
-                                        <p className="text-xs text-neutral-500 mt-0.5 max-w-[200px]">
+                                        <p className="text-xs text-neutral-500 mt-0.5 max-w-50">
                                             {payment.description}
                                         </p>
                                     </div>
