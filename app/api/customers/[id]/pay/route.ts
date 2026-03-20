@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCustomerId } from '@/lib/customerIdentifier';
 
 // Helper to format period "2026-01" to "Januari 2026"
 function formatPeriodName(period: string): string {
@@ -27,9 +28,16 @@ type RouteParams = {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
-        const customerId = parseInt(id, 10);
+        const customerId = await resolveCustomerId(id);
         const body = await request.json();
         const { amount, role, saveToBalance = 0, balanceUsed = 0 } = body;
+
+        if (!customerId) {
+            return NextResponse.json(
+                { success: false, error: 'Customer not found' },
+                { status: 404 }
+            );
+        }
 
         // Validate admin role
         if (role !== 'admin') {

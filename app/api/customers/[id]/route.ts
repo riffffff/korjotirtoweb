@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { resolveCustomerId } from '@/lib/customerIdentifier';
 
 type RouteParams = {
     params: Promise<{
@@ -14,7 +15,14 @@ type RouteParams = {
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
-        const customerId = parseInt(id, 10);
+        const customerId = await resolveCustomerId(id);
+
+        if (!customerId) {
+            return NextResponse.json(
+                { success: false, error: 'Customer not found' },
+                { status: 404 }
+            );
+        }
 
         const customer = await prisma.customer.findUnique({
             where: { id: customerId },
@@ -162,9 +170,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
-        const customerId = parseInt(id, 10);
+        const customerId = await resolveCustomerId(id);
         const body = await request.json();
         const { name, phone, role } = body;
+
+        if (!customerId) {
+            return NextResponse.json(
+                { success: false, error: 'Customer not found' },
+                { status: 404 }
+            );
+        }
 
         // Check admin role
         if (role !== 'admin') {
@@ -210,9 +225,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
-        const customerId = parseInt(id, 10);
+        const customerId = await resolveCustomerId(id);
         const body = await request.json();
         const { role } = body;
+
+        if (!customerId) {
+            return NextResponse.json(
+                { success: false, error: 'Customer not found' },
+                { status: 404 }
+            );
+        }
 
         // Check admin role
         if (role !== 'admin') {

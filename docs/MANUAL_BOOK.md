@@ -122,6 +122,14 @@ Menu **Pengaturan** digunakan untuk mengubah variabel tarif:
 - **Biaya Admin**: Biaya beban tetap bulanan (misal: Rp 3.000).
 - **Denda**: Nominal denda keterlambatan (jika fitur denda aktif).
 
+Selain itu, Anda juga bisa mengatur **Template Pesan WhatsApp** untuk notifikasi tagihan.
+Gunakan placeholder berikut agar data otomatis tetap muncul:
+
+- `{nama_pelanggan}`
+- `{rincian_tagihan}`
+- `{total_tagihan}`
+- `{link_tagihan}`
+
 Simpan perubahan untuk menerapkan tarif baru ke tagihan bulan _selanjutnya_.
 
 ---
