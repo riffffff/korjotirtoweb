@@ -13,6 +13,17 @@ interface PeriodStats {
     unpaidCount: number;
 }
 
+interface PeriodBillDetail {
+    id: number;
+    customerId: number;
+    customerName: string;
+    customerNumber: number;
+    paymentStatus: string;
+    totalAmount: number;
+    amountPaid: number;
+    remaining: number;
+}
+
 // Animated Counter Component
 function AnimatedNumber({ value, duration = 1000 }: { value: number; duration?: number }) {
     const [displayValue, setDisplayValue] = useState(0);
@@ -127,6 +138,11 @@ export default function AdminDashboard() {
     const { isAdmin, isLoading: authLoading } = useAuth();
     const { data, loading, error } = useDashboard();
     const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+    const [paidDetails, setPaidDetails] = useState<PeriodBillDetail[]>([]);
+    const [unpaidDetails, setUnpaidDetails] = useState<PeriodBillDetail[]>([]);
+    const [detailsLoading, setDetailsLoading] = useState(false);
+    const [detailsError, setDetailsError] = useState<string | null>(null);
+    const [showPeriodDetail, setShowPeriodDetail] = useState(false);
 
     useEffect(() => {
         if (authLoading) return;
@@ -142,10 +158,49 @@ export default function AdminDashboard() {
         }
     }, [data, selectedPeriod]);
 
+    useEffect(() => {
+        if (!selectedPeriod || !isAdmin || !showPeriodDetail) return;
+
+        const controller = new AbortController();
+
+        const fetchPeriodDetails = async () => {
+            try {
+                setDetailsLoading(true);
+                setDetailsError(null);
+
+                const res = await fetch(`/api/bills/period/${selectedPeriod}`, {
+                    signal: controller.signal,
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    setPaidDetails(result.data.paid || []);
+                    setUnpaidDetails(result.data.unpaid || []);
+                } else {
+                    setPaidDetails([]);
+                    setUnpaidDetails([]);
+                    setDetailsError(result.error || 'Gagal memuat detail periode');
+                }
+            } catch (err) {
+                if (err instanceof Error && err.name === 'AbortError') return;
+                setPaidDetails([]);
+                setUnpaidDetails([]);
+                setDetailsError('Gagal memuat detail periode');
+            } finally {
+                setDetailsLoading(false);
+            }
+        };
+
+        fetchPeriodDetails();
+
+        return () => controller.abort();
+    }, [selectedPeriod, isAdmin, showPeriodDetail]);
+
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) return null;
 
     const currentPeriod = data?.periods.find(p => p.period === selectedPeriod);
+    const selectedPeriodLabel = currentPeriod?.periodLabel || selectedPeriod;
     const paidCount = currentPeriod?.paidCount || 0;
     const unpaidCount = currentPeriod?.unpaidCount || 0; 
     const totalBills = currentPeriod?.totalBills || 0;
@@ -265,54 +320,118 @@ export default function AdminDashboard() {
                                 border: '1px solid #e2e8f0'
                             }}
                         >
-                            <div className="px-6 py-5 border-b border-slate-100">
-                                <h2 className="text-lg font-bold text-slate-800">Riwayat per Bulan</h2>
+                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                                <h2 className="text-lg font-bold text-slate-800">
+                                    {showPeriodDetail ? `Detail ${selectedPeriodLabel}` : 'Riwayat per Bulan'}
+                                </h2>
+                                {showPeriodDetail ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPeriodDetail(false)}
+                                        className="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 flex items-center justify-center"
+                                        aria-label="Kembali ke riwayat per bulan"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                ) : null}
                             </div>
-                            <div className="divide-y divide-slate-100">
-                                {data.periods.map((period, index) => {
-                                    const rate = period.totalBills > 0 ? Math.round((period.paidCount / period.totalBills) * 100) : 0;
-                                    const isSelected = selectedPeriod === period.period;
-                                    return (
-                                        <button
-                                            key={period.period}
-                                            onClick={() => setSelectedPeriod(period.period)}
-                                            className={`w-full px-6 py-4 flex items-center gap-4 transition-all text-left hover:bg-slate-50 ${
-                                                isSelected ? 'bg-slate-100' : ''
-                                            }`}
-                                            style={{ animationDelay: `${index * 50}ms` }}
-                                        >
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white ${
-                                                rate >= 80 ? 'bg-emerald-500' :
-                                                rate >= 50 ? 'bg-amber-500' :
-                                                'bg-rose-500'
-                                            }`}>
-                                                {rate}%
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="font-semibold text-slate-800">{period.periodLabel}</p>
-                                                <p className="text-sm text-slate-500">{period.totalBills} tagihan</p>
-                                            </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-right">
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium">
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                                        {period.paidCount}
-                                                    </span>
+
+                            {!showPeriodDetail ? (
+                                <div className="divide-y divide-slate-100">
+                                    {data.periods.map((period, index) => {
+                                        const rate = period.totalBills > 0 ? Math.round((period.paidCount / period.totalBills) * 100) : 0;
+                                        const isSelected = selectedPeriod === period.period;
+                                        return (
+                                            <button
+                                                key={period.period}
+                                                onClick={() => {
+                                                    setSelectedPeriod(period.period);
+                                                    setShowPeriodDetail(true);
+                                                }}
+                                                className={`w-full px-6 py-4 flex items-center gap-4 transition-all text-left hover:bg-slate-50 ${
+                                                    isSelected ? 'bg-slate-100' : ''
+                                                }`}
+                                                style={{ animationDelay: `${index * 50}ms` }}
+                                            >
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white ${
+                                                    rate >= 80 ? 'bg-emerald-500' :
+                                                    rate >= 50 ? 'bg-amber-500' :
+                                                    'bg-rose-500'
+                                                }`}>
+                                                    {rate}%
                                                 </div>
-                                                <div className="text-right">
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-sm font-medium">
-                                                        <span className="w-2 h-2 rounded-full bg-rose-400" />
-                                                        {period.unpaidCount}
-                                                    </span>
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-slate-800">{period.periodLabel}</p>
+                                                    <p className="text-sm text-slate-500">{period.totalBills} tagihan</p>
                                                 </div>
-                                                <svg className={`w-5 h-5 transition-transform ${isSelected ? 'text-slate-600' : 'text-slate-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                </svg>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="text-right">
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                                            {period.paidCount}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-sm font-medium">
+                                                            <span className="w-2 h-2 rounded-full bg-rose-400" />
+                                                            {period.unpaidCount}
+                                                        </span>
+                                                    </div>
+                                                    <svg className={`w-5 h-5 transition-transform ${isSelected ? 'text-slate-600' : 'text-slate-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : detailsLoading ? (
+                                <div className="px-6 py-6 text-sm text-slate-500">Memuat detail periode...</div>
+                            ) : detailsError ? (
+                                <div className="px-6 py-6 text-sm text-rose-600">{detailsError}</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-semibold text-emerald-700">Lunas</h3>
+                                            <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{paidDetails.length}</span>
+                                        </div>
+                                        {paidDetails.length === 0 ? (
+                                            <p className="text-sm text-slate-400">Belum ada yang lunas pada periode ini.</p>
+                                        ) : (
+                                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                                {paidDetails.map((item) => (
+                                                    <div key={item.id} className="rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2">
+                                                        <p className="text-sm font-medium text-slate-800">{item.customerNumber} • {item.customerName}</p>
+                                                        <p className="text-xs text-emerald-700">Total {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.totalAmount)}</p>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-semibold text-rose-700">Belum Lunas</h3>
+                                            <span className="text-xs px-2 py-1 rounded-full bg-rose-100 text-rose-700">{unpaidDetails.length}</span>
+                                        </div>
+                                        {unpaidDetails.length === 0 ? (
+                                            <p className="text-sm text-slate-400">Semua tagihan periode ini sudah lunas.</p>
+                                        ) : (
+                                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                                {unpaidDetails.map((item) => (
+                                                    <div key={item.id} className="rounded-lg border border-rose-100 bg-rose-50/40 px-3 py-2">
+                                                        <p className="text-sm font-medium text-slate-800">{item.customerNumber} • {item.customerName}</p>
+                                                        <p className="text-xs text-rose-700">Sisa {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.remaining)}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Quick Actions */}
@@ -333,9 +452,9 @@ export default function AdminDashboard() {
                                             animationDelay: `${index * 100}ms`
                                         }}
                                     >
-                                        <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-300`} />
+                                        <div className={`absolute inset-0 bg-linear-to-br ${item.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-300`} />
                                         <div className="relative flex items-center gap-4">
-                                            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                                            <div className={`w-14 h-14 rounded-2xl bg-linear-to-br ${item.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
                                                 <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
                                                 </svg>

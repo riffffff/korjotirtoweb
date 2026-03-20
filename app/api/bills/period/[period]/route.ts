@@ -8,6 +8,90 @@ type RouteParams = {
 };
 
 /**
+ * GET /api/bills/period/:period
+ * Get bill details for a specific period grouped by payment status
+ */
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+    try {
+        const { period } = await params;
+
+        if (!/^\d{4}-\d{2}$/.test(period)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid period format. Use YYYY-MM' },
+                { status: 400 }
+            );
+        }
+
+        const bills = await prisma.bill.findMany({
+            where: {
+                meterReading: {
+                    period,
+                },
+            },
+            select: {
+                id: true,
+                totalAmount: true,
+                amountPaid: true,
+                remaining: true,
+                paymentStatus: true,
+                meterReading: {
+                    select: {
+                        customer: {
+                            select: {
+                                id: true,
+                                name: true,
+                                customerNumber: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                meterReading: {
+                    customer: {
+                        customerNumber: 'asc',
+                    },
+                },
+            },
+        });
+
+        const mapped = bills.map((bill) => ({
+            id: bill.id,
+            customerId: bill.meterReading.customer.id,
+            customerName: bill.meterReading.customer.name,
+            customerNumber: bill.meterReading.customer.customerNumber,
+            paymentStatus: bill.paymentStatus,
+            totalAmount: Number(bill.totalAmount),
+            amountPaid: Number(bill.amountPaid),
+            remaining: Number(bill.remaining),
+        }));
+
+        const paid = mapped.filter((bill) => bill.paymentStatus === 'paid');
+        const unpaid = mapped.filter((bill) => bill.paymentStatus !== 'paid');
+
+        return NextResponse.json({
+            success: true,
+            data: {
+                period,
+                totalBills: mapped.length,
+                paid,
+                unpaid,
+            },
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, max-age=0',
+            },
+        });
+    } catch (error) {
+        console.error('Error getting bills by period:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to get bills by period' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
  * DELETE /api/bills/period/:period
  * Hard delete all bills for a given period (admin only)
  * Period format: YYYY-MM (e.g., "2026-01")
