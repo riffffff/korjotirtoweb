@@ -13,6 +13,17 @@ interface PeriodStats {
     unpaidCount: number;
 }
 
+interface PeriodBillDetail {
+    id: number;
+    customerId: number;
+    customerName: string;
+    customerNumber: number;
+    paymentStatus: string;
+    totalAmount: number;
+    amountPaid: number;
+    remaining: number;
+}
+
 // Animated Counter Component
 function AnimatedNumber({ value, duration = 1000 }: { value: number; duration?: number }) {
     const [displayValue, setDisplayValue] = useState(0);
@@ -127,6 +138,10 @@ export default function AdminDashboard() {
     const { isAdmin, isLoading: authLoading } = useAuth();
     const { data, loading, error } = useDashboard();
     const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+    const [paidDetails, setPaidDetails] = useState<PeriodBillDetail[]>([]);
+    const [unpaidDetails, setUnpaidDetails] = useState<PeriodBillDetail[]>([]);
+    const [detailsLoading, setDetailsLoading] = useState(false);
+    const [detailsError, setDetailsError] = useState<string | null>(null);
 
     useEffect(() => {
         if (authLoading) return;
@@ -142,10 +157,49 @@ export default function AdminDashboard() {
         }
     }, [data, selectedPeriod]);
 
+    useEffect(() => {
+        if (!selectedPeriod || !isAdmin) return;
+
+        const controller = new AbortController();
+
+        const fetchPeriodDetails = async () => {
+            try {
+                setDetailsLoading(true);
+                setDetailsError(null);
+
+                const res = await fetch(`/api/bills/period/${selectedPeriod}`, {
+                    signal: controller.signal,
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    setPaidDetails(result.data.paid || []);
+                    setUnpaidDetails(result.data.unpaid || []);
+                } else {
+                    setPaidDetails([]);
+                    setUnpaidDetails([]);
+                    setDetailsError(result.error || 'Gagal memuat detail periode');
+                }
+            } catch (err) {
+                if (err instanceof Error && err.name === 'AbortError') return;
+                setPaidDetails([]);
+                setUnpaidDetails([]);
+                setDetailsError('Gagal memuat detail periode');
+            } finally {
+                setDetailsLoading(false);
+            }
+        };
+
+        fetchPeriodDetails();
+
+        return () => controller.abort();
+    }, [selectedPeriod, isAdmin]);
+
     if (authLoading) return <LoadingState message="Memeriksa akses..." />;
     if (!isAdmin) return null;
 
     const currentPeriod = data?.periods.find(p => p.period === selectedPeriod);
+    const selectedPeriodLabel = currentPeriod?.periodLabel || selectedPeriod;
     const paidCount = currentPeriod?.paidCount || 0;
     const unpaidCount = currentPeriod?.unpaidCount || 0; 
     const totalBills = currentPeriod?.totalBills || 0;
@@ -313,6 +367,60 @@ export default function AdminDashboard() {
                                     );
                                 })}
                             </div>
+                        </div>
+
+                        {/* Detail Riwayat Per Bulan */}
+                        <div className="rounded-3xl bg-white shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                                <h2 className="text-lg font-bold text-slate-800">Detail {selectedPeriodLabel}</h2>
+                                <span className="text-xs text-slate-500">Lunas vs Belum Lunas</span>
+                            </div>
+
+                            {detailsLoading ? (
+                                <div className="px-6 py-6 text-sm text-slate-500">Memuat detail periode...</div>
+                            ) : detailsError ? (
+                                <div className="px-6 py-6 text-sm text-rose-600">{detailsError}</div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-semibold text-emerald-700">Lunas</h3>
+                                            <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{paidDetails.length}</span>
+                                        </div>
+                                        {paidDetails.length === 0 ? (
+                                            <p className="text-sm text-slate-400">Belum ada yang lunas pada periode ini.</p>
+                                        ) : (
+                                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                                {paidDetails.map((item) => (
+                                                    <div key={item.id} className="rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2">
+                                                        <p className="text-sm font-medium text-slate-800">{item.customerNumber} • {item.customerName}</p>
+                                                        <p className="text-xs text-emerald-700">Total {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.totalAmount)}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-semibold text-rose-700">Belum Lunas</h3>
+                                            <span className="text-xs px-2 py-1 rounded-full bg-rose-100 text-rose-700">{unpaidDetails.length}</span>
+                                        </div>
+                                        {unpaidDetails.length === 0 ? (
+                                            <p className="text-sm text-slate-400">Semua tagihan periode ini sudah lunas.</p>
+                                        ) : (
+                                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                                {unpaidDetails.map((item) => (
+                                                    <div key={item.id} className="rounded-lg border border-rose-100 bg-rose-50/40 px-3 py-2">
+                                                        <p className="text-sm font-medium text-slate-800">{item.customerNumber} • {item.customerName}</p>
+                                                        <p className="text-xs text-rose-700">Sisa {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.remaining)}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Quick Actions */}
