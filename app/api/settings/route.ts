@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getAllSettings, updateSettings } from '@/services/server/setting.service';
+import { AuthError, requireAdmin } from '@/lib/auth';
 
 // GET /api/settings - Get all settings
 export async function GET() {
     try {
-        const settings = await prisma.setting.findMany({
-            orderBy: { key: 'asc' }
-        });
+        const settings = await getAllSettings();
 
         // Convert to key-value object for easier use
         const settingsMap: Record<string, string> = {};
@@ -28,30 +27,22 @@ export async function GET() {
 // PUT /api/settings - Update settings (admin only)
 export async function PUT(request: NextRequest) {
     try {
+        requireAdmin(request);
         const body = await request.json();
-        const { role, settings } = body;
-
-        if (role !== 'admin') {
-            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
-        }
+        const { settings } = body;
 
         if (!settings || typeof settings !== 'object') {
             return NextResponse.json({ success: false, error: 'Invalid settings data' }, { status: 400 });
         }
 
         // Update each setting
-        const updates = Object.entries(settings).map(([key, value]) =>
-            prisma.setting.upsert({
-                where: { key },
-                update: { value: String(value) },
-                create: { key, value: String(value) }
-            })
-        );
-
-        await Promise.all(updates);
+        await updateSettings(settings as Record<string, unknown>);
 
         return NextResponse.json({ success: true, message: 'Settings updated' });
     } catch (error) {
+        if (error instanceof AuthError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+        }
         console.error('Failed to update settings:', error);
         return NextResponse.json({ success: false, error: 'Failed to update settings' }, { status: 500 });
     }

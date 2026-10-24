@@ -49,9 +49,7 @@ export default function SettingsPage() {
         setSaveMessage(null);
 
         try {
-            const role = isAdmin ? 'admin' : (localStorage.getItem('role') || 'guest');
             const payload = {
-                role,
                 settings: {
                     [TEMPLATE_KEY]: currentTemplate,
                 },

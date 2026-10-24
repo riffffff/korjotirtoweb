@@ -1,13 +1,13 @@
-import { BillHistoryItem } from '@/services/customerService';
+import type { BillHistoryItem } from '@/services/client/customer.client';
 
 const WEB_URL = 'https://www.korjotirto.my.id';
 
 interface Customer {
-    id: number;
+    id: string;
     customerNumber: number;
     name: string;
     phone: string | null;
-    balance: number;
+    depositBalance: number;
 }
 
 export const DEFAULT_WA_BILL_TEMPLATE = `Yth. Bpk/Ibu *{nama_pelanggan}*,
@@ -136,4 +136,3 @@ export function openBillNotification(
     openWhatsAppLink(customer.phone, message);
     return { success: true };
 }
-

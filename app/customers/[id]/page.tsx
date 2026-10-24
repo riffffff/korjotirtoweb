@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useCustomerDetail, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
-import { customerService } from '@/services/customerService';
+import { customerClient as customerService } from '@/services/client/customer.client';
 import { openBillNotification } from '@/lib/whatsapp';
 import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
@@ -25,7 +25,7 @@ export default function CustomerDetailPage() {
     const idParam = typeof params?.id === 'string' ? params.id : null;
     const customerNumberParam = typeof params?.customerNumber === 'string' ? params.customerNumber : null;
     const routeIdentifier = customerNumberParam || idParam;
-    const customerId = routeIdentifier && !Number.isNaN(Number(routeIdentifier)) ? Number(routeIdentifier) : null;
+    const customerId = routeIdentifier;
     const { customer, bills, payments, loading, error, refetch } = useCustomerDetail(customerId);
 
     // Track which bill is expanded (latest by default = index 0)
@@ -36,7 +36,7 @@ export default function CustomerDetailPage() {
 
     // State for delete bill
     const [showDeleteBillConfirm, setShowDeleteBillConfirm] = useState(false);
-    const [billToDelete, setBillToDelete] = useState<{ id: number; period: string } | null>(null);
+    const [billToDelete, setBillToDelete] = useState<{ id: string; period: string } | null>(null);
     const [deletingBill, setDeletingBill] = useState(false);
 
     // State for add bill
@@ -65,7 +65,7 @@ export default function CustomerDetailPage() {
         setSendingWA(true);
         setWaResult(null);
 
-        const unpaidBills = bills.filter((b) => b.paymentStatus !== 'paid');
+        const unpaidBills = bills.filter((b) => b.paymentStatus !== 'PAID');
         const result = openBillNotification(
             customer,
             unpaidBills,
@@ -150,7 +150,7 @@ export default function CustomerDetailPage() {
         }
     };
 
-    const openDeleteBillModal = (bill: { id: number; period: string }) => {
+    const openDeleteBillModal = (bill: { id: string; period: string }) => {
         setBillToDelete(bill);
         setShowDeleteBillConfirm(true);
     };
@@ -173,7 +173,6 @@ export default function CustomerDetailPage() {
             const payload: Record<string, unknown> = {
                 period: newBillPeriod,
                 meterEnd: parseInt(newBillMeterEnd, 10),
-                role: localStorage.getItem('role'),
             };
 
             // Include meter start if this is first bill
@@ -210,7 +209,7 @@ export default function CustomerDetailPage() {
     if (error) return <ErrorState message={error} />;
     if (!customer) return <ErrorState message="Pelanggan tidak ditemukan" />;
 
-    const unpaidBills = bills.filter((b) => b.paymentStatus !== 'paid');
+    const unpaidBills = bills.filter((b) => b.paymentStatus !== 'PAID');
 
     return (<>
         <AppLayout>
@@ -285,11 +284,11 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Outstanding Balance Card - Only show when there's outstanding balance */}
-                {customer.outstanding > 0 && (
+                {customer.unpaidTotal > 0 && (
                     <div className="rounded-xl p-4 bg-linear-to-r from-orange-500 to-red-500">
                     <p className="text-white/80 text-sm font-medium">Sisa Tagihan</p>
                     <p className="text-white text-3xl font-bold">
-                        {formatCurrency(customer.outstanding)}
+                        {formatCurrency(customer.unpaidTotal)}
                     </p>
 
                     {/* Breakdown per bulan */}
@@ -312,11 +311,11 @@ export default function CustomerDetailPage() {
                 )}
 
                 {/* Customer Balance/Deposit Card - Show when customer has saved balance */}
-                {customer.balance > 0 && (
+                {customer.depositBalance > 0 && (
                     <div className="rounded-xl p-4 bg-linear-to-r from-blue-500 to-cyan-500">
                         <p className="text-white/80 text-sm font-medium">Saldo Simpanan</p>
                         <p className="text-white text-3xl font-bold">
-                            {formatCurrency(customer.balance)}
+                            {formatCurrency(customer.depositBalance)}
                         </p>
                         <p className="text-white/70 text-xs mt-1">
                             Dapat digunakan untuk pembayaran selanjutnya
@@ -354,16 +353,16 @@ export default function CustomerDetailPage() {
                 </div>
 
                 {/* Payment Section - Admin only, show when there's outstanding balance */}
-                {isAdmin && customer.outstanding > 0 && (
+                {isAdmin && customer.unpaidTotal > 0 && (
                     <PaymentSection
-                        totalAmount={customer.outstanding}
-                        customerBalance={customer.balance}
+                        totalAmount={customer.unpaidTotal}
+                        customerBalance={customer.depositBalance}
                         onPay={handlePayment}
                     />
                 )}
 
                 {/* All Paid */}
-                {customer.outstanding <= 0 && (
+                {customer.unpaidTotal <= 0 && (
                     <div className="py-4 bg-green-50 rounded-xl text-center border border-green-200">
                         <p className="text-green-600 font-semibold text-lg">✓ LUNAS SEMUA</p>
                         <p className="text-green-500 text-sm">Tidak ada tagihan</p>
@@ -411,8 +410,8 @@ export default function CustomerDetailPage() {
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-2 rounded-full ${bill.paymentStatus === 'paid' ? 'bg-green-500' :
-                                                bill.paymentStatus === 'partial' ? 'bg-yellow-500' :
+                                            <div className={`w-2 h-2 rounded-full ${bill.paymentStatus === 'PAID' ? 'bg-green-500' :
+                                                bill.paymentStatus === 'PARTIAL' ? 'bg-yellow-500' :
                                                     'bg-red-500'
                                                 }`} />
                                             <div>
@@ -437,12 +436,12 @@ export default function CustomerDetailPage() {
                                                     <p className="font-bold text-neutral-800">
                                                     {formatCurrency(bill.penalty > 0 ? bill.totalWithPenalty : bill.totalAmount)}
                                                 </p>
-                                                <p className={`text-xs ${bill.paymentStatus === 'paid' ? 'text-green-600' :
-                                                    bill.paymentStatus === 'partial' ? 'text-yellow-600' :
+                                                <p className={`text-xs ${bill.paymentStatus === 'PAID' ? 'text-green-600' :
+                                                    bill.paymentStatus === 'PARTIAL' ? 'text-yellow-600' :
                                                         'text-red-600'
                                                     }`}>
-                                                    {bill.paymentStatus === 'paid' ? 'Lunas' :
-                                                        bill.paymentStatus === 'partial' ? 'Sebagian' :
+                                                    {bill.paymentStatus === 'PAID' ? 'Lunas' :
+                                                        bill.paymentStatus === 'PARTIAL' ? 'Sebagian' :
                                                             'Belum Bayar'}
                                                 </p>
                                             </div>

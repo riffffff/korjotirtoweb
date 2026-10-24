@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { authClient } from '@/services/client/auth.client';
 
 interface LoginResult {
     success: boolean;
     user?: {
-        id: number;
+        id: string;
         username: string;
         name: string;
         role: string;
@@ -24,22 +25,7 @@ export function useLogin() {
         setLoading(true);
 
         try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Login gagal');
-            }
-
-            // Save to localStorage
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('username', data.user.username);
-            localStorage.setItem('role', data.user.role);
+            const data = await authClient.login(username, password);
 
             router.push('/');
 

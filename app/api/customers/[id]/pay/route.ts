@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { resolveCustomerId } from '@/lib/customerIdentifier';
-
-// Helper to format period "2026-01" to "Januari 2026"
-function formatPeriodName(period: string): string {
-    const [year, month] = period.split('-');
-    const months = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return `${months[parseInt(month) - 1]} ${year}`;
-}
+import { AuthError, requireAdmin } from '@/lib/auth';
+import { processCustomerPayment } from '@/services/server/payment.service';
 
 type RouteParams = {
     params: Promise<{
@@ -27,23 +18,16 @@ type RouteParams = {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
     try {
+        requireAdmin(request);
         const { id } = await params;
         const customerId = await resolveCustomerId(id);
         const body = await request.json();
-        const { amount, role, saveToBalance = 0, balanceUsed = 0 } = body;
+        const { amount, saveToBalance = 0, balanceUsed = 0 } = body;
 
         if (!customerId) {
             return NextResponse.json(
                 { success: false, error: 'Customer not found' },
                 { status: 404 }
-            );
-        }
-
-        // Validate admin role
-        if (role !== 'admin') {
-            return NextResponse.json(
-                { success: false, error: 'Unauthorized: Only admin can process payments' },
-                { status: 403 }
             );
         }
 
@@ -69,177 +53,44 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Get customer
-        const customer = await prisma.customer.findUnique({
-            where: { id: customerId },
-        });
-
-        if (!customer) {
-            return NextResponse.json(
-                { success: false, error: 'Customer not found' },
-                { status: 404 }
-            );
-        }
-
-        if (balanceUsed > Number(customer.balance)) {
-            return NextResponse.json(
-                { success: false, error: 'Saldo tidak mencukupi' },
-                { status: 400 }
-            );
-        }
-
-        // Get all unpaid bills for this customer, ordered by period (oldest first = FIFO)
-        const unpaidBills = await prisma.bill.findMany({
-            where: {
-                paymentStatus: { not: 'paid' },
-                meterReading: {
-                    customerId: customerId,
-                },
-            },
-            include: {
-                meterReading: true,
-            },
-            orderBy: {
-                meterReading: {
-                    period: 'asc',
-                },
-            },
-        });
-
-        let remainingPayment = amount;
-        const updatedBills: Array<{
-            id: number;
-            period: string;
-            totalAmount: number;
-            amountPaid: number;
-            remaining: number;
-            status: string;
-        }> = [];
-
-        // FIFO allocation - pay oldest bills first
-        for (const bill of unpaidBills) {
-            if (remainingPayment <= 0) break;
-
-            const billRemaining = Number(bill.totalAmount) - Number(bill.amountPaid);
-            const paymentForThisBill = Math.min(remainingPayment, billRemaining);
-
-            const newAmountPaid = Number(bill.amountPaid) + paymentForThisBill;
-            const newRemaining = Number(bill.totalAmount) - newAmountPaid;
-            const newStatus = newRemaining === 0 ? 'paid' : 'partial';
-
-            // Update bill
-            await prisma.bill.update({
-                where: { id: bill.id },
-                data: {
-                    amountPaid: newAmountPaid,
-                    remaining: newRemaining,
-                    paymentStatus: newStatus,
-                    paidAt: newStatus === 'paid' ? new Date() : null,
-                },
-            });
-
-            updatedBills.push({
-                id: bill.id,
-                period: bill.meterReading.period,
-                totalAmount: Number(bill.totalAmount),
-                amountPaid: newAmountPaid,
-                remaining: newRemaining,
-                status: newStatus,
-            });
-
-            remainingPayment -= paymentForThisBill;
-        }
-
-        // Calculate change (if payment exceeds total outstanding)
-        const change = remainingPayment > 0 ? remainingPayment : 0;
-
-        // Validate that saveToBalance doesn't exceed change
-        if (saveToBalance > change) {
-            return NextResponse.json(
-                { success: false, error: `Simpan ke saldo tidak boleh melebihi kembalian (Rp ${change.toLocaleString()})` },
-                { status: 400 }
-            );
-        }
-
-        // Calculate cash change (change minus what's saved to balance)
-        const cashChange = change - saveToBalance;
-
-        // Calculate NET Cash In (Revenue)
-        // amount (Total Input) - balanceUsed = Net Cash Received
-        // But if user takes cash OUT (Refund scenario if balanceUsed > allocated), handled by cashChange?
-        // Let's stick to core definition: Revenue = Cash In handed by user - Cash Out handed back
-        // Cash In = (amount - balanceUsed). Cash Out = cashChange.
-        // Revenue = (amount - balanceUsed) - cashChange.
-        // = amount - balanceUsed - (change - saveToBalance).
-        // = (amount - change) - balanceUsed + saveToBalance.
-        // = allocatedAmount - balanceUsed + saveToBalance.
-        
-        // Update customer totals
-        // totalPaid increases by ALLOCATED amount (amount - change) covers the bill
-        const allocatedAmount = amount - change;
-        const newTotalPaid = Number(customer.totalPaid) + allocatedAmount;
-
-        // balance decreases by usage, increases by save
-        const newBalance = Number(customer.balance) - balanceUsed + saveToBalance;
-
-        const updatedCustomer = await prisma.customer.update({
-            where: { id: customerId },
-            data: {
-                totalPaid: newTotalPaid,
-                balance: newBalance,
-            },
-        });
-
-        // Generate payment description - only mention fully paid (Lunas) bills
-        const paidPeriods = updatedBills
-            .filter(b => b.status === 'paid')
-            .map(b => formatPeriodName(b.period))
-            .join(', ');
-
-        let description = paidPeriods ? `Lunas: ${paidPeriods}` : 'Pembayaran';
-        if (balanceUsed > 0) description += ` | Pakai Saldo: Rp ${balanceUsed.toLocaleString()}`;
-        if (saveToBalance > 0) description += ` | +Rp ${saveToBalance.toLocaleString()} ke saldo`;
-
-        // Create Payment Record
-        // Revenue = Cash Flow
-        const netCashIn = allocatedAmount - balanceUsed + saveToBalance;
-
-        await prisma.payment.create({
-            data: {
-                customerId,
-                amount: netCashIn, 
-                description: description.trim(),
-            }
+        const result = await processCustomerPayment({
+            customerId,
+            cashAmount: amount,
+            saveToDeposit: saveToBalance,
+            useDeposit: balanceUsed,
         });
 
         return NextResponse.json({
             success: true,
             data: {
                 customer: {
-                    id: updatedCustomer.id,
-                    name: updatedCustomer.name,
-                    totalBill: Number(updatedCustomer.totalBill),
-                    totalPaid: Number(updatedCustomer.totalPaid),
-                    balance: Number(updatedCustomer.balance),
+                    id: result.customer.id,
+                    name: result.customer.name,
+                    totalBill: Number(result.customer.totalBill),
+                    totalPaid: Number(result.customer.totalPaid),
+                    balance: Number(result.customer.balance),
                 },
                 payment: {
                     amount: amount,
-                    allocated: amount - change,
-                    change: change,
+                    allocated: result.allocation.allocatedAmount,
+                    change: result.allocation.change,
                     savedToBalance: saveToBalance,
-                    cashChange: cashChange,
+                    cashChange: result.cashChange,
                 },
-                billsUpdated: updatedBills,
+                billsUpdated: result.allocation.bills,
             },
             message: saveToBalance > 0
-                ? `Pembayaran berhasil! Kembalian cash: Rp ${cashChange.toLocaleString()}, Simpan ke saldo: Rp ${saveToBalance.toLocaleString()}`
-                : change > 0
-                    ? `Pembayaran berhasil! Kembalian: Rp ${change.toLocaleString()}`
-                    : updatedBills.some(b => b.status === 'paid')
-                        ? `${updatedBills.filter(b => b.status === 'paid').length} tagihan lunas.`
+                ? `Pembayaran berhasil! Kembalian cash: Rp ${result.cashChange.toLocaleString()}, Simpan ke saldo: Rp ${saveToBalance.toLocaleString()}`
+                : result.allocation.change > 0
+                    ? `Pembayaran berhasil! Kembalian: Rp ${result.allocation.change.toLocaleString()}`
+                    : result.allocation.bills.some(b => b.paymentStatus === 'PAID')
+                        ? `${result.allocation.bills.filter(b => b.paymentStatus === 'PAID').length} tagihan lunas.`
                         : 'Pembayaran sebagian tercatat.',
         });
     } catch (error) {
+        if (error instanceof AuthError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+        }
         console.error('Error processing payment:', error);
         return NextResponse.json(
             { success: false, error: 'Failed to process payment' },

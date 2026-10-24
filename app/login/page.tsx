@@ -1,6 +1,7 @@
 'use client';
 
 import { useLogin } from '@/hooks/useLogin';
+import Link from 'next/link';
 
 export default function LoginPage() {
     const {
@@ -88,12 +89,12 @@ export default function LoginPage() {
 
                     {/* Footer */}
                     <div className="mt-6 text-center">
-                        <a
+                        <Link
                             href="/"
                             className="text-sm text-gray-500 hover:text-blue-600 transition"
                         >
                             ← Kembali ke halaman utama
-                        </a>
+                        </Link>
                     </div>
                 </div>
 

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Modal from './Modal';
 import Button from './Button';
+import api from '@/services/client/api';
 
 interface PasswordConfirmProps {
     isOpen: boolean;
@@ -12,8 +13,6 @@ interface PasswordConfirmProps {
     confirmText?: string;
     loading?: boolean;
 }
-
-const ADMIN_PASSWORD = '9090';
 
 export default function PasswordConfirm({
     isOpen,
@@ -27,11 +26,13 @@ export default function PasswordConfirm({
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        if (password !== ADMIN_PASSWORD) {
+        try {
+            await api.post('/auth/verify', { password });
+        } catch {
             setError('Password salah');
             return;
         }

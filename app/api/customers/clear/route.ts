@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { AuthError, requireAdmin } from '@/lib/auth';
+import { clearAllCustomerData } from '@/services/server/customer.service';
 
 /**
  * DELETE /api/customers/clear
@@ -7,16 +8,9 @@ import prisma from '@/lib/prisma';
  */
 export async function DELETE(request: NextRequest) {
     try {
+        requireAdmin(request);
         const body = await request.json();
-        const { role, confirmDelete } = body;
-
-        // Check admin role
-        if (role !== 'admin') {
-            return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 403 }
-            );
-        }
+        const { confirmDelete } = body;
 
         // Require explicit confirmation
         if (confirmDelete !== 'HAPUS_SEMUA') {
@@ -26,20 +20,16 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        // Delete in correct order (foreign key constraints)
-        await prisma.$transaction(async (tx) => {
-            await tx.payment.deleteMany({});
-            await tx.billItem.deleteMany({});
-            await tx.bill.deleteMany({});
-            await tx.meterReading.deleteMany({});
-            await tx.customer.deleteMany({});
-        });
+        await clearAllCustomerData();
 
         return NextResponse.json({
             success: true,
             message: 'Semua data pelanggan berhasil dihapus',
         });
     } catch (error) {
+        if (error instanceof AuthError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+        }
         console.error('Error clearing data:', error);
         return NextResponse.json(
             { success: false, error: 'Gagal menghapus data' },

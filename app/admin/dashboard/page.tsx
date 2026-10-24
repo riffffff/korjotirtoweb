@@ -2,20 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { useDashboard, DashboardData } from '@/hooks/useDashboard';
+import { useDashboard } from '@/hooks/useDashboard';
 import LoadingState from '@/components/state/LoadingState';
 
-interface PeriodStats {
-    period: string;
-    periodLabel: string;
-    totalBills: number;
-    paidCount: number;
-    unpaidCount: number;
-}
-
 interface PeriodBillDetail {
-    id: number;
-    customerId: number;
+    id: string;
+    customerId: string;
     customerName: string;
     customerNumber: number;
     paymentStatus: string;
@@ -90,53 +82,10 @@ function RingChart({ percentage, size = 120, strokeWidth = 10 }: { percentage: n
     );
 }
 
-// Stat Card Component
-function StatCard({ 
-    icon, 
-    label, 
-    value, 
-    gradient, 
-    delay = 0 
-}: { 
-    icon: React.ReactNode; 
-    label: string; 
-    value: number; 
-    gradient: string;
-    delay?: number;
-}) {
-    return (
-        <div 
-            className="group relative overflow-hidden rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
-            style={{ 
-                animationDelay: `${delay}ms`,
-                background: 'rgba(255,255,255,0.7)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.5)'
-            }}
-        >
-            {/* Gradient overlay on hover */}
-            <div 
-                className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${gradient}`}
-            />
-            <div className="relative flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-2xl ${gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                    {icon}
-                </div>
-                <div>
-                    <p className="text-sm font-medium text-slate-500">{label}</p>
-                    <p className="text-3xl font-black text-slate-800">
-                        <AnimatedNumber value={value} />
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 export default function AdminDashboard() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
-    const { data, loading, error } = useDashboard();
+    const { data, loading } = useDashboard();
     const [selectedPeriod, setSelectedPeriod] = useState<string>('');
     const [paidDetails, setPaidDetails] = useState<PeriodBillDetail[]>([]);
     const [unpaidDetails, setUnpaidDetails] = useState<PeriodBillDetail[]>([]);

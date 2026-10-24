@@ -7,8 +7,8 @@ datasource db {
 }
 
 model Customer {
-  id             Int            @id(map: "PK_133ec679a801fab5e070f73d3ea") @default(autoincrement())
-  name           String         @db.VarChar
+  id             String         @id(map: "PK_133ec679a801fab5e070f73d3ea") @default(uuid()) @db.Uuid
+  name           String         @db.VarChar(255)
   customerNumber Int            @unique @map("customer_number")
   phone          String?        @db.VarChar(20)
   totalBill      Decimal        @default(0) @map("total_bill") @db.Decimal(12, 2)
@@ -21,13 +21,14 @@ model Customer {
   meterReadings  MeterReading[]
   payments       Payment[]
 
+  @@index([deletedAt])
   @@map("customers")
 }
 
 model MeterReading {
-  id         Int       @id(map: "PK_e1a17bbc8bfc32c9d70adc7c2bc") @default(autoincrement())
-  customerId Int       @map("customer_id")
-  period     String    @db.VarChar
+  id         String    @id(map: "PK_e1a17bbc8bfc32c9d70adc7c2bc") @default(uuid()) @db.Uuid
+  customerId String    @map("customer_id") @db.Uuid
+  period     String    @db.VarChar(7)
   meterStart Int       @default(0) @map("meter_start")
   meterEnd   Int       @map("meter_end")
   usage      Int       @default(0)
@@ -38,14 +39,15 @@ model MeterReading {
   bill       Bill?
 
   @@unique([customerId, period], map: "UQ_ce89a255bd126441c69abccbf19")
+  @@index([deletedAt])
   @@map("meter_readings")
 }
 
 model Bill {
-  id             Int          @id(map: "PK_a56215dfcb525755ec832cc80b7") @default(autoincrement())
-  meterReadingId Int          @unique(map: "REL_8934747c39be09b8a1e6e34fb8") @map("meter_reading_id")
+  id             String       @id(map: "PK_a56215dfcb525755ec832cc80b7") @default(uuid()) @db.Uuid
+  meterReadingId String       @unique(map: "REL_8934747c39be09b8a1e6e34fb8") @map("meter_reading_id") @db.Uuid
   totalAmount    Decimal      @default(0) @map("total_amount") @db.Decimal(12, 2)
-  paymentStatus  String       @default("pending") @map("payment_status") @db.VarChar
+  paymentStatus  String       @default("UNPAID") @map("payment_status") @db.VarChar(20)
   penalty        Decimal      @default(0) @db.Decimal(12, 2)
   amountPaid     Decimal      @default(0) @map("amount_paid") @db.Decimal(12, 2)
   remaining      Decimal      @default(0) @db.Decimal(12, 2)
@@ -57,13 +59,14 @@ model Bill {
   meterReading   MeterReading @relation(fields: [meterReadingId], references: [id])
   items          BillItem[]
 
+  @@index([deletedAt])
   @@map("bills")
 }
 
 model BillItem {
-  id        Int       @id(map: "PK_729cb3e07036682e6695f4bac3f") @default(autoincrement())
-  billId    Int       @map("bill_id")
-  type      String    @db.VarChar
+  id        String    @id(map: "PK_729cb3e07036682e6695f4bac3f") @default(uuid()) @db.Uuid
+  billId    String    @map("bill_id") @db.Uuid
+  type      String    @db.VarChar(20)
   usage     Int       @default(0)
   rate      Int       @default(0)
   amount    Decimal   @default(0) @db.Decimal(12, 2)
@@ -72,11 +75,12 @@ model BillItem {
   deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
   bill      Bill      @relation(fields: [billId], references: [id])
 
+  @@index([deletedAt])
   @@map("bill_items")
 }
 
 model Setting {
-  id          Int      @id(map: "PK_0669fe20e252eb692bf4d344975") @default(autoincrement())
+  id          String   @id(map: "PK_0669fe20e252eb692bf4d344975") @default(uuid()) @db.Uuid
   key         String   @unique(map: "UQ_c8639b7626fa94ba8265628f214") @db.VarChar
   value       String   @db.VarChar
   description String?  @db.VarChar
@@ -87,10 +91,10 @@ model Setting {
 }
 
 model audit_logs {
-  id           Int      @id(map: "PK_1bb179d048bbc581caa3b013439") @default(autoincrement())
+  id           String   @id(map: "PK_1bb179d048bbc581caa3b013439") @default(uuid()) @db.Uuid
   action       String   @db.VarChar(50)
   entity_type  String   @db.VarChar(100)
-  entity_id    Int?
+  entity_id    String?  @db.VarChar(50)
   performed_by String   @default("System") @db.VarChar(255)
   ip_address   String?  @db.VarChar(50)
   details      Json?
@@ -98,27 +102,26 @@ model audit_logs {
   created_at   DateTime @default(now()) @db.Timestamp(6)
 }
 
-// Users table - only for admin accounts
-// Guest users don't need to login, they can view bills without authentication
-// Only admins need to login to manage data (input meter readings, payments, etc.)
 model users {
-  id         Int      @id(map: "PK_a3ffb1c0c8416b9fc6f907b7433") @default(autoincrement())
+  id         String   @id(map: "PK_a3ffb1c0c8416b9fc6f907b7433") @default(uuid()) @db.Uuid
   username   String   @unique(map: "UQ_fe0bb3f6520ee0469504521e710") @db.VarChar
   password   String   @db.VarChar
   name       String   @db.VarChar
-  role       String   @default("admin") @db.VarChar // Only 'admin' role, no viewer
+  role       String   @default("admin") @db.VarChar
   is_active  Boolean  @default(true)
   created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamp(6)
 }
 
 model Payment {
-  id          Int      @id @default(autoincrement())
-  customerId  Int      @map("customer_id")
-  amount      Decimal  @db.Decimal(12, 2)
-  description String?  @db.VarChar
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  customer    Customer @relation(fields: [customerId], references: [id])
+  id          String    @id @default(uuid()) @db.Uuid
+  customerId  String    @map("customer_id") @db.Uuid
+  amount      Decimal   @db.Decimal(12, 2)
+  description String?   @db.VarChar
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamp(6)
+  customer    Customer  @relation(fields: [customerId], references: [id])
 
+  @@index([deletedAt])
   @@map("payments")
 }

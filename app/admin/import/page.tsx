@@ -3,7 +3,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { clearCustomerCaches } from '@/hooks/useCustomer';
-import { customerService } from '@/services/customerService';
+import { customerClient as customerService } from '@/services/client/customer.client';
 import AppLayout from '@/components/layout/AppLayout';
 import BackButton from '@/components/BackButton';
 import Button from '@/components/ui/Button';
@@ -115,7 +115,6 @@ export default function ImportPage() {
         try {
             const formData = new FormData();
             formData.append('file', selectedFile!);
-            formData.append('role', localStorage.getItem('role') || '');
             formData.append('period', selectedPeriod);
 
             const response = await fetch('/api/import/upload', {

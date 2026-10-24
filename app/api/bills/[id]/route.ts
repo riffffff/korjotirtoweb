@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { AuthError, requireAdmin } from '@/lib/auth';
+import { softDeleteBill } from '@/services/server/bill.service';
 
 type RouteParams = {
     params: Promise<{
@@ -15,88 +16,18 @@ type RouteParams = {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     try {
+        requireAdmin(request);
         const { id } = await params;
-        const billId = parseInt(id, 10);
-        const body = await request.json();
-        const { role } = body;
-
-        // Check admin role
-        if (role !== 'admin') {
-            return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 403 }
-            );
-        }
-
-        // Get bill with meter reading to find customer
-        const bill = await prisma.bill.findUnique({
-            where: { id: billId },
-            include: {
-                meterReading: true,
-                items: true,
-            },
-        });
-
-        if (!bill) {
-            return NextResponse.json(
-                { success: false, error: 'Bill not found' },
-                { status: 404 }
-            );
-        }
-
-        const customerId = bill.meterReading.customerId;
-
-        // Hard delete in transaction
-        await prisma.$transaction(async (tx) => {
-            // Delete bill items first (foreign key constraint)
-            await tx.billItem.deleteMany({
-                where: { billId: billId },
-            });
-
-            // Delete bill
-            await tx.bill.delete({
-                where: { id: billId },
-            });
-
-            // Delete meter reading
-            await tx.meterReading.delete({
-                where: { id: bill.meterReadingId },
-            });
-
-            // Recalculate customer totals
-            const remainingBills = await tx.bill.findMany({
-                where: {
-                    meterReading: {
-                        customerId: customerId,
-                    },
-                },
-            });
-
-            const totalBill = remainingBills.reduce(
-                (sum, b) => sum + Number(b.totalAmount),
-                0
-            );
-            const totalPaid = remainingBills.reduce(
-                (sum, b) => sum + Number(b.amountPaid),
-                0
-            );
-
-            // Update customer totals - do NOT touch balance
-            // balance is for saveToBalance deposits only, not sisa tagihan
-            await tx.customer.update({
-                where: { id: customerId },
-                data: {
-                    totalBill: totalBill,
-                    totalPaid: totalPaid,
-                },
-            });
-        });
+        await softDeleteBill(id);
 
         return NextResponse.json({
             success: true,
             message: 'Bill deleted successfully',
         });
     } catch (error) {
+        if (error instanceof AuthError) {
+            return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+        }
         console.error('Error deleting bill:', error);
         return NextResponse.json(
             { success: false, error: 'Failed to delete bill' },

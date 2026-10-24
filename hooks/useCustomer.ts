@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { customerService, CustomerListItem, CustomerDetail } from '@/services/customerService';
+import { customerClient, CustomerListItem, CustomerDetail } from '@/services/client/customer.client';
 import { clearDashboardCache } from './useDashboard';
 
 // In-memory cache for customer list
@@ -7,7 +7,7 @@ let customerListCache: CustomerListItem[] | null = null;
 let customerListCacheTime = 0;
 
 // In-memory cache for customer details
-const customerDetailCache = new Map<number, { data: CustomerDetail; time: number }>();
+const customerDetailCache = new Map<string, { data: CustomerDetail; time: number }>();
 
 // Cache expiry times
 const LIST_CACHE_EXPIRY = 30 * 1000; // 30 seconds
@@ -36,7 +36,7 @@ export function useCustomers() {
             setLoading(true);
             setError(null);
             
-            const data = await customerService.getAll();
+            const data = await customerClient.getAll();
             
             // Update cache
             customerListCache = data;
@@ -68,7 +68,7 @@ export function useCustomers() {
 /**
  * Hook for fetching single customer with bill history (with caching)
  */
-export function useCustomerDetail(id: number | null) {
+export function useCustomerDetail(id: string | null) {
     const [data, setData] = useState<CustomerDetail | null>(() => {
         if (id && customerDetailCache.has(id)) {
             const cached = customerDetailCache.get(id)!;
@@ -105,7 +105,7 @@ export function useCustomerDetail(id: number | null) {
             setLoading(true);
             setError(null);
             
-            const result = await customerService.getById(id);
+            const result = await customerClient.getById(id);
             
             // Update cache
             customerDetailCache.set(id, { data: result, time: Date.now() });

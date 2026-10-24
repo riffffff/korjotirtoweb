@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, createContext, useContext, useRef } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import Sidebar from './Sidebar';
 
 interface SidebarContextType {
@@ -29,6 +29,8 @@ export function SidebarProvider({ children }: SidebarProviderProps) {
     useEffect(() => {
         const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
         if (saved !== null) {
+            // Read persisted client state after SSR hydration.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsCollapsed(saved === 'true');
         }
         setIsHydrated(true);

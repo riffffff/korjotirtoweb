@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useCustomers, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
-import { customerService } from '@/services/customerService';
+import { customerClient as customerService } from '@/services/client/customer.client';
 import { generateBillMessage, openWhatsAppLink } from '@/lib/whatsapp';
 import AppLayout from '@/components/layout/AppLayout';
 import LoadingState from '@/components/state/LoadingState';
@@ -41,12 +41,12 @@ export default function HomePage() {
   // Handle send WA to individual customer via wa.me
   const handleSendWA = async (e: React.MouseEvent, customer: typeof customers[0]) => {
     e.stopPropagation(); // Prevent navigating to customer detail
-    if (!customer.phone || customer.outstanding <= 0) return;
+    if (!customer.phone || customer.unpaidTotal <= 0) return;
 
     try {
       // Fetch customer detail to get unpaid bills
       const detail = await customerService.getById(customer.id);
-      const unpaidBills = detail.bills.filter((b) => b.paymentStatus !== 'paid');
+      const unpaidBills = detail.bills.filter((b) => b.paymentStatus !== 'PAID');
 
       if (unpaidBills.length > 0) {
         const message = generateBillMessage(
@@ -255,7 +255,7 @@ export default function HomePage() {
                     {/* Right: Remaining Bill + WA Button */}
                     <div className="flex items-center gap-3">
                       {/* WA Button - show only for customers with phone and unpaid bills */}
-                      {isAdmin && customer.phone && customer.outstanding > 0 && (
+                      {isAdmin && customer.phone && customer.unpaidTotal > 0 && (
                         <button
                           onClick={(e) => handleSendWA(e, customer)}
                           className="w-9 h-9 shrink-0 rounded-full bg-[#25D366] hover:bg-success-500 flex items-center justify-center transition-colors shadow-sm"
@@ -268,8 +268,8 @@ export default function HomePage() {
                       )}
                       <div className="text-right min-w-22.5">
                         <p className="text-xs text-neutral-400">Sisa Tagihan</p>
-                        <p className={`font-bold ${customer.outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {customer.outstanding > 0 ? formatCurrency(customer.outstanding) : 'Lunas'}
+                        <p className={`font-bold ${customer.unpaidTotal > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {customer.unpaidTotal > 0 ? formatCurrency(customer.unpaidTotal) : 'Lunas'}
                         </p>
                       </div>
                     </div>

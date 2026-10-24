@@ -42,8 +42,7 @@ export default function CreateBillsPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    period,
-                    role: localStorage.getItem('role')
+                    period
                 }),
             });
             const data = await res.json();

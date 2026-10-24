@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/services/client/api';
+import { authClient } from '@/services/client/auth.client';
 
 interface User {
     username: string;
@@ -13,28 +15,29 @@ export function useAuth() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check localStorage for user data
-        const username = localStorage.getItem('username');
-        const role = localStorage.getItem('role');
-        const token = localStorage.getItem('token');
+        const loadSession = async () => {
+            try {
+                const response = await api.get('/auth/session');
+                const session = response.data.data;
+                setUser({ username: session.username, role: session.role });
+                setIsAdmin(session.role === 'admin');
+            } catch {
+                setUser(null);
+                setIsAdmin(false);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        void loadSession();
+    }, []);
 
-        if (username && role && token) {
-            setUser({ username, role });
-            setIsAdmin(role === 'admin');
-        } else {
+    const logout = async () => {
+        try {
+            await authClient.logout();
+        } finally {
             setUser(null);
             setIsAdmin(false);
         }
-
-        setIsLoading(false);
-    }, []);
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('role');
-        setUser(null);
-        setIsAdmin(false);
     };
 
     return {
