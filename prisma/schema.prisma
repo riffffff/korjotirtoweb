@@ -20,6 +20,7 @@ model Customer {
   deletedAt      DateTime?      @map("deleted_at") @db.Timestamp(6)
   meterReadings  MeterReading[]
   payments       Payment[]
+  paymentProofs  PaymentProof[]
 
   @@index([deletedAt])
   @@map("customers")
@@ -124,4 +125,27 @@ model Payment {
 
   @@index([deletedAt])
   @@map("payments")
+}
+
+model PaymentProof {
+  id              String    @id @default(uuid()) @db.Uuid
+  customerId      String    @map("customer_id") @db.Uuid
+  phone           String    @db.VarChar(20)
+  amount          Decimal   @db.Decimal(12, 2)
+  proofUrl        String    @map("proof_url") @db.VarChar(500)
+  originalName    String?   @map("original_name") @db.VarChar(255)
+  mimeType        String    @map("mime_type") @db.VarChar(100)
+  note            String?
+  status          String    @default("PENDING") @db.VarChar(20)
+  rejectionReason String?   @map("rejection_reason")
+  verifiedBy      String?   @map("verified_by") @db.Uuid
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamp(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  customer        Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payment_proofs")
 }

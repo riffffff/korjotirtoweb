@@ -21,7 +21,6 @@ export const customerClient = {
     pay: async (id: string, amount: number, saveToBalance = 0, balanceUsed = 0) =>
         (await api.patch(`/customers/${id}/pay`, { amount, saveToBalance, balanceUsed })).data,
     notify: async (id: string) => (await api.patch(`/customers/${id}/notify`)).data,
-    getDashboard: async (): Promise<DashboardStats> => (await api.get('/dashboard')).data.data,
     clearAll: async () => (await api.delete('/customers/clear', { data: { confirmDelete: 'HAPUS_SEMUA' } })).data,
     deleteBill: async (billId: string) => (await api.delete(`/bills/${billId}`)).data,
     deleteBillsByPeriod: async (period: string) => (await api.delete(`/bills/period/${period}`)).data,

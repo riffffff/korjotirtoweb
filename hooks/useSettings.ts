@@ -1,31 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
+import { settingClient } from '@/services/client/setting.client';
 
 // In-memory cache for settings
 let settingsCache: Record<string, string> | null = null;
 let settingsCacheTime = 0;
-const CACHE_EXPIRY = 2 * 60 * 1000; // 2 minutes (settings rarely change)
+const CACHE_EXPIRY = 10 * 60 * 1000; // 10 minutes (settings rarely change)
 
 /**
- * Hook for fetching settings with caching
+ * Hook for fetching settings with stale-while-revalidate caching
  */
 export function useSettings() {
-    // Initialize with cached data if available and valid
-    const [settings, setSettings] = useState<Record<string, string>>(() => {
-        if (settingsCache && (Date.now() - settingsCacheTime) < CACHE_EXPIRY) {
-            return settingsCache;
-        }
-        return {};
-    });
-    const [loading, setLoading] = useState(() => {
-        // Only show loading if no valid cache
-        return !settingsCache || (Date.now() - settingsCacheTime) >= CACHE_EXPIRY;
-    });
+    // Show cached settings immediately if available
+    const [settings, setSettings] = useState<Record<string, string>>(() => settingsCache || {});
+    const [loading, setLoading] = useState(() => !settingsCache);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async (force = false) => {
         const now = Date.now();
         
-        // Use cache if valid and not forcing refresh
+        // Use cache if fresh and not forcing refresh
         if (!force && settingsCache && (now - settingsCacheTime) < CACHE_EXPIRY) {
             setSettings(settingsCache);
             setLoading(false);
@@ -33,23 +26,20 @@ export function useSettings() {
         }
 
         try {
-            setLoading(true);
+            if (!settingsCache) {
+                setLoading(true);
+            }
             setError(null);
             
-            const res = await fetch('/api/settings');
-            const result = await res.json();
-            
-            if (result.success) {
-                // Update cache
-                settingsCache = result.data || {};
-                settingsCacheTime = Date.now();
-                setSettings(result.data || {});
-            } else {
-                setError(result.error || 'Gagal memuat pengaturan');
-            }
+            const result = await settingClient.getAll();
+            settingsCache = result;
+            settingsCacheTime = Date.now();
+            setSettings(result);
         } catch (err) {
             console.error('Failed to fetch settings:', err);
-            setError('Gagal memuat pengaturan');
+            if (!settingsCache) {
+                setError('Gagal memuat pengaturan');
+            }
         } finally {
             setLoading(false);
         }
@@ -84,7 +74,12 @@ export function useSettings() {
         setSettings(newSettings);
     }, []);
 
-    return { settings, loading, error, updateSettings, refetch, invalidateCache, updateCache };
+    const saveSettings = useCallback(async (newSettings: Record<string, string>) => {
+        await settingClient.update(newSettings);
+        updateCache(newSettings);
+    }, [updateCache]);
+
+    return { settings, loading, error, updateSettings, refetch, invalidateCache, updateCache, saveSettings };
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/services/client/auth.client';
+import { setAuthSession } from './useAuth';
 
 interface LoginResult {
     success: boolean;
@@ -27,6 +28,7 @@ export function useLogin() {
         try {
             const data = await authClient.login(username, password);
 
+            setAuthSession(data.user);
             router.push('/');
 
             return { success: true, user: data.user };

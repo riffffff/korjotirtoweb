@@ -1,18 +1,21 @@
 'use client';
 import { useState, useRef } from 'react';
 import { formatCurrency } from '@/lib/formatCurrency';
+import { Wallet } from 'lucide-react';
 import PasswordConfirm from '@/components/ui/PasswordConfirm';
 
 type PaymentSectionProps = {
     totalAmount: number;
     customerBalance?: number; // Customer's saved balance (deposit)
     onPay?: (amountPaid: number, saveToBalance: number, balanceUsed: number) => void;
+    embedded?: boolean;
 }
 
 export default function PaymentSection({
     totalAmount,
     customerBalance = 0,
-    onPay
+    onPay,
+    embedded = false,
 }: PaymentSectionProps) {
     const [amountPaid, setAmountPaid] = useState<string>('');
     const [saveToBalance, setSaveToBalance] = useState<string>('');
@@ -25,8 +28,8 @@ export default function PaymentSection({
     const paidValue = parseInt(amountPaid.replace(/\D/g, '')) || 0;
     const saveValue = parseInt(saveToBalance.replace(/\D/g, '')) || 0;
     
-    // If using balance, add customer balance to payment
-    const effectivePaid = useBalance ? paidValue + customerBalance : paidValue;
+    const usableDeposit = useBalance ? Math.min(customerBalance, totalAmount) : 0;
+    const effectivePaid = paidValue + usableDeposit;
     const difference = effectivePaid - totalAmount;
     const isEnough = effectivePaid >= totalAmount;
     const change = Math.max(0, difference);
@@ -69,23 +72,23 @@ export default function PaymentSection({
         setShowPasswordConfirm(false);
         setIsPaying(true);
         setShowResult(true);
-        // Pass effectivePaid (including balance used) to parent
-        onPay?.(effectivePaid, saveValue, useBalance ? customerBalance : 0);
+        onPay?.(paidValue, saveValue, usableDeposit);
         setIsPaying(false);
     };
 
     const quickSaveAmounts = [100, 200, 300, 500, 1000].filter(amt => amt <= change);
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 space-y-4 shadow-sm">
-            <div className="flex items-center gap-2">
+        <div className={embedded ? 'space-y-4' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 space-y-4 shadow-sm'}>
+            {!embedded && <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                    <Wallet className="w-4 h-4 text-white" />
                 </div>
                 <p className="text-sm font-semibold text-blue-700">Pembayaran</p>
-            </div>
+            </div>}
+            {!embedded && <p className="text-xs text-blue-700 bg-blue-100/70 rounded-lg px-3 py-2">
+                Pembayaran otomatis dialokasikan ke tagihan paling lama terlebih dahulu (FIFO).
+            </p>}
 
             {/* Use Customer Balance Toggle */}
             {customerBalance > 0 && (

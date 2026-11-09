@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, createContext, useContext } from 'react';
 import Sidebar from './Sidebar';
+import MobileAdminNavigation from './MobileAdminNavigation';
 
 interface SidebarContextType {
     isCollapsed: boolean;
@@ -52,8 +53,9 @@ export function SidebarProvider({ children }: SidebarProviderProps) {
             <div className="min-h-screen bg-neutral-50">
                 <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
                 <div className={`md:transition-[padding-left] md:duration-300 ${isCollapsed ? 'md:pl-16' : 'md:pl-64'}`}>
-                    {children}
+                    <div className="pb-24 md:pb-0">{children}</div>
                 </div>
+                <MobileAdminNavigation />
             </div>
         </SidebarContext.Provider>
     );

@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import { dashboardClient } from '@/services/client/dashboard.client';
 
 interface PeriodStats {
     period: string;
     periodLabel: string;
     totalBills: number;
     paidCount: number;
+    payingCustomerCount: number;
     unpaidCount: number;
 }
 
 export interface DashboardData {
     totalCustomers: number;
+    totalRevenue?: number;
     totalOutstanding: number;
     periods: PeriodStats[];
 }
@@ -17,29 +20,21 @@ export interface DashboardData {
 // In-memory cache for dashboard data
 let dashboardCache: DashboardData | null = null;
 let dashboardCacheTime = 0;
-const CACHE_EXPIRY = 30 * 1000; // 30 seconds
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Hook for fetching dashboard data with caching
+ * Hook for fetching dashboard data with stale-while-revalidate caching
  */
 export function useDashboard() {
-    // Initialize with cached data if available and valid
-    const [data, setData] = useState<DashboardData | null>(() => {
-        if (dashboardCache && (Date.now() - dashboardCacheTime) < CACHE_EXPIRY) {
-            return dashboardCache;
-        }
-        return null;
-    });
-    const [loading, setLoading] = useState(() => {
-        // Only show loading if no valid cache
-        return !dashboardCache || (Date.now() - dashboardCacheTime) >= CACHE_EXPIRY;
-    });
+    // Show cached data immediately if available
+    const [data, setData] = useState<DashboardData | null>(() => dashboardCache);
+    const [loading, setLoading] = useState(() => !dashboardCache);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async (force = false) => {
         const now = Date.now();
         
-        // Use cache if valid and not forcing refresh
+        // Use cache if fresh and not forcing refresh
         if (!force && dashboardCache && (now - dashboardCacheTime) < CACHE_EXPIRY) {
             setData(dashboardCache);
             setLoading(false);
@@ -47,23 +42,21 @@ export function useDashboard() {
         }
 
         try {
-            setLoading(true);
+            // Only show skeleton if we have NO data in cache yet
+            if (!dashboardCache) {
+                setLoading(true);
+            }
             setError(null);
             
-            const res = await fetch('/api/dashboard');
-            const result = await res.json();
-            
-            if (result.success) {
-                // Update cache
-                dashboardCache = result.data;
-                dashboardCacheTime = Date.now();
-                setData(result.data);
-            } else {
-                setError(result.error || 'Gagal memuat dashboard');
-            }
+            const result = await dashboardClient.getStats();
+            dashboardCache = result;
+            dashboardCacheTime = Date.now();
+            setData(result);
         } catch (err) {
             console.error('Failed to fetch dashboard:', err);
-            setError('Gagal memuat dashboard');
+            if (!dashboardCache) {
+                setError('Gagal memuat dashboard');
+            }
         } finally {
             setLoading(false);
         }

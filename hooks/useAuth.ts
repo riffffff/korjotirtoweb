@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import api from '@/services/client/api';
+import { useState, useEffect, useCallback } from 'react';
 import { authClient } from '@/services/client/auth.client';
 
 interface User {
@@ -9,40 +8,77 @@ interface User {
     role: string;
 }
 
+let sessionCache: User | null | undefined;
+let sessionRequest: Promise<User | null> | null = null;
+const sessionListeners = new Set<(user: User | null) => void>();
+
+function publishSession(user: User | null) {
+    sessionCache = user;
+    sessionListeners.forEach((listener) => listener(user));
+}
+
+export function setAuthSession(user: Pick<User, 'username' | 'role'>) {
+    publishSession({ username: user.username, role: user.role });
+}
+
+export function clearAuthSession() {
+    sessionRequest = null;
+    publishSession(null);
+}
+
+export function invalidateAuthSession() {
+    sessionCache = undefined;
+    sessionRequest = null;
+}
+
+function loadSession(): Promise<User | null> {
+    if (sessionCache !== undefined) return Promise.resolve(sessionCache);
+    if (!sessionRequest) {
+        sessionRequest = authClient.getSession()
+            .then((session) => {
+                const user: User = { username: session.username, role: session.role };
+                publishSession(user);
+                return user;
+            })
+            .catch(() => {
+                publishSession(null);
+                return null;
+            })
+            .finally(() => {
+                sessionRequest = null;
+            });
+    }
+    return sessionRequest;
+}
+
 export function useAuth() {
-    const [user, setUser] = useState<User | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(sessionCache ?? null);
+    const [isLoading, setIsLoading] = useState(sessionCache === undefined);
 
     useEffect(() => {
-        const loadSession = async () => {
-            try {
-                const response = await api.get('/auth/session');
-                const session = response.data.data;
-                setUser({ username: session.username, role: session.role });
-                setIsAdmin(session.role === 'admin');
-            } catch {
-                setUser(null);
-                setIsAdmin(false);
-            } finally {
+        sessionListeners.add(setUser);
+        if (sessionCache === undefined) {
+            void loadSession().then((currentUser) => {
+                setUser(currentUser);
                 setIsLoading(false);
-            }
+            });
+        }
+        return () => {
+            sessionListeners.delete(setUser);
         };
-        void loadSession();
     }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         try {
             await authClient.logout();
         } finally {
-            setUser(null);
-            setIsAdmin(false);
+            clearAuthSession();
         }
-    };
+    }, []);
 
     return {
         user,
-        isAdmin,
+        isAdmin: user?.role === 'admin',
         isLoading,
         isLoggedIn: !!user,
         logout,

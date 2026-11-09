@@ -1,14 +1,23 @@
-import { SkeletonList, SkeletonDetailCard } from '@/components/ui/Skeleton';
+import {
+    SkeletonDashboard,
+    SkeletonFormCard,
+    SkeletonImportForm,
+    SkeletonList,
+    SkeletonDetailCard,
+    SkeletonSettingsForm,
+    SkeletonOnlinePayment,
+    SkeletonPaymentProofList,
+    SkeletonPeriodDetail,
+} from '@/components/ui/Skeleton';
 
 type LoadingStateProps = {
     message?: string;
-    variant?: 'spinner' | 'skeleton-list' | 'skeleton-detail';
+    variant?: 'skeleton-list' | 'skeleton-detail' | 'skeleton-dashboard' | 'skeleton-form' | 'skeleton-import' | 'skeleton-settings' | 'skeleton-online-payment' | 'skeleton-payment-proofs' | 'skeleton-period-detail';
     count?: number;
 }
 
 export default function LoadingState({
-    message = "Memuat data...",
-    variant = 'spinner',
+    variant = 'skeleton-list',
     count = 5
 }: LoadingStateProps) {
     if (variant === 'skeleton-list') {
@@ -18,13 +27,11 @@ export default function LoadingState({
     if (variant === 'skeleton-detail') {
         return <SkeletonDetailCard />;
     }
-
-    return (
-        <div className="flex justify-center items-center py-20">
-            <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-lg text-primary-600">{message}</p>
-            </div>
-        </div>
-    );
+    if (variant === 'skeleton-dashboard') return <SkeletonDashboard />;
+    if (variant === 'skeleton-import') return <SkeletonImportForm />;
+    if (variant === 'skeleton-settings') return <SkeletonSettingsForm />;
+    if (variant === 'skeleton-online-payment') return <SkeletonOnlinePayment />;
+    if (variant === 'skeleton-payment-proofs') return <SkeletonPaymentProofList count={count} />;
+    if (variant === 'skeleton-period-detail') return <SkeletonPeriodDetail />;
+    return <SkeletonFormCard />;
 }

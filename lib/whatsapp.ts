@@ -1,4 +1,6 @@
 import type { BillHistoryItem } from '@/services/client/customer.client';
+import { formatCurrency } from '@/lib/formatCurrency';
+import { formatPeriod } from '@/lib/formatDate';
 
 const WEB_URL = 'https://www.korjotirto.my.id';
 
@@ -38,29 +40,6 @@ export function formatPhoneForWA(phone: string): string {
         cleaned = '62' + cleaned;
     }
     return cleaned;
-}
-
-/**
- * Format currency
- */
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(amount);
-}
-
-/**
- * Format period "2026-01" to "Januari 2026"
- */
-function formatPeriod(period: string): string {
-    const [year, month] = period.split('-');
-    const months = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return `${months[parseInt(month) - 1]} ${year}`;
 }
 
 type BillTemplateParams = {

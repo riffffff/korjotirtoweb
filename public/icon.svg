@@ -1,0 +1,23 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="kt-drop-grad" x1="18" y1="6" x2="46" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <clipPath id="kt-drop-clip">
+      <path d="M32 5C32 5 49 24.5 49 35.5C49 44.8888 41.3888 51.5 32 51.5C22.6112 51.5 15 44.8888 15 35.5C15 24.5 32 5 32 5Z" />
+    </clipPath>
+  </defs>
+  <ellipse cx="32" cy="56.5" rx="22" ry="5" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="45 18" stroke-linecap="round" opacity="0.65" />
+  <ellipse cx="32" cy="56.5" rx="14" ry="3.2" stroke="#0284c7" stroke-width="2.8" />
+  <circle cx="11" cy="49" r="2" fill="#38bdf8" />
+  <circle cx="53" cy="49" r="2" fill="#38bdf8" />
+  <g clip-path="url(#kt-drop-clip)">
+    <path d="M32 5C32 5 49 24.5 49 35.5C49 44.8888 41.3888 51.5 32 51.5C22.6112 51.5 15 44.8888 15 35.5C15 24.5 32 5 32 5Z" fill="url(#kt-drop-grad)" />
+    <path d="M12 38.5C19 33.5 25 33.5 32 38.5C39 43.5 45 43.5 52 38.5V54H12V38.5Z" fill="#7dd3fc" fill-opacity="0.45" />
+    <path d="M12 43C19 39 25 39 32 43C39 47 45 47 52 43V54H12V43Z" fill="#bae6fd" fill-opacity="0.65" />
+  </g>
+  <path d="M23.5 24.5C21.2 28.2 20.2 31.8 20.5 35.2" stroke="white" stroke-width="2.6" stroke-linecap="round" opacity="0.78" />
+</svg>
+

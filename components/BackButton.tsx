@@ -1,5 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
 
 type BackButtonProps = {
     label?: string;
@@ -14,22 +16,25 @@ export default function BackButton({
 }: BackButtonProps) {
     const router = useRouter();
 
-    const handleClick = () => {
-        if (href) {
-            router.push(href);
-        } else {
-            router.back();
-        }
-    };
+    if (href) {
+        return (
+            <Link
+                href={href}
+                className={`flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 transition ${className}`}
+            >
+                <ChevronLeft className="w-4 h-4" />
+                {label}
+            </Link>
+        );
+    }
 
     return (
         <button
-            onClick={handleClick}
+            type="button"
+            onClick={() => router.back()}
             className={`flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-700 transition ${className}`}
         >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ChevronLeft className="w-4 h-4" />
             {label}
         </button>
     );

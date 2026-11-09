@@ -15,4 +15,9 @@ export const authClient = {
         const response = await api.post('/auth/logout');
         return response.data;
     },
+
+    getSession: async () => {
+        const response = await api.get('/auth/session');
+        return response.data.data;
+    },
 };

@@ -22,8 +22,8 @@ export const metadata: Metadata = {
   description: 'Sistem Pembayaran Air HIPPAM Sukorejo',
   manifest: '/manifest.json',
   icons: {
-    icon: '/icons/icon-192x192.png?v=5',
-    apple: '/icons/icon-192x192.png?v=5',
+    icon: '/icon.svg',
+    apple: '/icon.svg',
   },
   appleWebApp: {
     capable: true,

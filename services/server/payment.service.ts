@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { allocatePaymentFifo, calculateBillPenalty } from '@/lib/billing';
 
 function periodName(period: string) {
@@ -7,13 +8,14 @@ function periodName(period: string) {
     return `${names[Number(month) - 1] ?? month} ${year}`;
 }
 
-export async function processCustomerPayment(params: {
+type PaymentTransaction = Prisma.TransactionClient;
+
+export async function processCustomerPaymentInTransaction(tx: PaymentTransaction, params: {
     customerId: string;
     cashAmount: number;
     saveToDeposit: number;
     useDeposit: number;
 }) {
-    return prisma.$transaction(async (tx) => {
         const customer = await tx.customer.findFirst({ where: { id: params.customerId, deletedAt: null } });
         if (!customer) throw new Error('Customer not found');
         if (params.useDeposit > Number(customer.balance)) throw new Error('Saldo tidak mencukupi');
@@ -21,14 +23,25 @@ export async function processCustomerPayment(params: {
         const bills = await tx.bill.findMany({
             where: {
                 deletedAt: null,
-                paymentStatus: { not: 'PAID' },
                 meterReading: { customerId: params.customerId, deletedAt: null },
             },
             include: { meterReading: true },
             orderBy: { meterReading: { period: 'asc' } },
         });
+
+        // Always calculate FIFO from the complete chronological bill history.
+        // This prevents a newer bill from being selected ahead of an older
+        // outstanding bill, even when stored status data is stale.
+        const outstandingBills = bills.filter((bill) => {
+            const penalty = calculateBillPenalty(
+                bill.meterReading.period,
+                bill.paymentStatus === 'PARTIAL' ? 'PARTIAL' : 'UNPAID',
+                bill.paidAt,
+            );
+            return Number(bill.totalAmount) + penalty - Number(bill.amountPaid) > 0;
+        });
         const allocation = allocatePaymentFifo(
-            bills.map((bill) => ({
+            outstandingBills.map((bill) => ({
                 id: bill.id,
                 period: bill.meterReading.period,
                 totalAmount: Number(bill.totalAmount),
@@ -77,5 +90,13 @@ export async function processCustomerPayment(params: {
             cashChange: allocation.change - params.saveToDeposit,
             savedToDeposit: params.saveToDeposit,
         };
-    });
+}
+
+export async function processCustomerPayment(params: {
+    customerId: string;
+    cashAmount: number;
+    saveToDeposit: number;
+    useDeposit: number;
+}) {
+    return prisma.$transaction((tx) => processCustomerPaymentInTransaction(tx, params));
 }

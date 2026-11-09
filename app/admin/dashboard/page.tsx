@@ -1,9 +1,17 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboard } from '@/hooks/useDashboard';
 import LoadingState from '@/components/state/LoadingState';
+import { billClient } from '@/services/client/bill.client';
+import RingChart from '@/components/dashboard/RingChart';
+import PaymentTrendChart from '@/components/dashboard/PaymentTrendChart';
+import { ChevronRight, Loader2, Settings, Upload, Users, Wallet } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatCurrency';
+import PageHeader from '@/components/layout/PageHeader';
+import AppLayout from '@/components/layout/AppLayout';
 
 interface PeriodBillDetail {
     id: string;
@@ -16,82 +24,17 @@ interface PeriodBillDetail {
     remaining: number;
 }
 
-// Animated Counter Component
-function AnimatedNumber({ value, duration = 1000 }: { value: number; duration?: number }) {
-    const [displayValue, setDisplayValue] = useState(0);
-
-    useEffect(() => {
-        let startTime: number;
-        let animationFrame: number;
-
-        const animate = (currentTime: number) => {
-            if (!startTime) startTime = currentTime;
-            const progress = Math.min((currentTime - startTime) / duration, 1);
-            setDisplayValue(Math.floor(progress * value));
-            if (progress < 1) {
-                animationFrame = requestAnimationFrame(animate);
-            }
-        };
-
-        animationFrame = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(animationFrame);
-    }, [value, duration]);
-
-    return <span>{displayValue}</span>;
-}
-
-// Simple Ring Chart Component
-function RingChart({ percentage, size = 120, strokeWidth = 10 }: { percentage: number; size?: number; strokeWidth?: number }) {
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (percentage / 100) * circumference;
-    
-    return (
-        <div className="relative" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="-rotate-90">
-                {/* Background circle */}
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke="#e2e8f0"
-                    strokeWidth={strokeWidth}
-                />
-                {/* Progress circle */}
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    className="transition-all duration-700 ease-out"
-                />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-slate-800">
-                    <AnimatedNumber value={percentage} />%
-                </span>
-                <span className="text-xs font-medium text-slate-500">Lunas</span>
-            </div>
-        </div>
-    );
-}
-
 export default function AdminDashboard() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
     const { data, loading } = useDashboard();
     const [selectedPeriod, setSelectedPeriod] = useState<string>('');
-    const [paidDetails, setPaidDetails] = useState<PeriodBillDetail[]>([]);
-    const [unpaidDetails, setUnpaidDetails] = useState<PeriodBillDetail[]>([]);
-    const [detailsLoading, setDetailsLoading] = useState(false);
-    const [detailsError, setDetailsError] = useState<string | null>(null);
-    const [showPeriodDetail, setShowPeriodDetail] = useState(false);
+    const [expandedPeriods, setExpandedPeriods] = useState<string[]>([]);
+    const [periodDetailsMap, setPeriodDetailsMap] = useState<Record<string, { paid: PeriodBillDetail[]; unpaid: PeriodBillDetail[] }>>({});
+    const [loadingPeriods, setLoadingPeriods] = useState<Record<string, boolean>>({});
+    const [errorPeriods, setErrorPeriods] = useState<Record<string, string>>({});
+    const [historyRange, setHistoryRange] = useState<'3' | '6' | '12' | 'all'>('3');
+    const periodCache = useRef<Record<string, { paid: PeriodBillDetail[]; unpaid: PeriodBillDetail[] }>>({});
 
     useEffect(() => {
         if (authLoading) return;
@@ -107,79 +50,83 @@ export default function AdminDashboard() {
         }
     }, [data, selectedPeriod]);
 
-    useEffect(() => {
-        if (!selectedPeriod || !isAdmin || !showPeriodDetail) return;
+    const fetchPeriodDetail = useCallback(async (period: string) => {
+        if (periodCache.current[period]) {
+            setPeriodDetailsMap((prev) => (prev[period] ? prev : { ...prev, [period]: periodCache.current[period] }));
+            return;
+        }
 
-        const controller = new AbortController();
+        setLoadingPeriods((prev) => ({ ...prev, [period]: true }));
+        setErrorPeriods((prev) => {
+            const next = { ...prev };
+            delete next[period];
+            return next;
+        });
 
-        const fetchPeriodDetails = async () => {
-            try {
-                setDetailsLoading(true);
-                setDetailsError(null);
+        try {
+            const result = await billClient.getByPeriod(period);
+            const details = {
+                paid: result.paid || [],
+                unpaid: result.unpaid || [],
+            };
+            periodCache.current[period] = details;
+            setPeriodDetailsMap((prev) => ({ ...prev, [period]: details }));
+        } catch {
+            setErrorPeriods((prev) => ({ ...prev, [period]: 'Gagal memuat rincian periode' }));
+        } finally {
+            setLoadingPeriods((prev) => ({ ...prev, [period]: false }));
+        }
+    }, []);
 
-                const res = await fetch(`/api/bills/period/${selectedPeriod}`, {
-                    signal: controller.signal,
-                });
-                const result = await res.json();
-
-                if (result.success) {
-                    setPaidDetails(result.data.paid || []);
-                    setUnpaidDetails(result.data.unpaid || []);
-                } else {
-                    setPaidDetails([]);
-                    setUnpaidDetails([]);
-                    setDetailsError(result.error || 'Gagal memuat detail periode');
-                }
-            } catch (err) {
-                if (err instanceof Error && err.name === 'AbortError') return;
-                setPaidDetails([]);
-                setUnpaidDetails([]);
-                setDetailsError('Gagal memuat detail periode');
-            } finally {
-                setDetailsLoading(false);
+    const togglePeriodDetail = useCallback((period: string) => {
+        setExpandedPeriods((prev) => {
+            const isExpanded = prev.includes(period);
+            if (isExpanded) {
+                return prev.filter((p) => p !== period);
             }
-        };
+            void fetchPeriodDetail(period);
+            return [...prev, period];
+        });
+    }, [fetchPeriodDetail]);
 
-        fetchPeriodDetails();
+    const dashboardLoading = (
+        <AppLayout>
+            <PageHeader title="Dashboard" subtitle="Ringkasan statistik pembayaran" />
+            <main className="relative max-w-7xl mx-auto px-4 md:px-6 py-6 pb-24 md:py-8 md:pb-8">
+                <LoadingState variant="skeleton-dashboard" />
+            </main>
+        </AppLayout>
+    );
 
-        return () => controller.abort();
-    }, [selectedPeriod, isAdmin, showPeriodDetail]);
-
-    if (authLoading) return <LoadingState message="Memeriksa akses..." />;
-    if (!isAdmin) return null;
+    if (authLoading) return dashboardLoading;
+    if (!isAdmin) return dashboardLoading;
 
     const currentPeriod = data?.periods.find(p => p.period === selectedPeriod);
-    const selectedPeriodLabel = currentPeriod?.periodLabel || selectedPeriod;
     const paidCount = currentPeriod?.paidCount || 0;
     const unpaidCount = currentPeriod?.unpaidCount || 0; 
     const totalBills = currentPeriod?.totalBills || 0;
     const paymentRate = totalBills > 0 ? Math.round((paidCount / totalBills) * 100) : 0;
 
     return (
-        <>
+        <AppLayout>
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <h1 className="text-xl font-bold text-neutral-800">Dashboard</h1>
-                    <p className="text-sm text-neutral-500">Ringkasan statistik pembayaran</p>
-                </div>
-            </header>
+            <PageHeader title="Dashboard" subtitle="Ringkasan statistik pembayaran" />
 
-            <main className="relative max-w-7xl mx-auto px-6 py-8">
+            <main className="relative max-w-7xl mx-auto px-4 py-6 pb-28 md:px-6 md:py-8 md:pb-8">
                 {loading ? (
-                    <LoadingState variant="skeleton-list" count={3} />
+                    <LoadingState variant="skeleton-dashboard" />
                 ) : data && (
-                    <div className="space-y-8">
+                    <div className="space-y-6 md:space-y-8">
                         {/* Stats Section */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
                             {/* Ring Chart Card - Per Period */}
-                            <div className="bg-white rounded-xl p-4 border border-neutral-200">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-sm font-medium text-neutral-600">Per Periode</h3>
+                            <div className="bg-white rounded-xl p-2.5 md:p-4 border border-neutral-200">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3 md:mb-4">
+                                    <h3 className="text-sm md:text-sm font-medium text-neutral-600">Per Periode</h3>
                                     <select
                                         value={selectedPeriod}
                                         onChange={(e) => setSelectedPeriod(e.target.value)}
-                                        className="px-2 py-1 bg-neutral-100 border-0 rounded-lg text-xs font-medium text-neutral-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        className="w-full md:w-auto min-h-10 px-2 py-2 bg-neutral-100 border-0 rounded-lg text-sm md:text-xs font-medium text-neutral-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                     >
                                         {data.periods.map((p) => (
                                             <option key={p.period} value={p.period}>
@@ -190,23 +137,28 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="flex flex-col items-center">
                                     <RingChart percentage={paymentRate} size={100} strokeWidth={8} />
-                                    <div className="mt-3 flex gap-4 text-center">
+                                    <div className="mt-2 md:mt-3 flex gap-2 md:gap-4 text-center">
                                         <div>
-                                            <p className="text-lg font-bold text-emerald-600">{paidCount}</p>
-                                            <p className="text-xs text-neutral-500">Lunas</p>
+                                            <p className="text-sm md:text-lg font-bold text-emerald-600">{paidCount}</p>
+                                            <p className="text-xs md:text-xs text-neutral-500">Lunas</p>
                                         </div>
                                         <div className="w-px bg-neutral-200" />
                                         <div>
-                                            <p className="text-lg font-bold text-rose-500">{unpaidCount}</p>
-                                            <p className="text-xs text-neutral-500">Belum</p>
+                                            <p className="text-sm md:text-lg font-bold text-rose-500">{unpaidCount}</p>
+                                            <p className="text-xs md:text-xs text-neutral-500">Belum</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Ring Chart Card - All Periods */}
-                            <div className="bg-white rounded-xl p-4 border border-neutral-200">
-                                <h3 className="text-sm font-medium text-neutral-600 mb-4">Semua Periode</h3>
+                            <div className="bg-white rounded-xl p-2.5 md:p-4 border border-neutral-200">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3 md:mb-4">
+                                    <h3 className="text-sm md:text-sm font-medium text-neutral-600">Semua Periode</h3>
+                                    <div className="w-full md:w-auto min-h-10 px-2 py-2 bg-neutral-100 rounded-lg flex items-center text-sm md:text-xs font-medium text-neutral-500">
+                                        Semua bulan
+                                    </div>
+                                </div>
                                 <div className="flex flex-col items-center">
                                     {(() => {
                                         const allPaid = data.periods.reduce((sum, p) => sum + p.paidCount, 0);
@@ -216,15 +168,15 @@ export default function AdminDashboard() {
                                         return (
                                             <>
                                                 <RingChart percentage={allRate} size={100} strokeWidth={8} />
-                                                <div className="mt-3 flex gap-4 text-center">
+                                                <div className="mt-2 md:mt-3 flex gap-2 md:gap-4 text-center">
                                                     <div>
-                                                        <p className="text-lg font-bold text-emerald-600">{allPaid}</p>
-                                                        <p className="text-xs text-neutral-500">Lunas</p>
+                                                        <p className="text-sm md:text-lg font-bold text-emerald-600">{allPaid}</p>
+                                                        <p className="text-xs md:text-xs text-neutral-500">Lunas</p>
                                                     </div>
                                                     <div className="w-px bg-neutral-200" />
                                                     <div>
-                                                        <p className="text-lg font-bold text-rose-500">{allUnpaid}</p>
-                                                        <p className="text-xs text-neutral-500">Belum</p>
+                                                        <p className="text-sm md:text-lg font-bold text-rose-500">{allUnpaid}</p>
+                                                        <p className="text-xs md:text-xs text-neutral-500">Belum</p>
                                                     </div>
                                                 </div>
                                             </>
@@ -234,31 +186,31 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Total Pelanggan Card */}
-                            <div className="bg-white rounded-xl p-4 border border-neutral-200 flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-slate-600 flex items-center justify-center">
-                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
+                            <div className="col-start-1 row-start-2 bg-white rounded-xl p-2.5 md:p-4 border border-neutral-200 flex items-center gap-2 md:gap-4 md:col-auto md:row-auto">
+                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-slate-600 flex items-center justify-center shrink-0">
+                                    <Users className="w-4 h-4 md:w-6 md:h-6 text-white" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-neutral-500">Total Pelanggan</p>
-                                    <p className="text-2xl font-bold text-neutral-800">{data.totalCustomers}</p>
+                                    <p className="text-xs md:text-sm text-neutral-500">Total Pelanggan</p>
+                                    <p className="text-lg md:text-2xl font-bold text-neutral-800">{data.totalCustomers}</p>
                                 </div>
                             </div>
 
                             {/* Customer Balance Card */}
-                            <div className="bg-white rounded-xl p-4 border border-neutral-200 flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center">
-                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
+                            <div className="col-start-2 row-start-2 bg-white rounded-xl p-2.5 md:p-4 border border-neutral-200 flex items-center gap-2 md:gap-4 md:col-auto md:row-auto">
+                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
+                                    <Wallet className="w-4 h-4 md:w-6 md:h-6 text-white" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-neutral-500">Saldo Pelanggan</p>
-                                    <p className="text-2xl font-bold text-emerald-600">
+                                    <p className="text-xs md:text-sm text-neutral-500">Saldo Pelanggan</p>
+                                    <p className="text-sm md:text-2xl font-bold text-emerald-600 truncate">
                                         {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(data.totalOutstanding)}
                                     </p>
                                 </div>
+                            </div>
+
+                            <div className="col-start-1 row-start-3 col-span-2 md:col-span-2 md:row-auto lg:col-span-4 lg:col-start-auto lg:row-start-auto">
+                                <PaymentTrendChart periods={data.periods} />
                             </div>
                         </div>
 
@@ -269,162 +221,173 @@ export default function AdminDashboard() {
                                 border: '1px solid #e2e8f0'
                             }}
                         >
-                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                                <h2 className="text-lg font-bold text-slate-800">
-                                    {showPeriodDetail ? `Detail ${selectedPeriodLabel}` : 'Riwayat per Bulan'}
+                            <div className="px-4 md:px-6 py-4 md:py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <h2 className="text-base md:text-lg font-bold text-slate-800">
+                                    Riwayat per Bulan
                                 </h2>
-                                {showPeriodDetail ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPeriodDetail(false)}
-                                        className="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-700 flex items-center justify-center"
-                                        aria-label="Kembali ke riwayat per bulan"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                ) : null}
+                                <select
+                                    value={historyRange}
+                                    onChange={(event) => setHistoryRange(event.target.value as typeof historyRange)}
+                                    className="w-full sm:w-auto min-h-10 px-3 py-2 bg-neutral-100 border-0 rounded-lg text-sm md:text-xs font-medium text-neutral-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    aria-label="Rentang riwayat pembayaran"
+                                >
+                                    <option value="3">3 bulan terakhir</option>
+                                    <option value="6">6 bulan terakhir</option>
+                                    <option value="12">12 bulan terakhir</option>
+                                    <option value="all">Semua periode</option>
+                                </select>
                             </div>
 
-                            {!showPeriodDetail ? (
-                                <div className="divide-y divide-slate-100">
-                                    {data.periods.map((period, index) => {
-                                        const rate = period.totalBills > 0 ? Math.round((period.paidCount / period.totalBills) * 100) : 0;
-                                        const isSelected = selectedPeriod === period.period;
-                                        return (
+                            <div className="divide-y divide-slate-100">
+                                {(historyRange === 'all'
+                                    ? data.periods
+                                    : data.periods.slice(0, Number(historyRange))
+                                ).map((period) => {
+                                    const rate = period.totalBills > 0 ? Math.round((period.paidCount / period.totalBills) * 100) : 0;
+                                    const isExpanded = expandedPeriods.includes(period.period);
+                                    const isLoading = loadingPeriods[period.period];
+                                    const errorMsg = errorPeriods[period.period];
+                                    const details = periodDetailsMap[period.period] || { paid: [], unpaid: [] };
+
+                                    return (
+                                        <div key={period.period} className="transition-colors">
                                             <button
-                                                key={period.period}
-                                                onClick={() => {
-                                                    setSelectedPeriod(period.period);
-                                                    setShowPeriodDetail(true);
-                                                }}
-                                                className={`w-full px-6 py-4 flex items-center gap-4 transition-all text-left hover:bg-slate-50 ${
-                                                    isSelected ? 'bg-slate-100' : ''
+                                                type="button"
+                                                onClick={() => togglePeriodDetail(period.period)}
+                                                className={`w-full px-4 md:px-6 py-3.5 flex items-center gap-3 md:gap-4 transition-colors duration-150 text-left hover:bg-slate-50 ${
+                                                    isExpanded ? 'bg-slate-50/90 font-medium' : ''
                                                 }`}
-                                                style={{ animationDelay: `${index * 50}ms` }}
+                                                aria-expanded={isExpanded}
                                             >
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white ${
-                                                    rate >= 80 ? 'bg-emerald-500' :
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0 ${
+                                                    rate >= 80 ? 'bg-emerald-600' :
                                                     rate >= 50 ? 'bg-amber-500' :
                                                     'bg-rose-500'
                                                 }`}>
                                                     {rate}%
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="font-semibold text-slate-800">{period.periodLabel}</p>
-                                                    <p className="text-sm text-slate-500">{period.totalBills} tagihan</p>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-semibold text-slate-800 whitespace-nowrap truncate">{period.periodLabel}</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5">{period.totalBills} tagihan</p>
                                                 </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="text-right">
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium">
-                                                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                                                            {period.paidCount}
-                                                        </span>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-sm font-medium">
-                                                            <span className="w-2 h-2 rounded-full bg-rose-400" />
-                                                            {period.unpaidCount}
-                                                        </span>
-                                                    </div>
-                                                    <svg className={`w-5 h-5 transition-transform ${isSelected ? 'text-slate-600' : 'text-slate-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                    </svg>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60 text-xs font-medium">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                                                        {period.paidCount}
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200/60 text-xs font-medium">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                                                        {period.unpaidCount}
+                                                    </span>
+                                                    <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-slate-700' : 'text-slate-300'}`} />
                                                 </div>
                                             </button>
-                                        );
-                                    })}
-                                </div>
-                            ) : detailsLoading ? (
-                                <div className="px-6 py-6 text-sm text-slate-500">Memuat detail periode...</div>
-                            ) : detailsError ? (
-                                <div className="px-6 py-6 text-sm text-rose-600">{detailsError}</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-                                    <div className="p-6">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h3 className="font-semibold text-emerald-700">Lunas</h3>
-                                            <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{paidDetails.length}</span>
-                                        </div>
-                                        {paidDetails.length === 0 ? (
-                                            <p className="text-sm text-slate-400">Belum ada yang lunas pada periode ini.</p>
-                                        ) : (
-                                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                                                {paidDetails.map((item) => (
-                                                    <div key={item.id} className="rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2">
-                                                        <p className="text-sm font-medium text-slate-800">{item.customerNumber} • {item.customerName}</p>
-                                                        <p className="text-xs text-emerald-700">Total {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.totalAmount)}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
 
-                                    <div className="p-6">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h3 className="font-semibold text-rose-700">Belum Lunas</h3>
-                                            <span className="text-xs px-2 py-1 rounded-full bg-rose-100 text-rose-700">{unpaidDetails.length}</span>
+                                            {isExpanded && (
+                                                <div className="border-t border-slate-100 bg-slate-50/60 px-4 md:px-6 py-4 animate-formal-fade-in">
+                                                    {isLoading ? (
+                                                        <div className="py-6 flex items-center justify-center gap-2 text-sm text-slate-500">
+                                                            <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                                                            <span>Memuat rincian {period.periodLabel}...</span>
+                                                        </div>
+                                                    ) : errorMsg ? (
+                                                        <div className="py-4 text-center text-sm text-rose-600">{errorMsg}</div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {/* Kolom Pembayaran Lunas */}
+                                                            <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-xs">
+                                                                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                                                                    <div>
+                                                                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Pembayaran Lunas</h4>
+                                                                        <p className="text-[11px] text-slate-400">Tagihan terselesaikan</p>
+                                                                    </div>
+                                                                    <span className="min-w-6 h-6 px-1.5 inline-flex items-center justify-center rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-700">
+                                                                        {details.paid.length}
+                                                                    </span>
+                                                                </div>
+                                                                {details.paid.length === 0 ? (
+                                                                    <p className="text-xs text-slate-400 py-4 text-center">Belum ada pembayaran lunas.</p>
+                                                                ) : (
+                                                                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                                                                        {details.paid.map((item) => (
+                                                                            <div key={item.id} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-xs flex items-center justify-between">
+                                                                                <span className="font-medium text-slate-800 truncate mr-2">{item.customerNumber} - {item.customerName}</span>
+                                                                                <span className="font-semibold text-emerald-700 shrink-0">{formatCurrency(item.totalAmount)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Kolom Belum Lunas */}
+                                                            <div className="bg-white rounded-xl border border-slate-200/80 p-3.5 shadow-xs">
+                                                                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                                                                    <div>
+                                                                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Belum Lunas</h4>
+                                                                        <p className="text-[11px] text-slate-400">Masih memiliki saldo tagihan</p>
+                                                                    </div>
+                                                                    <span className="min-w-6 h-6 px-1.5 inline-flex items-center justify-center rounded-full bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700">
+                                                                        {details.unpaid.length}
+                                                                    </span>
+                                                                </div>
+                                                                {details.unpaid.length === 0 ? (
+                                                                    <p className="text-xs text-slate-400 py-4 text-center">Semua tagihan periode ini telah lunas.</p>
+                                                                ) : (
+                                                                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                                                                        {details.unpaid.map((item) => (
+                                                                            <div key={item.id} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-xs flex items-center justify-between">
+                                                                                <span className="font-medium text-slate-800 truncate mr-2">{item.customerNumber} - {item.customerName}</span>
+                                                                                <span className="font-semibold text-rose-600 shrink-0">{formatCurrency(item.remaining)}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                        {unpaidDetails.length === 0 ? (
-                                            <p className="text-sm text-slate-400">Semua tagihan periode ini sudah lunas.</p>
-                                        ) : (
-                                            <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                                                {unpaidDetails.map((item) => (
-                                                    <div key={item.id} className="rounded-lg border border-rose-100 bg-rose-50/40 px-3 py-2">
-                                                        <p className="text-sm font-medium text-slate-800">{item.customerNumber} • {item.customerName}</p>
-                                                        <p className="text-xs text-rose-700">Sisa {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.remaining)}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {/* Quick Actions */}
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-4">Menu Cepat</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="hidden md:block">
+                            <h3 className="text-base font-bold text-slate-800 mb-3">Menu Cepat</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 {[
-                                    { label: 'Pelanggan', desc: 'Kelola data pelanggan', href: '/', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', gradient: 'from-slate-600 to-slate-700' },
-                                    { label: 'Import Data', desc: 'Upload tagihan bulanan', href: '/admin/import', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12', gradient: 'from-emerald-500 to-emerald-600' },
-                                    { label: 'Pengaturan', desc: 'Konfigurasi sistem', href: '/admin/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', gradient: 'from-slate-500 to-slate-600' },
-                                ].map((item, index) => (
-                                    <button
-                                        key={item.href}
-                                        onClick={() => router.push(item.href)}
-                                        className="group relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-xl bg-white"
-                                        style={{ 
-                                            border: '1px solid #e2e8f0',
-                                            animationDelay: `${index * 100}ms`
-                                        }}
-                                    >
-                                        <div className={`absolute inset-0 bg-linear-to-br ${item.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-300`} />
-                                        <div className="relative flex items-center gap-4">
-                                            <div className={`w-14 h-14 rounded-2xl bg-linear-to-br ${item.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-                                                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
-                                                </svg>
+                                    { label: 'Pelanggan', desc: 'Kelola data pelanggan', href: '/', icon: Users, color: 'bg-slate-700 text-white' },
+                                    { label: 'Import Data', desc: 'Upload tagihan bulanan', href: '/admin/import', icon: Upload, color: 'bg-blue-600 text-white' },
+                                    { label: 'Pengaturan', desc: 'Konfigurasi sistem', href: '/admin/settings', icon: Settings, color: 'bg-slate-600 text-white' },
+                                ].map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            className="flex items-center justify-between rounded-xl p-4 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 transition-colors duration-150 group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded-lg ${item.color} flex items-center justify-center shrink-0`}>
+                                                    <Icon className="w-5 h-5" />
+                                                </div>
+                                                <div>
+                                                    <span className="text-sm font-semibold text-slate-800 block">{item.label}</span>
+                                                    <span className="text-xs text-slate-500">{item.desc}</span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span className="font-bold text-slate-800 block">{item.label}</span>
-                                                <span className="text-sm text-slate-500">{item.desc}</span>
-                                            </div>
-                                        </div>
-                                        <div className="absolute top-1/2 right-4 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-0 translate-x-2">
-                                            <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </div>
-                                    </button>
-                                ))}
+                                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         </div>
+
                     </div>
                 )}
             </main>
-        </>
+        </AppLayout>
     );
 }

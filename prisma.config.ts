@@ -10,7 +10,7 @@ const envLocalPath = path.resolve(process.cwd(), ".env.local");
 const envPath = path.resolve(process.cwd(), ".env");
 
 if (fs.existsSync(envLocalPath)) {
-  dotenv.config({ path: envLocalPath });
+  dotenv.config({ path: envLocalPath, override: true });
 } else {
   dotenv.config({ path: envPath });
 }
@@ -22,6 +22,6 @@ export default defineConfig({
     seed: "npx tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });

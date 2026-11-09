@@ -5,10 +5,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { clearCustomerCaches } from '@/hooks/useCustomer';
 import { customerClient as customerService } from '@/services/client/customer.client';
 import AppLayout from '@/components/layout/AppLayout';
-import BackButton from '@/components/BackButton';
+import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
 import PasswordConfirm from '@/components/ui/PasswordConfirm';
+import { FileSpreadsheet, Upload } from 'lucide-react';
+import PageHeader from '@/components/layout/PageHeader';
 
 interface ImportProgress {
     type: 'status' | 'progress' | 'complete' | 'error';
@@ -225,26 +227,30 @@ export default function ImportPage() {
 
     const isProcessing = importing || clearing || deletingPeriod;
 
-    if (authLoading) return <LoadingState message="Memeriksa akses..." />;
+    const importLoading = (
+        <AppLayout>
+            <PageHeader title="Import Tagihan" subtitle="Import tagihan bulanan dari Excel" actions={<DashboardNavigationButton />} />
+            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+                <LoadingState variant="skeleton-import" />
+            </main>
+        </AppLayout>
+    );
+
+    if (authLoading) return importLoading;
     if (!isAdmin) {
         router.push('/');
-        return null;
+        return importLoading;
     }
 
     return (
         <AppLayout>
-            <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <h1 className="text-xl font-bold text-neutral-800">Import Tagihan</h1>
-                    <p className="text-sm text-neutral-500">Import tagihan bulanan dari Excel</p>
-                </div>
-            </header>
+            <PageHeader title="Import Tagihan" subtitle="Import tagihan bulanan dari Excel" actions={<DashboardNavigationButton />} />
 
-            <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
-                <BackButton href="/" className="md:hidden" />
+            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+                <AdminPageNavigation backHref="/admin/dashboard" />
 
                 {/* Period Selector */}
-                <div className="bg-white rounded-xl p-4">
+                <section className="bg-white rounded-xl border border-neutral-200 p-4">
                     <label className="block text-sm font-medium text-neutral-700 mb-2">
                         Periode Tagihan
                     </label>
@@ -258,7 +264,7 @@ export default function ImportPage() {
                     <p className="text-xs text-neutral-500 mt-2">
                         Tagihan akan dibuat untuk periode: <strong>{formatPeriod(selectedPeriod)}</strong>
                     </p>
-                </div>
+                </section>
 
                 {/* Drop Zone */}
                 <div
@@ -287,9 +293,7 @@ export default function ImportPage() {
                     {selectedFile ? (
                         <div className="space-y-2">
                             <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
+                                <FileSpreadsheet className="w-8 h-8 text-green-600" />
                             </div>
                             <p className="font-semibold text-green-700">{selectedFile.name}</p>
                             <p className="text-sm text-green-600">
@@ -310,9 +314,7 @@ export default function ImportPage() {
                     ) : (
                         <div className="space-y-2">
                             <div className="w-16 h-16 mx-auto bg-neutral-100 rounded-full flex items-center justify-center">
-                                <svg className="w-8 h-8 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
+                                <Upload className="w-8 h-8 text-neutral-500" />
                             </div>
                             <p className="font-semibold text-neutral-700">
                                 {isDragging ? 'Drop file di sini' : 'Drag & drop file Excel'}
@@ -364,12 +366,15 @@ export default function ImportPage() {
                     </Button>
                 </div>
 
-                {/* Separator */}
-                <div className="border-t border-neutral-200 pt-4">
-                    <h3 className="font-semibold text-neutral-700 mb-3">Hapus Data</h3>
+                {/* Separator - Disembunyikan (Comment) */}
+                {/* 
+                <section className="border-t border-neutral-200 pt-6">
+                    <div className="mb-3">
+                        <h3 className="font-semibold text-neutral-800">Manajemen Data</h3>
+                        <p className="mt-1 text-xs text-neutral-500">Gunakan fitur ini hanya jika data perlu dibersihkan.</p>
+                    </div>
 
-                    {/* Delete by Period */}
-                    <div className="bg-orange-50 rounded-xl p-4 space-y-3 mb-3">
+                    <div className="border border-orange-200 bg-orange-50 rounded-xl p-4 space-y-3 mb-3">
                         <div>
                             <label className="block text-sm font-medium text-orange-700 mb-2">Hapus Tagihan Periode</label>
                             <p className="text-xs text-orange-600 mb-2">Menghapus tagihan periode tertentu (pelanggan tetap ada)</p>
@@ -391,8 +396,7 @@ export default function ImportPage() {
                         </Button>
                     </div>
 
-                    {/* Delete All Data */}
-                    <div className="bg-red-50 rounded-xl p-4">
+                    <div className="border border-red-200 bg-red-50 rounded-xl p-4">
                         <p className="text-sm font-medium text-red-700 mb-2">Hapus Semua Data</p>
                         <p className="text-xs text-red-600 mb-3">Menghapus SEMUA pelanggan, tagihan, dan pembayaran</p>
                         <Button
@@ -405,7 +409,8 @@ export default function ImportPage() {
                             {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
                         </Button>
                     </div>
-                </div>
+                </section>
+                */}
 
                 {/* Delete Period Success */}
                 {deletePeriodSuccess && (

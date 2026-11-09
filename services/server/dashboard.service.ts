@@ -31,7 +31,12 @@ export async function getDashboardStats() {
                 deletedAt: null,
                 meterReading: { period, deletedAt: null, customer: { deletedAt: null } },
             },
-            select: { paymentStatus: true, totalAmount: true, amountPaid: true },
+            select: {
+                paymentStatus: true,
+                totalAmount: true,
+                amountPaid: true,
+                meterReading: { select: { customerId: true } },
+            },
         });
         const [year, month] = period.split('-');
         return {
@@ -39,6 +44,11 @@ export async function getDashboardStats() {
             periodLabel: `${MONTH_NAMES[Number(month) - 1] ?? month} ${year}`,
             totalBills: bills.length,
             paidCount: bills.filter((bill) => bill.paymentStatus === 'PAID').length,
+            payingCustomerCount: new Set(
+                bills
+                    .filter((bill) => Number(bill.amountPaid) > 0)
+                    .map((bill) => bill.meterReading.customerId),
+            ).size,
             unpaidCount: bills.filter((bill) => bill.paymentStatus !== 'PAID').length,
             totalAmount: bills.reduce((sum, bill) => sum + Number(bill.totalAmount), 0),
             paidAmount: bills.reduce((sum, bill) => sum + Number(bill.amountPaid), 0),

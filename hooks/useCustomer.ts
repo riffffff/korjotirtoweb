@@ -9,15 +9,15 @@ let customerListCacheTime = 0;
 // In-memory cache for customer details
 const customerDetailCache = new Map<string, { data: CustomerDetail; time: number }>();
 
-// Cache expiry times
-const LIST_CACHE_EXPIRY = 30 * 1000; // 30 seconds
-const DETAIL_CACHE_EXPIRY = 60 * 1000; // 1 minute
+// Cache expiry times (Stale-While-Revalidate: data is shown instantly, revalidated in background)
+const LIST_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+const DETAIL_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Hook for fetching all customers with caching
  */
 export function useCustomers() {
-    // Initialize with cached data if available
+    // Show cached data immediately if available
     const [customers, setCustomers] = useState<CustomerListItem[]>(() => customerListCache || []);
     const [loading, setLoading] = useState(() => !customerListCache);
     const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function useCustomers() {
     const fetchData = useCallback(async (force = false) => {
         const now = Date.now();
         
-        // Use cache if valid and not forcing refresh
+        // Use cache if fresh and not forcing refresh
         if (!force && customerListCache && (now - customerListCacheTime) < LIST_CACHE_EXPIRY) {
             setCustomers(customerListCache);
             setLoading(false);
@@ -33,7 +33,10 @@ export function useCustomers() {
         }
 
         try {
-            setLoading(true);
+            // Only show skeleton on first load when no cache exists
+            if (!customerListCache) {
+                setLoading(true);
+            }
             setError(null);
             
             const data = await customerClient.getAll();
@@ -45,7 +48,9 @@ export function useCustomers() {
             setCustomers(data);
         } catch (err) {
             console.error('Failed to fetch customers:', err);
-            setError('Gagal memuat data pelanggan');
+            if (!customerListCache) {
+                setError('Gagal memuat data pelanggan');
+            }
         } finally {
             setLoading(false);
         }
@@ -71,17 +76,13 @@ export function useCustomers() {
 export function useCustomerDetail(id: string | null) {
     const [data, setData] = useState<CustomerDetail | null>(() => {
         if (id && customerDetailCache.has(id)) {
-            const cached = customerDetailCache.get(id)!;
-            if (Date.now() - cached.time < DETAIL_CACHE_EXPIRY) {
-                return cached.data;
-            }
+            return customerDetailCache.get(id)!.data;
         }
         return null;
     });
     const [loading, setLoading] = useState(() => {
         if (!id) return false;
-        const cached = customerDetailCache.get(id);
-        return !cached || (Date.now() - cached.time) >= DETAIL_CACHE_EXPIRY;
+        return !customerDetailCache.has(id);
     });
     const [error, setError] = useState<string | null>(null);
 
@@ -94,7 +95,7 @@ export function useCustomerDetail(id: string | null) {
         const now = Date.now();
         const cached = customerDetailCache.get(id);
 
-        // Use cache if valid and not forcing
+        // Use cache if fresh and not forcing
         if (!force && cached && (now - cached.time) < DETAIL_CACHE_EXPIRY) {
             setData(cached.data);
             setLoading(false);
@@ -102,7 +103,10 @@ export function useCustomerDetail(id: string | null) {
         }
 
         try {
-            setLoading(true);
+            // Only show skeleton if customer is not in cache yet
+            if (!cached) {
+                setLoading(true);
+            }
             setError(null);
             
             const result = await customerClient.getById(id);
@@ -113,7 +117,9 @@ export function useCustomerDetail(id: string | null) {
             setData(result);
         } catch (err) {
             console.error('Failed to fetch customer detail:', err);
-            setError('Gagal memuat data pelanggan');
+            if (!cached) {
+                setError('Gagal memuat data pelanggan');
+            }
         } finally {
             setLoading(false);
         }

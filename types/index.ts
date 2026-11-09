@@ -97,12 +97,6 @@ export interface User {
     isActive: boolean;
 }
 
-export interface LoginResponse {
-    access_token: string;
-    user: User;
-}
-
-// V2 API contracts. Legacy types above remain temporarily for incremental migration.
 export type PaymentStatusCode = 'UNPAID' | 'PARTIAL' | 'PAID';
 export type BillItemTypeCode = 'BEBAN' | 'K1' | 'K2';
 
@@ -160,7 +154,10 @@ export interface DashboardPeriodDTO {
     periodLabel: string;
     totalBills: number;
     paidCount: number;
+    payingCustomerCount: number;
     unpaidCount: number;
+    totalAmount?: number;
+    paidAmount?: number;
 }
 
 export interface DashboardStatsDTO {
@@ -168,4 +165,15 @@ export interface DashboardStatsDTO {
     totalRevenue: number;
     totalOutstanding: number;
     periods: DashboardPeriodDTO[];
+}
+
+export interface PeriodBillDetailDTO {
+    id: string;
+    customerId: string;
+    customerName: string;
+    customerNumber: number;
+    paymentStatus: PaymentStatusCode;
+    totalAmount: number;
+    amountPaid: number;
+    remaining: number;
 }

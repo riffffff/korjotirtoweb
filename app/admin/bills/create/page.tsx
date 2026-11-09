@@ -3,9 +3,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
-import BackButton from '@/components/BackButton';
+import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
+import { billClient } from '@/services/client/bill.client';
+import { formatPeriod, getCurrentPeriod } from '@/lib/formatDate';
+import PageHeader from '@/components/layout/PageHeader';
+import Modal from '@/components/ui/Modal';
 
 export default function CreateBillsPage() {
     const router = useRouter();
@@ -13,49 +17,32 @@ export default function CreateBillsPage() {
     const [period, setPeriod] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     useEffect(() => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        setPeriod(`${year}-${month}`);
+        setPeriod(getCurrentPeriod());
     }, []);
 
     const handleCreateBills = async () => {
         if (!period) {
-            alert('Pilih periode terlebih dahulu');
+            setValidationError('Pilih periode terlebih dahulu');
             return;
         }
+        setShowConfirm(true);
+    };
 
-        const confirmed = window.confirm(
-            `Yakin ingin membuat tagihan untuk periode ${formatPeriod(period)}?\n\n` +
-            `Ini akan membuat tagihan untuk semua pelanggan yang sudah memiliki data meter bulan sebelumnya.`
-        );
-
-        if (!confirmed) return;
-
+    const confirmCreateBills = async () => {
+        setShowConfirm(false);
         setSubmitting(true);
         setResult(null);
 
         try {
-            const res = await fetch('/api/bills/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    period
-                }),
-            });
-            const data = await res.json();
-
+            const data = await billClient.createBulkByPeriod(period);
             if (data.success) {
                 setResult({
                     success: true,
                     message: `Berhasil membuat ${data.count} tagihan untuk periode ${formatPeriod(period)}`
-                });
-            } else {
-                setResult({
-                    success: false,
-                    message: data.error || 'Gagal membuat tagihan'
                 });
             }
         } catch (error) {
@@ -66,25 +53,30 @@ export default function CreateBillsPage() {
         }
     };
 
-    if (authLoading) return <LoadingState message="Memeriksa akses..." />;
+    const createBillsLoading = (
+        <AppLayout>
+            <PageHeader title="Tambah Tagihan per Periode" subtitle="Buat tagihan untuk semua pelanggan" actions={<DashboardNavigationButton />} />
+            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+                <AdminPageNavigation />
+                <LoadingState variant="skeleton-form" />
+            </main>
+        </AppLayout>
+    );
+
+    if (authLoading) return createBillsLoading;
     if (!isAdmin) {
         router.push('/');
-        return null;
+        return createBillsLoading;
     }
 
     return (
         <AppLayout>
-            <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-neutral-100">
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <h1 className="text-xl font-bold text-neutral-800">Tambah Tagihan per Periode</h1>
-                    <p className="text-sm text-neutral-500">Buat tagihan untuk semua pelanggan</p>
-                </div>
-            </header>
+            <PageHeader title="Tambah Tagihan per Periode" subtitle="Buat tagihan untuk semua pelanggan" actions={<DashboardNavigationButton />} />
 
-            <main className="max-w-7xl mx-auto px-6 py-6 space-y-4">
-                <BackButton href="/admin/dashboard" className="md:hidden" />
+            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+                <AdminPageNavigation />
 
-                <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">
+                <section className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-neutral-700 mb-2">
                             Pilih Periode
@@ -122,17 +114,25 @@ export default function CreateBillsPage() {
                     >
                         Buat Tagihan untuk {period ? formatPeriod(period) : '...'}
                     </Button>
-                </div>
+                </section>
             </main>
+            <Modal isOpen={showConfirm} onClose={() => setShowConfirm(false)} title="Konfirmasi Pembuatan Tagihan">
+                <div className="space-y-4">
+                    <p className="text-sm text-neutral-600">
+                        Buat tagihan untuk periode <strong>{period ? formatPeriod(period) : '-'}</strong> bagi semua pelanggan yang memiliki data meter sebelumnya?
+                    </p>
+                    <div className="flex gap-2">
+                        <Button type="button" variant="secondary" onClick={() => setShowConfirm(false)} className="flex-1">Batal</Button>
+                        <Button type="button" onClick={() => void confirmCreateBills()} loading={submitting} className="flex-1">Buat Tagihan</Button>
+                    </div>
+                </div>
+            </Modal>
+            <Modal isOpen={Boolean(validationError)} onClose={() => setValidationError(null)} title="Periode Belum Dipilih">
+                <div className="space-y-4">
+                    <p className="text-sm text-neutral-600">{validationError}</p>
+                    <Button type="button" onClick={() => setValidationError(null)} className="w-full">Mengerti</Button>
+                </div>
+            </Modal>
         </AppLayout>
     );
-}
-
-function formatPeriod(period: string): string {
-    const [year, month] = period.split('-');
-    const months = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return `${months[parseInt(month) - 1]} ${year}`;
 }
