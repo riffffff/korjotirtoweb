@@ -8,6 +8,7 @@ import LoadingState from '@/components/state/LoadingState';
 import { billClient } from '@/services/client/bill.client';
 import RingChart from '@/components/dashboard/RingChart';
 import PaymentTrendChart from '@/components/dashboard/PaymentTrendChart';
+import DashboardInsights, { PendingProofsAlert } from '@/components/dashboard/DashboardInsights';
 import { ChevronRight, Loader2, Settings, Upload, Users, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
 import PageHeader from '@/components/layout/PageHeader';
@@ -117,6 +118,9 @@ export default function AdminDashboard() {
                     <LoadingState variant="skeleton-dashboard" />
                 ) : data && (
                     <div className="space-y-6 md:space-y-8">
+                        {/* Pending Proofs Alert Banner */}
+                        <PendingProofsAlert pendingProofs={data.pendingProofs} />
+
                         {/* Stats Section */}
                         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
                             {/* Ring Chart Card - Per Period */}
@@ -352,6 +356,12 @@ export default function AdminDashboard() {
                                 })}
                             </div>
                         </div>
+
+                        {/* Operational Insights Panel */}
+                        <DashboardInsights
+                            topDelinquents={data.topDelinquents}
+                            waterUsageInsight={data.waterUsageInsight}
+                        />
 
                         {/* Quick Actions */}
                         <div className="hidden md:block">

@@ -160,11 +160,54 @@ export interface DashboardPeriodDTO {
     paidAmount?: number;
 }
 
+export interface PendingProofsSummaryDTO {
+    count: number;
+    totalAmount: number;
+}
+
+export interface DelinquentCustomerDTO {
+    customerId: string;
+    customerNumber: number;
+    name: string;
+    phone: string | null;
+    monthsUnpaid: number;
+    totalUnpaid: number;
+}
+
+export interface WaterUsageAnomalyDTO {
+    customerId: string;
+    customerNumber: number;
+    name: string;
+    type: 'SPIKE' | 'ZERO_USAGE';
+    currentUsage: number;
+    previousUsage: number | null;
+    percentChange: number | null;
+}
+
+export interface WaterUsageInsightDTO {
+    period: string;
+    periodLabel: string;
+    totalUsage: number;
+    previousPeriodTotalUsage: number | null;
+    usageChangePercent: number | null;
+    averageUsage: number;
+    highestUser: {
+        customerId: string;
+        customerNumber: number;
+        name: string;
+        usage: number;
+    } | null;
+    anomalies: WaterUsageAnomalyDTO[];
+}
+
 export interface DashboardStatsDTO {
     totalCustomers: number;
     totalRevenue: number;
     totalOutstanding: number;
     periods: DashboardPeriodDTO[];
+    pendingProofs?: PendingProofsSummaryDTO;
+    topDelinquents?: DelinquentCustomerDTO[];
+    waterUsageInsight?: WaterUsageInsightDTO | null;
 }
 
 export interface PeriodBillDetailDTO {

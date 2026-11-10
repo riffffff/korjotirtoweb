@@ -140,6 +140,7 @@ model PaymentProof {
   rejectionReason String?   @map("rejection_reason")
   verifiedBy      String?   @map("verified_by") @db.Uuid
   verifiedAt      DateTime? @map("verified_at") @db.Timestamp(6)
+  notifiedAt      DateTime? @map("notified_at") @db.Timestamp(6)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   customer        Customer  @relation(fields: [customerId], references: [id])

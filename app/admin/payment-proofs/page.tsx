@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Check, ExternalLink, X } from 'lucide-react';
+import { Check, ExternalLink, Loader2, X } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/layout/PageHeader';
 import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import LoadingState from '@/components/state/LoadingState';
 import EmptyState from '@/components/state/EmptyState';
 import Modal from '@/components/ui/Modal';
+import { WhatsAppIcon } from '@/components/ui/Icons';
 import { useAuth } from '@/hooks/useAuth';
 import { paymentProofClient, type PaymentProof } from '@/services/client/payment-proof.client';
 import { formatCurrency } from '@/lib/formatCurrency';
@@ -32,6 +33,7 @@ export default function PaymentProofsPage() {
     const [approveProof, setApproveProof] = useState<PaymentProof | null>(null);
     const [rejectProof, setRejectProof] = useState<PaymentProof | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
+    const [sendingWAId, setSendingWAId] = useState<string | null>(null);
 
     const loadProofs = useCallback(async () => {
         const cached = proofsCache.get(status);
@@ -100,6 +102,30 @@ export default function PaymentProofsPage() {
             `ID pengajuan: ${proof.id}`,
         ].join('\n');
         return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    };
+
+    const handleSendWA = async (proof: PaymentProof) => {
+        const url = getCustomerConfirmationUrl(proof);
+        if (!url) return;
+
+        setSendingWAId(proof.id);
+        try {
+            window.open(url, '_blank');
+            const updated = await paymentProofClient.notify(proof.id);
+            setProofs((prev) =>
+                prev.map((item) => (item.id === proof.id ? { ...item, notifiedAt: updated.notifiedAt } : item))
+            );
+            const cached = proofsCache.get('APPROVED');
+            if (cached) {
+                cached.data = cached.data.map((item) =>
+                    item.id === proof.id ? { ...item, notifiedAt: updated.notifiedAt } : item
+                );
+            }
+        } catch (err) {
+            console.error('Failed to update notification status:', err);
+        } finally {
+            setSendingWAId(null);
+        }
     };
 
     const reject = async () => {
@@ -195,49 +221,66 @@ export default function PaymentProofsPage() {
                                     </div>
                                 )}
                                 {proof.status === 'APPROVED' && (
-                                    getCustomerConfirmationUrl(proof) ? (
-                                        <a
-                                            href={getCustomerConfirmationUrl(proof) || undefined}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="mt-3 w-full rounded-lg bg-green-500 px-3 py-2 text-xs font-medium text-white hover:bg-green-600 inline-flex items-center justify-center gap-1"
-                                        >
-                                            <ExternalLink className="h-3.5 w-3.5" /> Konfirmasi Pembayaran via WhatsApp
-                                        </a>
-                                    ) : (
-                                        <p className="mt-3 rounded-lg bg-red-50 p-2 text-xs text-red-700">
-                                            Nomor telepon customer tidak tersedia.
+                                    <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between gap-3">
+                                        <p className="text-xs text-neutral-400">
+                                            {proof.notifiedAt ? `Terakhir dikirim: ${formatDateTime(proof.notifiedAt)}` : 'Belum pernah dikirim WA'}
                                         </p>
-                                    )
+                                        {getCustomerConfirmationUrl(proof) ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleSendWA(proof)}
+                                                disabled={sendingWAId === proof.id}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] disabled:bg-neutral-300 text-white text-xs font-medium shadow-xs transition-colors shrink-0"
+                                            >
+                                                {sendingWAId === proof.id ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <WhatsAppIcon className="w-3.5 h-3.5" />
+                                                )}
+                                                {proof.notifiedAt ? 'Kirim Ulang WA' : 'Kirim Konfirmasi WA'}
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs text-red-500 font-medium shrink-0">
+                                                Nomor HP tidak ada
+                                            </span>
+                                        )}
+                                    </div>
                                 )}
                             </article>
                         ))}
                     </div>
                 )}
             </main>
-            <Modal
-                isOpen={Boolean(previewProof)}
-                onClose={() => setPreviewProof(null)}
-                title={previewProof ? `Bukti Pembayaran - ${previewProof.customer.name}` : 'Bukti Pembayaran'}
-            >
-                {previewProof && (
-                    <div className="space-y-3">
-                        <div className="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50">
-                            <Image
-                                src={previewProof.proofUrl}
-                                alt={`Bukti pembayaran ${previewProof.customer.name}`}
-                                width={800}
-                                height={1000}
-                                className="max-h-[65vh] w-full object-contain"
-                            />
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-neutral-500">Nominal transfer</span>
-                            <strong className="text-emerald-600">{formatCurrency(previewProof.amount)}</strong>
-                        </div>
+            {/* Pure Lightbox Image Preview */}
+            {previewProof && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in"
+                    onClick={() => setPreviewProof(null)}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setPreviewProof(null)}
+                        className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                        aria-label="Tutup preview"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    <div
+                        className="relative max-h-[92vh] max-w-[94vw] flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Image
+                            src={previewProof.proofUrl}
+                            alt={`Bukti pembayaran ${previewProof.customer.name}`}
+                            width={1600}
+                            height={2000}
+                            className="max-h-[90vh] max-w-[92vw] w-auto h-auto object-contain rounded-2xl shadow-2xl"
+                            unoptimized
+                        />
                     </div>
-                )}
-            </Modal>
+                </div>
+            )}
             <Modal isOpen={Boolean(approveProof)} onClose={() => setApproveProof(null)} title="Konfirmasi Pembayaran">
                 <div className="space-y-4">
                     <p className="text-sm text-neutral-600">

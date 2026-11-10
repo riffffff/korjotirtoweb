@@ -117,3 +117,19 @@ export async function rejectPaymentProof(id: string, verifiedBy: string, rejecti
     }
     return getPaymentProof(id);
 }
+
+export async function markPaymentProofNotified(id: string) {
+    const proof = await prisma.paymentProof.update({
+        where: { id },
+        data: { notifiedAt: new Date() },
+        include: {
+            customer: {
+                select: { id: true, name: true, customerNumber: true, phone: true },
+            },
+        },
+    });
+    return {
+        ...proof,
+        amount: Number(proof.amount),
+    };
+}

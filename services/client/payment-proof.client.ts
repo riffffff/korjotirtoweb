@@ -19,6 +19,7 @@ export interface PaymentProof {
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     rejectionReason: string | null;
     verifiedAt: string | null;
+    notifiedAt: string | null;
     createdAt: string;
     customer: PaymentProofCustomer;
 }
@@ -55,4 +56,6 @@ export const paymentProofClient = {
     approve: async (id: string) => (await api.post(`/payment-proofs/${id}/approve`)).data,
     reject: async (id: string, reason: string) =>
         (await api.post(`/payment-proofs/${id}/reject`, { reason })).data,
+    notify: async (id: string): Promise<PaymentProof> =>
+        (await api.patch(`/payment-proofs/${id}/notify`)).data.data,
 };

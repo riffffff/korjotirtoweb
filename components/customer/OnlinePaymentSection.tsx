@@ -5,6 +5,7 @@ import { CheckCircle2, Copy, ExternalLink, Upload, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { paymentProofClient } from '@/services/client/payment-proof.client';
 import { SkeletonOnlinePaymentStatus } from '@/components/ui/Skeleton';
+import { compressImage } from '@/lib/compressImage';
 
 interface OnlinePaymentSectionProps {
     customerId: string;
@@ -102,11 +103,12 @@ export default function OnlinePaymentSection({
         }
         setSubmitting(true);
         try {
+            const finalProof = await compressImage(proof);
             const response = await paymentProofClient.create({
                 customerId,
                 phone,
                 amount: Number(amount),
-                proof,
+                proof: finalProof,
                 note,
             });
             setResult({ id: response.data.id, phone, status: 'PENDING', message: response.message });

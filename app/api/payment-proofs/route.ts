@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthError, requireAdmin } from '@/lib/auth';
+import { uploadPaymentProof, deleteStoredPaymentProof } from '@/lib/storage';
+import { getClientIp, paymentProofUploadLimiter } from '@/lib/rateLimit';
 import {
     createPaymentProof,
     getLatestPaymentProofForCustomer,
@@ -41,6 +41,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const clientIp = getClientIp(request);
+        const limitStatus = paymentProofUploadLimiter.consume(clientIp);
+        if (!limitStatus.success) {
+            const minutes = Math.ceil(limitStatus.retryAfterSeconds / 60);
+            return NextResponse.json(
+                { success: false, error: `Terlalu banyak permintaan unggah bukti pembayaran. Silakan coba lagi dalam ${minutes} menit.` },
+                {
+                    status: 429,
+                    headers: { 'Retry-After': String(limitStatus.retryAfterSeconds) },
+                }
+            );
+        }
+
         const formData = await request.formData();
         const customerId = String(formData.get('customerId') || '');
         const phone = String(formData.get('phone') || '').trim();
@@ -63,9 +76,8 @@ export async function POST(request: NextRequest) {
 
         const extension = MIME_EXTENSIONS[proof.type];
         const fileName = `${randomUUID()}.${extension}`;
-        const uploadDirectory = path.join(process.cwd(), 'public', 'uploads', 'payment-proofs');
-        await mkdir(uploadDirectory, { recursive: true });
-        await writeFile(path.join(uploadDirectory, fileName), Buffer.from(await proof.arrayBuffer()));
+        const buffer = Buffer.from(await proof.arrayBuffer());
+        const { url: proofUrl } = await uploadPaymentProof(fileName, buffer, proof.type);
 
         let result: Awaited<ReturnType<typeof createPaymentProof>>;
         try {
@@ -73,14 +85,14 @@ export async function POST(request: NextRequest) {
                 customerId,
                 phone,
                 amount,
-                proofUrl: `/uploads/payment-proofs/${fileName}`,
+                proofUrl,
                 originalName: proof.name,
                 mimeType: proof.type,
                 note,
             });
         } catch (error) {
-            await unlink(path.join(uploadDirectory, fileName)).catch((unlinkError) => {
-                console.error('Failed to remove orphaned payment proof:', unlinkError);
+            await deleteStoredPaymentProof(proofUrl).catch((cleanupError) => {
+                console.error('Failed to cleanup payment proof:', cleanupError);
             });
             throw error;
         }

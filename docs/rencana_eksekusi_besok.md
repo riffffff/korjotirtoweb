@@ -1,6 +1,15 @@
 # Rencana Eksekusi & Persiapan Go-Live — Korjo Tirto
 
-Dokumen ini berisi daftar pekerjaan yang belum selesai hari ini untuk dieksekusi pada sesi berikutnya, mencakup kesiapan produksi (Supabase Storage, Keamanan/Rate Limiter, Error Pages) serta konsep fitur **Dashboard Insights**.
+Dokumen ini berisi catatan kesiapan produksi dan agenda pekerjaan untuk sesi berikutnya.
+
+---
+
+## 📌 Agenda Utama Sesi Berikutnya: Impor Data dari Aplikasi Berjalan
+- [ ] **Persiapan Data Sumber**: Ambil ekspor data pelanggan, meteran, dan riwayat pembayaran dari aplikasi lama yang sedang berjalan.
+- [ ] **Sinkronisasi Skema ke DB Production**: Terapkan skema tabel baru (`payment_proofs` beserta kolom `notified_at`) ke Supabase Production secara aman.
+- [ ] **Eksekusi Impor Data**: Jalankan proses impor data ke sistem baru via menu `/admin/import` atau skrip migrasi.
+- [ ] **Validasi Konsistensi Data**: Pastikan nomor pelanggan, nama, sisa tagihan (unpaidTotal), dan saldo simpanan (deposit/balance) cocok 100% dengan aplikasi lama.
+- [ ] **Pengujian End-to-End**: Verifikasi penuh alur pembayaran online pelanggan hingga approved oleh admin.
 
 ---
 
@@ -9,22 +18,22 @@ Dokumen ini berisi daftar pekerjaan yang belum selesai hari ini untuk dieksekusi
 ### 1. Integrasi Supabase Storage untuk Upload Bukti Bayar *(Prioritas Utama)*
 Karena server Vercel bersifat *read-only* (tidak dapat menyimpan file permanen di folder `public/uploads`), penyimpanan gambar bukti transfer dialihkan ke **Supabase Storage**.
 
-- [ ] **Setup Bucket Supabase**: Buat bucket bernama `payment-proofs` di Supabase Dashboard (set *Public* untuk akses baca URL gambar).
-- [ ] **Environment Variables**: Tambahkan `NEXT_PUBLIC_SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` ke file `.env` lokal serta pengaturan proyek di Vercel.
-- [ ] **Update API Upload (`app/api/payment-proofs/route.ts`)**: Ganti penyimpanan lokal (`fs.writeFile`) menjadi upload ke Supabase Storage (dengan fallback lokal jika di mode dev tanpa env Supabase).
-- [ ] **Konfigurasi Next Image (`next.config.ts`)**: Tambahkan `*.supabase.co` pada `images.remotePatterns`.
-- [ ] **Kompresi Gambar Otomatis di Client (`components/customer/OnlinePaymentSection.tsx`)**: Kompres foto dari kamera HP pelanggan (3–5 MB menjadi ~150 KB) menggunakan HTML5 Canvas sebelum dikirim ke server agar proses upload cepat dan hemat kuota storage (batas gratis Supabase 1 GB).
+- [x] **Setup Bucket Supabase**: Buat bucket bernama `payment-proofs` di Supabase Dashboard (set *Public* untuk akses baca URL gambar).
+- [x] **Environment Variables**: Tambahkan `NEXT_PUBLIC_SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY` ke file `.env` lokal serta pengaturan proyek di Vercel.
+- [x] **Update API Upload (`app/api/payment-proofs/route.ts`)**: Ganti penyimpanan lokal (`fs.writeFile`) menjadi upload ke Supabase Storage (dengan fallback lokal jika di mode dev tanpa env Supabase).
+- [x] **Konfigurasi Next Image (`next.config.ts`)**: Tambahkan `*.supabase.co` pada `images.remotePatterns`.
+- [x] **Kompresi Gambar Otomatis di Client (`components/customer/OnlinePaymentSection.tsx`)**: Kompres foto dari kamera HP pelanggan (3–5 MB menjadi ~150 KB) menggunakan HTML5 Canvas sebelum dikirim ke server agar proses upload cepat dan hemat kuota storage (batas gratis Supabase 1 GB).
 
 ### 2. Keamanan & Rate Limiter *(Anti Brute-Force & Anti Spam)*
-- [ ] **Rate Limiter Login Admin (`app/api/auth/login/route.ts`)**: Batasi maksimal percobaan gagal (misal: maks. 5 kali gagal per 15 menit per IP) untuk mencegah serangan tebak password (*brute-force*).
-- [ ] **Rate Limiter Upload Bukti Bayar (`app/api/payment-proofs/route.ts`)**:
-  - Batasi frekuensi upload per IP dalam rentang waktu singkat.
+- [x] **Rate Limiter Login Admin (`app/api/auth/login/route.ts`)**: Batasi maksimal percobaan gagal (maks. 5 kali gagal per 15 menit per IP) untuk mencegah serangan tebak password (*brute-force*).
+- [x] **Rate Limiter Upload Bukti Bayar (`app/api/payment-proofs/route.ts`)**:
+  - Batasi frekuensi upload per IP (maks. 5 upload per 10 menit).
   - Tolak pengiriman baru apabila pelanggan tersebut masih memiliki bukti pembayaran berstatus `PENDING`.
-- [ ] **Validasi File Ketat**: Pastikan hanya tipe file gambar valid (`JPG`, `PNG`, `WebP`) dengan ukuran wajar yang diproses server.
+- [x] **Validasi File Ketat**: Pastikan hanya tipe file gambar valid (`JPG`, `PNG`, `WebP`) dengan ukuran wajar yang diproses server.
 
 ### 3. Halaman Error & 404 Kustom *(Standar Produksi)*
-- [ ] **Halaman 404 (`app/not-found.tsx`)**: Tampilan formal bertema Korjo Tirto dengan tombol kembali ke Beranda jika pengguna membuka tautan yang tidak ditemukan.
-- [ ] **Halaman Error (`app/error.tsx`)**: Penanganan gangguan tak terduga dengan tombol *"Muat Ulang"* yang bersih.
+- [x] **Halaman 404 (`app/not-found.tsx`)**: Tampilan formal bertema Korjo Tirto dengan tombol kembali ke Beranda jika pengguna membuka tautan yang tidak ditemukan.
+- [x] **Halaman Error (`app/error.tsx`)**: Penanganan gangguan tak terduga dengan tombol *"Muat Ulang"* yang bersih.
 
 ### 4. Sinkronisasi Database Production & Pengujian End-to-End
 - [ ] **Sinkronisasi Skema ke DB Production**: Terapkan tabel baru (`payment_proofs`) ke database Supabase Production secara aman tanpa menghapus data pelanggan yang sudah berjalan.
@@ -69,8 +78,8 @@ Mengolah data `usage` ($\text{m}^3$) dari periode terbaru dibandingkan periode s
   - **Pemakaian $0\text{ m}^3$**: Daftar rumah yang tercatat $0\text{ m}^3$ pada periode aktif (indikasi rumah kosong atau meteran macet).
 
 ### 3. Rencana Implementasi Teknis Insight
-- [ ] **Backend (`services/server/dashboard.service.ts` & `types/index.ts`)**:
+- [x] **Backend (`services/server/dashboard.service.ts` & `types/index.ts`)**:
   - Tambahkan perhitungan `pendingProofs` (count & total amount), `topDelinquents`, dan `waterUsageInsight` di dalam `getDashboardStats()`.
-- [ ] **Frontend (`components/dashboard/DashboardInsights.tsx`)**:
+- [x] **Frontend (`components/dashboard/DashboardInsights.tsx`)**:
   - Buat komponen reusable bergaya formal (tanpa animasi memantul/berlebihan) dan pasang di `app/admin/dashboard/page.tsx`.
 

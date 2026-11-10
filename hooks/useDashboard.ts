@@ -1,21 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { dashboardClient } from '@/services/client/dashboard.client';
+import type { DashboardStatsDTO } from '@/types';
 
-interface PeriodStats {
-    period: string;
-    periodLabel: string;
-    totalBills: number;
-    paidCount: number;
-    payingCustomerCount: number;
-    unpaidCount: number;
-}
-
-export interface DashboardData {
-    totalCustomers: number;
-    totalRevenue?: number;
-    totalOutstanding: number;
-    periods: PeriodStats[];
-}
+export type DashboardData = DashboardStatsDTO;
 
 // In-memory cache for dashboard data
 let dashboardCache: DashboardData | null = null;
