@@ -84,6 +84,16 @@ export async function createSingleCustomerBill(
     });
 }
 
+const MONTH_NAMES = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+function periodName(period: string) {
+    const [year, month] = period.split('-');
+    return `${MONTH_NAMES[Number(month) - 1] ?? month} ${year}`;
+}
+
 export async function softDeleteBill(billId: string) {
     return prisma.$transaction(async (tx) => {
         const bill = await tx.bill.findFirst({
@@ -91,9 +101,21 @@ export async function softDeleteBill(billId: string) {
             include: { meterReading: true },
         });
         if (!bill) throw new Error('Bill not found');
-        await tx.billItem.updateMany({ where: { billId, deletedAt: null }, data: { deletedAt: new Date() } });
-        await tx.bill.update({ where: { id: billId }, data: { deletedAt: new Date() } });
-        await tx.meterReading.update({ where: { id: bill.meterReadingId }, data: { deletedAt: new Date() } });
+        const deletedAt = new Date();
+        const period = bill.meterReading.period;
+        await tx.billItem.updateMany({ where: { billId, deletedAt: null }, data: { deletedAt } });
+        await tx.bill.update({ where: { id: billId }, data: { deletedAt } });
+        await tx.meterReading.update({ where: { id: bill.meterReadingId }, data: { deletedAt } });
+        await tx.payment.updateMany({
+            where: {
+                customerId: bill.meterReading.customerId,
+                deletedAt: null,
+                description: {
+                    in: [`Lunas: ${periodName(period)}`, `Pembayaran tagihan periode ${period}`],
+                },
+            },
+            data: { deletedAt },
+        });
         const activeBills = await tx.bill.findMany({
             where: { deletedAt: null, meterReading: { customerId: bill.meterReading.customerId, deletedAt: null } },
             select: { totalAmount: true, amountPaid: true },
@@ -201,34 +223,87 @@ export async function createBulkBillsForPeriod(period: string) {
 }
 
 export async function softDeleteBillsByPeriod(period: string) {
-    return prisma.$transaction(async (tx) => {
-        const bills = await tx.bill.findMany({
-            where: { deletedAt: null, meterReading: { period, deletedAt: null } },
-            include: { meterReading: true },
-        });
-        const customerIds = [...new Set(bills.map((bill) => bill.meterReading.customerId))];
-        const deletedAt = new Date();
-        for (const bill of bills) {
-            await tx.billItem.updateMany({ where: { billId: bill.id, deletedAt: null }, data: { deletedAt } });
-            await tx.bill.update({ where: { id: bill.id }, data: { deletedAt } });
-            await tx.meterReading.update({ where: { id: bill.meterReadingId }, data: { deletedAt } });
-        }
-
-        for (const customerId of customerIds) {
-            const activeBills = await tx.bill.findMany({
-                where: { deletedAt: null, meterReading: { customerId, deletedAt: null } },
-                select: { totalAmount: true, amountPaid: true },
-            });
-            await tx.customer.update({
-                where: { id: customerId },
-                data: {
-                    totalBill: activeBills.reduce((sum, item) => sum + Number(item.totalAmount), 0),
-                    totalPaid: activeBills.reduce((sum, item) => sum + Number(item.amountPaid), 0),
+    return prisma.$transaction(
+        async (tx) => {
+            const bills = await tx.bill.findMany({
+                where: { deletedAt: null, meterReading: { period, deletedAt: null } },
+                select: {
+                    id: true,
+                    meterReadingId: true,
+                    meterReading: { select: { customerId: true } },
                 },
             });
-        }
-        return bills.length;
-    });
+            if (bills.length === 0) return 0;
+
+            const billIds = bills.map((bill) => bill.id);
+            const meterReadingIds = bills.map((bill) => bill.meterReadingId);
+            const customerIds = [...new Set(bills.map((bill) => bill.meterReading.customerId))];
+            const deletedAt = new Date();
+
+            await tx.billItem.updateMany({
+                where: { billId: { in: billIds }, deletedAt: null },
+                data: { deletedAt },
+            });
+            await tx.bill.updateMany({
+                where: { id: { in: billIds } },
+                data: { deletedAt },
+            });
+            await tx.meterReading.updateMany({
+                where: { id: { in: meterReadingIds } },
+                data: { deletedAt },
+            });
+            await tx.payment.updateMany({
+                where: {
+                    customerId: { in: customerIds },
+                    deletedAt: null,
+                    description: {
+                        in: [`Lunas: ${periodName(period)}`, `Pembayaran tagihan periode ${period}`],
+                    },
+                },
+                data: { deletedAt },
+            });
+
+            const activeBills = await tx.bill.findMany({
+                where: {
+                    deletedAt: null,
+                    meterReading: { customerId: { in: customerIds }, deletedAt: null },
+                },
+                select: {
+                    totalAmount: true,
+                    amountPaid: true,
+                    meterReading: { select: { customerId: true } },
+                },
+            });
+
+            const totalsByCustomer = new Map<string, { totalBill: number; totalPaid: number }>();
+            for (const customerId of customerIds) {
+                totalsByCustomer.set(customerId, { totalBill: 0, totalPaid: 0 });
+            }
+            for (const bill of activeBills) {
+                const entry = totalsByCustomer.get(bill.meterReading.customerId);
+                if (entry) {
+                    entry.totalBill += Number(bill.totalAmount);
+                    entry.totalPaid += Number(bill.amountPaid);
+                }
+            }
+
+            await Promise.all(
+                customerIds.map((customerId) => {
+                    const totals = totalsByCustomer.get(customerId)!;
+                    return tx.customer.update({
+                        where: { id: customerId },
+                        data: {
+                            totalBill: totals.totalBill,
+                            totalPaid: totals.totalPaid,
+                        },
+                    });
+                }),
+            );
+
+            return bills.length;
+        },
+        { maxWait: 10000, timeout: 30000 },
+    );
 }
 
 export async function getBillsByPeriod(period: string) {

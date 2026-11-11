@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { clearCustomerCaches } from '@/hooks/useCustomer';
@@ -9,12 +9,31 @@ import AdminPageNavigation, { DashboardNavigationButton } from '@/components/adm
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
 import PasswordConfirm from '@/components/ui/PasswordConfirm';
-import { FileSpreadsheet, Upload } from 'lucide-react';
+import { FileSpreadsheet, Upload, Download, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import PageHeader from '@/components/layout/PageHeader';
+import { useImportJob } from '@/context/ImportJobContext';
+
+interface ImportErrorItem {
+    excelRow: number;
+    customerNumber: number;
+    name: string;
+    issueType:
+        | 'NAMA_TIDAK_COCOK'
+        | 'METER_AWAL_TIDAK_COCOK'
+        | 'METER_AKHIR_INVALID'
+        | 'DUPLIKASI_DATA'
+        | 'KALKULASI_PEMAKAIAN_INVALID'
+        | 'KALKULASI_TARIF_INVALID';
+    excelValue: string;
+    systemValue: string;
+    message: string;
+}
 
 interface ImportProgress {
     type: 'status' | 'progress' | 'complete' | 'error';
     message?: string;
+    percent?: number;
     current?: number;
     total?: number;
     currentName?: string;
@@ -23,17 +42,16 @@ interface ImportProgress {
     existingUpdated?: number;
     skipped?: number;
     failed?: number;
+    errors?: ImportErrorItem[];
 }
 
 export default function ImportPage() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
-    const [importing, setImporting] = useState(false);
+    const job = useImportJob();
     const [clearing, setClearing] = useState(false);
-    const [progress, setProgress] = useState<ImportProgress | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [clearSuccess, setClearSuccess] = useState(false);
-    const [completed, setCompleted] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState(() => {
@@ -54,6 +72,8 @@ export default function ImportPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const [deletePeriodSuccess, setDeletePeriodSuccess] = useState<string | null>(null);
+
+    const isRunning = job.status === 'validating' || job.status === 'importing';
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -107,61 +127,40 @@ export default function ImportPage() {
 
     const handleImportConfirmed = async () => {
         setShowImportConfirm(false);
-
-        setImporting(true);
         setError(null);
-        setProgress(null);
-        setCompleted(false);
         setClearSuccess(false);
 
-        try {
-            const formData = new FormData();
-            formData.append('file', selectedFile!);
-            formData.append('period', selectedPeriod);
+        if (!selectedFile) return;
+        const fileToUpload = selectedFile;
+        setSelectedFile(null);
+        await job.startImportJob(fileToUpload, selectedPeriod);
+    };
 
-            const response = await fetch('/api/import/upload', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const reader = response.body?.getReader();
-            if (!reader) throw new Error('No response body');
-
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.slice(6)) as ImportProgress;
-                            setProgress(data);
-                            if (data.type === 'complete') {
-                                clearCustomerCaches();
-                                setCompleted(true);
-                                setSelectedFile(null);
-                            } else if (data.type === 'error') {
-                                setError(data.message || 'Unknown error');
-                            }
-                        } catch (e) {
-                            console.error('Parse error:', e);
-                        }
-                    }
-                }
-            }
-        } catch (err) {
-            console.error('Import failed:', err);
-            setError('Gagal import data. Cek console untuk detail.');
-        } finally {
-            setImporting(false);
-        }
+    const handleDownloadErrorExcel = () => {
+        const errorsToExport = job.errors;
+        if (!errorsToExport || errorsToExport.length === 0) return;
+        const errorRows = errorsToExport.map((err) => ({
+            'Baris Excel': err.excelRow ? `Baris ${err.excelRow}` : '-',
+            'No. Pelanggan': err.customerNumber || '-',
+            'Nama di Excel': err.name,
+            'Jenis Masalah': err.issueType.replace(/_/g, ' '),
+            'Data di Excel': err.excelValue,
+            'Data di Database': err.systemValue,
+            'Keterangan Detail': err.message,
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(errorRows);
+        worksheet['!cols'] = [
+            { wch: 14 },
+            { wch: 15 },
+            { wch: 25 },
+            { wch: 28 },
+            { wch: 22 },
+            { wch: 30 },
+            { wch: 60 },
+        ];
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Error Validasi');
+        XLSX.writeFile(workbook, `Log-Error-Import-Tagihan-${job.period || selectedPeriod}.xlsx`);
     };
 
     const handleClearClick = () => {
@@ -173,8 +172,7 @@ export default function ImportPage() {
         setClearing(true);
         setError(null);
         setClearSuccess(false);
-        setProgress(null);
-        setCompleted(false);
+        job.dismissJob();
 
         try {
             const response = await customerService.clearAll();
@@ -225,7 +223,7 @@ export default function ImportPage() {
         }
     };
 
-    const isProcessing = importing || clearing || deletingPeriod;
+    const isProcessing = isRunning || clearing || deletingPeriod;
 
     const importLoading = (
         <AppLayout>
@@ -324,32 +322,46 @@ export default function ImportPage() {
                     )}
                 </div>
 
-                {/* Progress */}
-                {importing && progress && (
-                    <div className="bg-white rounded-xl p-4 space-y-3">
-                        <div className="text-center">
-                            {progress.type === 'progress' ? (
-                                <>
-                                    <p className="text-2xl font-bold text-blue-600">
-                                        {progress.current}/{progress.total}
+                {/* Active Progress Card (Non-blocking: user can browse other pages freely!) */}
+                {isRunning && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2.5 bg-blue-100 rounded-xl text-blue-600 shrink-0">
+                                    <FileSpreadsheet className="w-5 h-5 animate-pulse" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-blue-900">
+                                        Proses Import Sedang Berjalan ({job.percent}%)
+                                    </h4>
+                                    <p className="text-xs text-blue-700 mt-0.5">
+                                        {job.message}
                                     </p>
-                                    <p className="text-sm text-neutral-500">pelanggan</p>
-                                    <p className="text-sm text-neutral-600 mt-2 truncate">
-                                        {progress.currentName}
-                                    </p>
-                                </>
-                            ) : (
-                                <p className="text-neutral-600">{progress.message}</p>
+                                </div>
+                            </div>
+                            {job.totalChunks > 0 && (
+                                <span className="text-xs font-bold px-2.5 py-1 bg-blue-200/80 text-blue-800 rounded-lg shrink-0">
+                                    Batch {job.currentChunk} / {job.totalChunks}
+                                </span>
                             )}
                         </div>
-                        {progress.current !== undefined && progress.total !== undefined && (
-                            <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden">
-                                <div
-                                    className="bg-blue-500 h-full rounded-full transition-all duration-300"
-                                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                                />
-                            </div>
-                        )}
+
+                        {/* Progress bar */}
+                        <div className="w-full bg-blue-200/60 rounded-full h-3 overflow-hidden">
+                            <div
+                                className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                                style={{ width: `${job.percent}%` }}
+                            />
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-blue-600">
+                            <span>
+                                {job.total > 0 ? `${job.current} dari ${job.total} baris pelanggan` : 'Memverifikasi data Excel...'}
+                            </span>
+                            <span className="text-[11px] text-blue-700 italic font-medium">
+                                💡 Anda bebas membuka halaman lain (Dashboard, Pelanggan, dll). Progress tetap berjalan.
+                            </span>
+                        </div>
                     </div>
                 )}
 
@@ -357,60 +369,14 @@ export default function ImportPage() {
                 <div className="space-y-2">
                     <Button
                         onClick={handleImportClick}
-                        loading={importing}
+                        loading={isRunning}
                         variant="primary"
                         className="w-full"
-                        disabled={isProcessing || !selectedFile}
+                        disabled={isRunning || clearing || deletingPeriod || !selectedFile}
                     >
-                        {importing ? 'Mengimport...' : 'Import Data'}
+                        {isRunning ? 'Sedang Memproses...' : 'Import Data'}
                     </Button>
                 </div>
-
-                {/* Separator - Disembunyikan (Comment) */}
-                {/* 
-                <section className="border-t border-neutral-200 pt-6">
-                    <div className="mb-3">
-                        <h3 className="font-semibold text-neutral-800">Manajemen Data</h3>
-                        <p className="mt-1 text-xs text-neutral-500">Gunakan fitur ini hanya jika data perlu dibersihkan.</p>
-                    </div>
-
-                    <div className="border border-orange-200 bg-orange-50 rounded-xl p-4 space-y-3 mb-3">
-                        <div>
-                            <label className="block text-sm font-medium text-orange-700 mb-2">Hapus Tagihan Periode</label>
-                            <p className="text-xs text-orange-600 mb-2">Menghapus tagihan periode tertentu (pelanggan tetap ada)</p>
-                            <input
-                                type="month"
-                                value={deletePeriodValue}
-                                onChange={(e) => setDeletePeriodValue(e.target.value)}
-                                className="w-full px-4 py-3 bg-white rounded-xl border border-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                            />
-                        </div>
-                        <Button
-                            onClick={handleDeletePeriodClick}
-                            loading={deletingPeriod}
-                            variant="danger"
-                            className="w-full"
-                            disabled={isProcessing}
-                        >
-                            {deletingPeriod ? 'Menghapus...' : `Hapus Tagihan ${formatPeriod(deletePeriodValue)}`}
-                        </Button>
-                    </div>
-
-                    <div className="border border-red-200 bg-red-50 rounded-xl p-4">
-                        <p className="text-sm font-medium text-red-700 mb-2">Hapus Semua Data</p>
-                        <p className="text-xs text-red-600 mb-3">Menghapus SEMUA pelanggan, tagihan, dan pembayaran</p>
-                        <Button
-                            onClick={handleClearClick}
-                            loading={clearing}
-                            variant="danger"
-                            className="w-full"
-                            disabled={isProcessing}
-                        >
-                            {clearing ? 'Menghapus...' : 'Hapus Semua Data'}
-                        </Button>
-                    </div>
-                </section>
-                */}
 
                 {/* Delete Period Success */}
                 {deletePeriodSuccess && (
@@ -427,45 +393,126 @@ export default function ImportPage() {
                     </div>
                 )}
 
-                {/* Error Display */}
-                {error && (
-                    <div className="bg-red-50 rounded-xl p-4">
+                {/* Error Display & Download Log Error */}
+                {job.errors && job.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 bg-red-100 rounded-lg text-red-600 mt-0.5 shrink-0">
+                                    <AlertCircle className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h4 className="text-base font-bold text-red-800">
+                                        Import Dibatalkan (Database Tetap Aman)
+                                    </h4>
+                                    <p className="text-sm text-red-600 mt-0.5">
+                                        Ditemukan <strong>{job.errors.length}</strong> data tidak sesuai verifikasi 3 lapis. Transaksi dibatalkan secara penuh sehingga tidak ada data yang masuk atau berubah di database.
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleDownloadErrorExcel}
+                                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors cursor-pointer"
+                            >
+                                <Download className="w-4 h-4" />
+                                Download Log Error (.xlsx)
+                            </button>
+                        </div>
+
+                        {/* Scrollable Error Table */}
+                        <div className="overflow-hidden border border-red-200 rounded-lg bg-white">
+                            <div className="max-h-72 overflow-y-auto">
+                                <table className="w-full text-left text-xs">
+                                    <thead className="bg-red-100/70 text-red-900 sticky top-0 font-semibold border-b border-red-200">
+                                        <tr>
+                                            <th className="py-2.5 px-3">Baris</th>
+                                            <th className="py-2.5 px-3">No.</th>
+                                            <th className="py-2.5 px-3">Nama di Excel</th>
+                                            <th className="py-2.5 px-3">Jenis Masalah</th>
+                                            <th className="py-2.5 px-3">Keterangan</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-red-100">
+                                        {job.errors.map((err, idx) => (
+                                            <tr key={idx} className="hover:bg-red-50/50">
+                                                <td className="py-2.5 px-3 font-semibold text-neutral-700 whitespace-nowrap">
+                                                    {err.excelRow ? `Baris ${err.excelRow}` : '-'}
+                                                </td>
+                                                <td className="py-2.5 px-3 text-neutral-600 whitespace-nowrap">
+                                                    {err.customerNumber || '-'}
+                                                </td>
+                                                <td className="py-2.5 px-3 font-medium text-neutral-800 whitespace-nowrap">
+                                                    {err.name}
+                                                </td>
+                                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                                    <span className="inline-block px-2 py-0.5 rounded font-medium text-[11px] bg-red-100 text-red-700">
+                                                        {err.issueType.replace(/_/g, ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="py-2.5 px-3 text-red-700 leading-relaxed">
+                                                    {err.message}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {(error || (job.status === 'error' && (!job.errors || job.errors.length === 0))) && (
+                    <div className="bg-red-50 rounded-xl p-4 border border-red-200">
                         <p className="text-red-600 font-medium">Error</p>
-                        <p className="text-sm text-red-500 mt-1">{error}</p>
+                        <p className="text-sm text-red-500 mt-1">{error || job.message}</p>
                     </div>
                 )}
 
                 {/* Complete Result */}
-                {completed && progress?.type === 'complete' && (
-                    <div className="bg-green-50 rounded-xl p-4 space-y-3">
-                        <p className="text-green-700 font-semibold">Import Selesai!</p>
-
-                        <div className="grid grid-cols-4 gap-2 text-center">
-                            <div className="bg-white rounded-lg p-2">
-                                <p className="text-2xl font-bold text-neutral-800">{progress.total}</p>
-                                <p className="text-xs text-neutral-500">Total</p>
+                {job.status === 'completed' && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                                <CheckCircle2 className="w-6 h-6" />
                             </div>
-                            <div className="bg-white rounded-lg p-2">
-                                <p className="text-2xl font-bold text-blue-600">{progress.newCustomers || 0}</p>
-                                <p className="text-xs text-neutral-500">Baru</p>
-                            </div>
-                            <div className="bg-white rounded-lg p-2">
-                                <p className="text-2xl font-bold text-green-600">{progress.existingUpdated || 0}</p>
-                                <p className="text-xs text-neutral-500">Ditambah</p>
-                            </div>
-                            <div className="bg-white rounded-lg p-2">
-                                <p className="text-2xl font-bold text-orange-500">{progress.skipped}</p>
-                                <p className="text-xs text-neutral-500">Dilewati</p>
+                            <div>
+                                <p className="text-green-800 font-bold text-base">Import Tagihan Selesai!</p>
+                                <p className="text-sm text-green-700">{job.message}</p>
                             </div>
                         </div>
 
-                        <Button
-                            onClick={() => router.push('/')}
-                            variant="secondary"
-                            className="w-full"
-                        >
-                            Lihat Daftar Pelanggan
-                        </Button>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
+                            <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
+                                <p className="text-2xl font-bold text-neutral-800">{job.total}</p>
+                                <p className="text-xs text-neutral-500">Total Baris</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
+                                <p className="text-2xl font-bold text-blue-600">{job.totalChunks}</p>
+                                <p className="text-xs text-neutral-500">Total Batch</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm col-span-2 sm:col-span-1">
+                                <p className="text-2xl font-bold text-green-600">100%</p>
+                                <p className="text-xs text-neutral-500">Berhasil Disimpan</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => router.push('/')}
+                                variant="secondary"
+                                className="w-full"
+                            >
+                                Lihat Daftar Pelanggan
+                            </Button>
+                            <Button
+                                onClick={job.dismissJob}
+                                variant="secondary"
+                                className="shrink-0"
+                            >
+                                Tutup Notifikasi
+                            </Button>
+                        </div>
                     </div>
                 )}
             </main>
@@ -478,7 +525,7 @@ export default function ImportPage() {
                 title="Konfirmasi Import"
                 description="Masukkan password admin untuk mengimport data."
                 confirmText="Import"
-                loading={importing}
+                loading={isRunning}
             />
 
             <PasswordConfirm

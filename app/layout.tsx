@@ -2,6 +2,8 @@ import "./globals.css";
 import { ThemeModeScript } from 'flowbite-react';
 import { Inter, Poppins } from 'next/font/google';
 import { SidebarProvider } from '@/components/layout/AppLayout';
+import { ImportJobProvider } from '@/context/ImportJobContext';
+import FloatingImportProgress from '@/components/import/FloatingImportProgress';
 import type { Metadata, Viewport } from 'next';
 
 const inter = Inter({
@@ -52,9 +54,12 @@ export default function RootLayout({
 
       </head>
       <body className="font-sans">
-        <SidebarProvider>
-          {children}
-        </SidebarProvider>
+        <ImportJobProvider>
+          <SidebarProvider>
+            {children}
+            <FloatingImportProgress />
+          </SidebarProvider>
+        </ImportJobProvider>
       </body>
     </html>
   );

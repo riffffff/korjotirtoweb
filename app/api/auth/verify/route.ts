@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
             return errorResponse('Password harus diisi', 400);
         }
 
-        if (!(await verifyAdminPassword(session.sub, body.password))) {
+        if (!(await verifyAdminPassword(session.sub, body.password, session.username))) {
             return errorResponse('Password salah', 401);
         }
         return successResponse({ verified: true });

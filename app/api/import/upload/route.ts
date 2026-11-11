@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { parseCustomerExcelBuffer } from '@/lib/excel-parser';
 import { AuthError, requireAdmin } from '@/lib/auth';
 import { importCustomersFromExcel } from '@/services/server/import.service';
+import { getBillingConfig } from '@/services/server/setting.service';
 
 function errorResponse(message: string, status: number) {
     return new Response(JSON.stringify({ success: false, error: message }), {
@@ -38,7 +39,8 @@ export async function POST(request: NextRequest) {
                 }
 
                 send({ type: 'status', message: 'Membaca file Excel...' });
-                const rows = parseCustomerExcelBuffer(Buffer.from(await file.arrayBuffer()));
+                const config = await getBillingConfig();
+                const rows = parseCustomerExcelBuffer(Buffer.from(await file.arrayBuffer()), config);
                 if (rows.length === 0) {
                     send({ type: 'error', message: 'Tidak ada data valid di file Excel' });
                     controller.close();
@@ -46,12 +48,20 @@ export async function POST(request: NextRequest) {
                 }
                 send({ type: 'status', message: `Ditemukan ${rows.length} data`, percent: 15 });
                 const result = await importCustomersFromExcel(rows, period, send);
-                send({
-                    type: 'complete',
-                    ...result,
-                    message: `Selesai! ${result.newCustomers} baru, ${result.existingUpdated} diperbarui`,
-                    percent: 100,
-                });
+                if (result.errors && result.errors.length > 0) {
+                    send({
+                        type: 'error',
+                        ...result,
+                        message: `Import dibatalkan: Ditemukan ${result.errors.length} data tidak cocok. Database tetap aman, tidak ada data yang masuk.`,
+                    });
+                } else {
+                    send({
+                        type: 'complete',
+                        ...result,
+                        message: `Selesai! Seluruh ${result.added} data tagihan berhasil diimpor.`,
+                        percent: 100,
+                    });
+                }
                 controller.close();
             } catch (error) {
                 console.error('Error importing customers:', error);

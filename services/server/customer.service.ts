@@ -3,7 +3,6 @@ import { calculateBillPenalty } from '@/lib/billing';
 
 export async function createCustomer(name: string, phone?: string | null) {
     const maxCustomer = await prisma.customer.findFirst({
-        where: { deletedAt: null },
         orderBy: { customerNumber: 'desc' },
         select: { customerNumber: true },
     });
@@ -33,6 +32,7 @@ export async function updateCustomer(customerId: string, name: string, phone?: s
 
 export async function clearAllCustomerData() {
     await prisma.$transaction(async (tx) => {
+        await tx.paymentProof.deleteMany({});
         await tx.payment.deleteMany({});
         await tx.billItem.deleteMany({});
         await tx.bill.deleteMany({});

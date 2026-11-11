@@ -12,10 +12,16 @@ export async function authenticateAdmin(username: string, password: string) {
     };
 }
 
-export async function verifyAdminPassword(userId: string, password: string): Promise<boolean> {
-    const user = await prisma.users.findUnique({
-        where: { id: userId },
+export async function verifyAdminPassword(userId: string, password: string, username?: string): Promise<boolean> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    const user = await prisma.users.findFirst({
+        where: {
+            OR: [
+                ...(isUuid ? [{ id: userId }] : []),
+                ...(username ? [{ username }] : [{ username: userId }]),
+            ],
+        },
         select: { password: true, is_active: true },
     });
-    return Boolean(user?.is_active && await bcrypt.compare(password, user.password));
+    return Boolean(user?.is_active && (await bcrypt.compare(password, user.password)));
 }

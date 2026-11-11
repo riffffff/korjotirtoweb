@@ -1,6 +1,8 @@
 import * as XLSX from 'xlsx';
+import { DEFAULT_BILLING_CONFIG, type BillingConfig } from '@/lib/billing';
 
 export interface ParsedExcelRow {
+    excelRow: number;
     customerNumber: number;
     name: string;
     phone: string | null;
@@ -19,7 +21,10 @@ export interface ParsedExcelRow {
 /**
  * Parses the application Excel import format into validated domain rows.
  */
-export function parseCustomerExcelBuffer(buffer: Buffer): ParsedExcelRow[] {
+export function parseCustomerExcelBuffer(
+    buffer: Buffer,
+    config: BillingConfig = DEFAULT_BILLING_CONFIG,
+): ParsedExcelRow[] {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
@@ -48,18 +53,22 @@ export function parseCustomerExcelBuffer(buffer: Buffer): ParsedExcelRow[] {
 
         const meterStart = Number(getValue(2)) || 0;
         const meterEnd = Number(getValue(3)) || 0;
-        const usage = Number(getValue(4)) || Math.max(0, meterEnd - meterStart);
-        const usageK1 = Number(getValue(5)) || Math.min(usage, 40);
-        const usageK2 = Number(getValue(6)) || Math.max(usage - 40, 0);
-        const beban = Number(getValue(7)) || 3000;
-        const beayaK1 = Number(getValue(8)) || usageK1 * 1800;
-        const beayaK2 = Number(getValue(9)) || usageK2 * 3000;
+        const rawUsage = getValue(4);
+        const usage = rawUsage !== undefined && rawUsage !== '' && Number.isFinite(Number(rawUsage))
+            ? Math.max(0, Number(rawUsage))
+            : Math.max(0, meterEnd - meterStart);
+        const usageK1 = Number(getValue(5)) || Math.min(usage, config.K1_LIMIT);
+        const usageK2 = Number(getValue(6)) || Math.max(usage - config.K1_LIMIT, 0);
+        const beban = Number(getValue(7)) || config.ADMIN_FEE;
+        const beayaK1 = Number(getValue(8)) || usageK1 * config.RATE_K1;
+        const beayaK2 = Number(getValue(9)) || usageK2 * config.RATE_K2;
         const totalAmount = Number(getValue(10)) || beban + beayaK1 + beayaK2;
         const rawDescription = getValue(11);
         const keterangan = rawDescription ? String(rawDescription).trim() : null;
 
         if (Number.isInteger(customerNumber) && customerNumber > 0 && name) {
             rows.push({
+                excelRow: row + 1,
                 customerNumber,
                 name,
                 phone,
