@@ -245,7 +245,7 @@ export default function OnlinePaymentSection({
                 <form onSubmit={handleSubmit} className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div>
-                            <label htmlFor="online-payment-phone" className="text-xs font-medium text-neutral-600 block mb-1">
+                            <label htmlFor="online-payment-phone" className="text-xs font-semibold text-neutral-600 block mb-1">
                                 Nomor Telepon
                             </label>
                             <input
@@ -257,7 +257,7 @@ export default function OnlinePaymentSection({
                             />
                         </div>
                         <div>
-                            <label htmlFor="online-payment-amount" className="text-xs font-medium text-neutral-600 block mb-1">
+                            <label htmlFor="online-payment-amount" className="text-xs font-semibold text-neutral-600 block mb-1">
                                 Nominal Transfer
                             </label>
                             <input
@@ -286,7 +286,7 @@ export default function OnlinePaymentSection({
                     />
 
                     <div>
-                        <label htmlFor="online-payment-note" className="text-xs font-medium text-neutral-600 block mb-1">
+                        <label htmlFor="online-payment-note" className="text-xs font-semibold text-neutral-600 block mb-1">
                             Catatan (opsional)
                         </label>
                         <input

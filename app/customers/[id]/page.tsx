@@ -260,7 +260,7 @@ export default function CustomerDetailPage() {
                             </span>
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-lg md:text-xl font-bold text-neutral-800 break-words leading-snug">
+                            <h1 className="text-xl md:text-2xl font-bold text-neutral-800 break-words leading-snug">
                                 {customer.name}
                             </h1>
                             {customer.phone && (
@@ -337,7 +337,7 @@ export default function CustomerDetailPage() {
 
                 {/* Riwayat Pembayaran (Payment History) */}
                 <div className="bg-white rounded-xl border border-neutral-200 p-4">
-                    <h2 className="text-sm font-semibold text-neutral-500 mb-3">Riwayat Pembayaran</h2>
+                    <h2 className="text-base font-bold text-neutral-800 mb-3">Riwayat Pembayaran</h2>
                     {!payments || payments.length === 0 ? (
                         <p className="text-sm text-neutral-400 italic">Belum ada riwayat pembayaran</p>
                     ) : (
@@ -399,7 +399,7 @@ export default function CustomerDetailPage() {
                 {/* Bill History */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold text-neutral-700">Riwayat Tagihan</h2>
+                        <h2 className="text-base font-bold text-neutral-800">Riwayat Tagihan</h2>
                         {isAdmin && (
                             <button
                                 onClick={() => {

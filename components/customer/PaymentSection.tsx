@@ -118,7 +118,7 @@ export default function PaymentSection({
 
             {/* Input */}
             <div>
-                <label className="text-xs text-blue-600 block mb-1">
+                <label className="text-xs font-semibold text-neutral-600 block mb-1">
                     {useBalance ? 'Tambahan Uang Cash' : 'Jumlah Uang'}
                 </label>
                 <input
@@ -147,7 +147,7 @@ export default function PaymentSection({
                     </div>
                     
                     <div>
-                        <label className="text-xs text-emerald-600 block mb-1">Simpan ke Saldo</label>
+                        <label className="text-xs font-semibold text-neutral-600 block mb-1">Simpan ke Saldo</label>
                         <input
                             type="text"
                             inputMode="numeric"
