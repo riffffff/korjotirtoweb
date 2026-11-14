@@ -30,12 +30,27 @@ export default function HomePage() {
   const [sendingCustomerId, setSendingCustomerId] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // Filter and Sort states
-  type StatusFilter = 'ALL' | 'UNPAID' | 'PAID' | 'HAS_DEPOSIT';
-  type SortOption = 'number_asc' | 'number_desc' | 'name_asc' | 'name_desc' | 'unpaid_desc' | 'unpaid_asc';
+  // Filter and Sort states (simplified & smooth)
+  type StatusFilter = 'ALL' | 'UNPAID' | 'PAID';
+  type SortOption = 'number_asc' | 'name_asc' | 'unpaid_desc';
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('number_asc');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterAnimating, setIsFilterAnimating] = useState(false);
+
+  const openFilter = () => {
+    setIsFilterOpen(true);
+    setTimeout(() => {
+      setIsFilterAnimating(true);
+    }, 10);
+  };
+
+  const closeFilter = () => {
+    setIsFilterAnimating(false);
+    setTimeout(() => {
+      setIsFilterOpen(false);
+    }, 280);
+  };
 
   const hasActiveFilters = statusFilter !== 'ALL' || sortBy !== 'number_asc';
   const activeFilterCount = (statusFilter !== 'ALL' ? 1 : 0) + (sortBy !== 'number_asc' ? 1 : 0);
@@ -47,7 +62,7 @@ export default function HomePage() {
 
   // Lock body scroll on mobile when filter bottom sheet is open
   useEffect(() => {
-    if (showFilterMenu && typeof window !== 'undefined' && window.innerWidth < 768) {
+    if (isFilterOpen && typeof window !== 'undefined' && window.innerWidth < 768) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -55,7 +70,7 @@ export default function HomePage() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [showFilterMenu]);
+  }, [isFilterOpen]);
 
   // Redirect admin to dashboard on first load
   useEffect(() => {
@@ -68,7 +83,7 @@ export default function HomePage() {
     }
   }, [isAdmin, authLoading, router]);
 
-  // Filter and sort customers
+  // Filter and sort customers (simplified: 3 status & 3 sorts)
   const filteredCustomers = useMemo(() => {
     const term = search.trim().toLowerCase();
     let result = customers.filter((customer) => {
@@ -87,9 +102,6 @@ export default function HomePage() {
       if (statusFilter === 'PAID') {
         return customer.unpaidTotal === 0;
       }
-      if (statusFilter === 'HAS_DEPOSIT') {
-        return customer.depositBalance > 0;
-      }
       return true;
     });
 
@@ -98,16 +110,10 @@ export default function HomePage() {
       switch (sortBy) {
         case 'number_asc':
           return a.customerNumber - b.customerNumber;
-        case 'number_desc':
-          return b.customerNumber - a.customerNumber;
         case 'name_asc':
           return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
-        case 'name_desc':
-          return b.name.localeCompare(a.name, 'id', { sensitivity: 'base' });
         case 'unpaid_desc':
           return b.unpaidTotal - a.unpaidTotal;
-        case 'unpaid_asc':
-          return a.unpaidTotal - b.unpaidTotal;
         default:
           return 0;
       }
@@ -285,7 +291,7 @@ export default function HomePage() {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                onClick={() => (isFilterOpen ? closeFilter() : openFilter())}
                 title="Filter & Urutkan"
                 className={`h-11 sm:h-12 px-3 sm:px-3.5 flex items-center justify-center gap-1.5 rounded-xl border transition-all ${
                   hasActiveFilters
@@ -303,16 +309,16 @@ export default function HomePage() {
               </button>
 
               {/* Filter & Sort Popover (Desktop) & Bottom Sheet (Mobile) */}
-              {showFilterMenu && (
+              {isFilterOpen && (
                 <>
                   {/* Backdrop for Desktop */}
                   <div
                     className="hidden md:block fixed inset-0 z-20"
-                    onClick={() => setShowFilterMenu(false)}
+                    onClick={closeFilter}
                   />
 
                   {/* Desktop Dropdown */}
-                  <div className="hidden md:block absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-neutral-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="hidden md:block absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-neutral-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-150">
                     {/* Header */}
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                       <div className="flex items-center gap-2">
@@ -333,18 +339,17 @@ export default function HomePage() {
                     {/* Status Filter */}
                     <div className="py-3 border-b border-neutral-100">
                       <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Status Tagihan</p>
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="grid grid-cols-3 gap-1.5">
                         {[
                           { id: 'ALL', label: 'Semua' },
                           { id: 'UNPAID', label: 'Belum Lunas' },
                           { id: 'PAID', label: 'Lunas' },
-                          { id: 'HAS_DEPOSIT', label: 'Ada Saldo' },
                         ].map((opt) => (
                           <button
                             key={opt.id}
                             type="button"
                             onClick={() => setStatusFilter(opt.id as StatusFilter)}
-                            className={`px-3 py-2 text-xs rounded-lg text-left transition-colors ${
+                            className={`py-1.5 px-1 text-xs text-center rounded-lg transition-colors ${
                               statusFilter === opt.id
                                 ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
                                 : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border border-transparent'
@@ -361,12 +366,9 @@ export default function HomePage() {
                       <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Urutan</p>
                       <div className="space-y-1">
                         {[
-                          { id: 'number_asc', label: 'No. Pelanggan (1 → 99)' },
-                          { id: 'number_desc', label: 'No. Pelanggan (99 → 1)' },
+                          { id: 'number_asc', label: 'Nomor Pelanggan' },
                           { id: 'name_asc', label: 'Nama (A - Z)' },
-                          { id: 'name_desc', label: 'Nama (Z - A)' },
                           { id: 'unpaid_desc', label: 'Tagihan Terbanyak' },
-                          { id: 'unpaid_asc', label: 'Tagihan Terkecil' },
                         ].map((opt) => (
                           <button
                             key={opt.id}
@@ -389,7 +391,7 @@ export default function HomePage() {
                     <div className="pt-2 border-t border-neutral-100">
                       <button
                         type="button"
-                        onClick={() => setShowFilterMenu(false)}
+                        onClick={closeFilter}
                         className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
                       >
                         Terapkan
@@ -399,22 +401,28 @@ export default function HomePage() {
 
                   {/* Mobile Bottom Sheet Drawer */}
                   <div className="md:hidden">
-                    {/* Backdrop */}
+                    {/* Backdrop with smooth fade */}
                     <div
-                      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
-                      onClick={() => setShowFilterMenu(false)}
+                      className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-300 ease-out ${
+                        isFilterAnimating ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      onClick={closeFilter}
                     />
 
-                    {/* Bottom Sheet Modal */}
-                    <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
+                    {/* Bottom Sheet Drawer with smooth slide */}
+                    <div
+                      className={`fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col transition-transform duration-300 ease-out will-change-transform ${
+                        isFilterAnimating ? 'translate-y-0' : 'translate-y-full'
+                      }`}
+                    >
                       {/* Drag Handle Bar */}
-                      <div className="w-12 h-1.5 bg-neutral-300 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+                      <div className="w-10 h-1 bg-neutral-200 rounded-full mx-auto mt-3 mb-1 shrink-0" />
 
                       {/* Header */}
                       <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-100 shrink-0">
                         <div className="flex items-center gap-2">
-                          <SlidersHorizontal className="w-5 h-5 text-blue-600" />
-                          <h3 className="font-bold text-neutral-800 text-base">Filter & Urutkan</h3>
+                          <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                          <h3 className="font-bold text-neutral-800 text-sm">Filter & Urutkan</h3>
                         </div>
                         <div className="flex items-center gap-3">
                           {hasActiveFilters && (
@@ -428,68 +436,63 @@ export default function HomePage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => setShowFilterMenu(false)}
-                            className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                            onClick={closeFilter}
+                            className="p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
                             aria-label="Tutup"
                           >
-                            <X className="w-5 h-5" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
 
-                      {/* Scrollable Body */}
-                      <div className="overflow-y-auto px-5 py-4 space-y-5 flex-1">
+                      {/* Content Body - Compact, fits on one screen without scroll */}
+                      <div className="px-5 py-4 space-y-4">
                         {/* Status Tagihan */}
                         <div>
-                          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5">
+                          <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
                             Status Tagihan
                           </p>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-3 gap-2">
                             {[
-                              { id: 'ALL', label: 'Semua Status' },
+                              { id: 'ALL', label: 'Semua' },
                               { id: 'UNPAID', label: 'Belum Lunas' },
                               { id: 'PAID', label: 'Lunas' },
-                              { id: 'HAS_DEPOSIT', label: 'Ada Saldo' },
                             ].map((opt) => (
                               <button
                                 key={opt.id}
                                 type="button"
                                 onClick={() => setStatusFilter(opt.id as StatusFilter)}
-                                className={`px-3.5 py-2.5 text-xs rounded-xl text-left transition-colors flex items-center justify-between ${
+                                className={`py-2 px-1 text-xs text-center rounded-xl transition-all font-medium border ${
                                   statusFilter === opt.id
-                                    ? 'bg-blue-50 text-blue-700 font-bold border-2 border-blue-600'
-                                    : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200/80 font-medium'
+                                    ? 'bg-blue-50 text-blue-700 font-bold border-blue-500 shadow-xs'
+                                    : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border-neutral-200/70'
                                 }`}
                               >
-                                <span>{opt.label}</span>
-                                {statusFilter === opt.id && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                                {opt.label}
                               </button>
                             ))}
                           </div>
                         </div>
 
-                        {/* Urutkan Berdasarkan */}
+                        {/* Urutkan */}
                         <div>
-                          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5">
-                            Urutkan Berdasarkan
+                          <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                            Urutkan
                           </p>
                           <div className="space-y-1.5">
                             {[
-                              { id: 'number_asc', label: 'Nomor Pelanggan (1 → 99)' },
-                              { id: 'number_desc', label: 'Nomor Pelanggan (99 → 1)' },
-                              { id: 'name_asc', label: 'Nama Pelanggan (A → Z)' },
-                              { id: 'name_desc', label: 'Nama Pelanggan (Z → A)' },
+                              { id: 'number_asc', label: 'Nomor Pelanggan' },
+                              { id: 'name_asc', label: 'Nama (A - Z)' },
                               { id: 'unpaid_desc', label: 'Tagihan Terbanyak' },
-                              { id: 'unpaid_asc', label: 'Tagihan Terkecil' },
                             ].map((opt) => (
                               <button
                                 key={opt.id}
                                 type="button"
                                 onClick={() => setSortBy(opt.id as SortOption)}
-                                className={`w-full flex items-center justify-between px-3.5 py-3 text-xs rounded-xl transition-colors ${
+                                className={`w-full flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl transition-all border ${
                                   sortBy === opt.id
-                                    ? 'bg-blue-50 text-blue-700 font-bold border border-blue-300'
-                                    : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200/60 font-medium'
+                                    ? 'bg-blue-50 text-blue-700 font-bold border-blue-200'
+                                    : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200/60 font-medium'
                                 }`}
                               >
                                 <span>{opt.label}</span>
@@ -504,10 +507,10 @@ export default function HomePage() {
                       <div className="p-4 border-t border-neutral-100 bg-white shrink-0">
                         <button
                           type="button"
-                          onClick={() => setShowFilterMenu(false)}
-                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                          onClick={closeFilter}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
                         >
-                          Terapkan Filter
+                          Terapkan
                         </button>
                       </div>
                     </div>
@@ -535,9 +538,7 @@ export default function HomePage() {
               {statusFilter !== 'ALL' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   <span>
-                    {statusFilter === 'UNPAID' && 'Belum Lunas'}
-                    {statusFilter === 'PAID' && 'Lunas'}
-                    {statusFilter === 'HAS_DEPOSIT' && 'Ada Saldo'}
+                    {statusFilter === 'UNPAID' ? 'Belum Lunas' : 'Lunas'}
                   </span>
                   <button
                     type="button"
@@ -552,11 +553,7 @@ export default function HomePage() {
               {sortBy !== 'number_asc' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   <span>
-                    {sortBy === 'number_desc' && 'No. 99 → 1'}
-                    {sortBy === 'name_asc' && 'Nama A-Z'}
-                    {sortBy === 'name_desc' && 'Nama Z-A'}
-                    {sortBy === 'unpaid_desc' && 'Tagihan Terbanyak'}
-                    {sortBy === 'unpaid_asc' && 'Tagihan Terkecil'}
+                    {sortBy === 'name_asc' ? 'Nama A-Z' : 'Tagihan Terbanyak'}
                   </span>
                   <button
                     type="button"
