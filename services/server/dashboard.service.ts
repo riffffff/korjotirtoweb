@@ -64,19 +64,39 @@ export async function getDashboardStats(): Promise<DashboardStatsDTO> {
         }),
     ]);
 
-    const periodStats = await Promise.all(periods.map(async ({ period }) => {
-        const bills = await prisma.bill.findMany({
+    const periodList = periods.map((p) => p.period);
+    const periodBills = periodList.length > 0
+        ? await prisma.bill.findMany({
             where: {
                 deletedAt: null,
-                meterReading: { period, deletedAt: null, customer: { deletedAt: null } },
+                meterReading: {
+                    period: { in: periodList },
+                    deletedAt: null,
+                    customer: { deletedAt: null },
+                },
             },
             select: {
                 paymentStatus: true,
                 totalAmount: true,
                 amountPaid: true,
-                meterReading: { select: { customerId: true } },
+                meterReading: { select: { customerId: true, period: true } },
             },
-        });
+        })
+        : [];
+
+    const billsByPeriod = new Map<string, typeof periodBills>();
+    for (const bill of periodBills) {
+        const p = bill.meterReading.period;
+        const list = billsByPeriod.get(p);
+        if (list) {
+            list.push(bill);
+        } else {
+            billsByPeriod.set(p, [bill]);
+        }
+    }
+
+    const periodStats = periodList.map((period) => {
+        const bills = billsByPeriod.get(period) ?? [];
         const [year, month] = period.split('-');
         return {
             period,
@@ -92,7 +112,7 @@ export async function getDashboardStats(): Promise<DashboardStatsDTO> {
             totalAmount: bills.reduce((sum, bill) => sum + Number(bill.totalAmount), 0),
             paidAmount: bills.reduce((sum, bill) => sum + Number(bill.amountPaid), 0),
         };
-    }));
+    });
 
     // Calculate pending payment proofs summary
     const pendingProofs: PendingProofsSummaryDTO = {

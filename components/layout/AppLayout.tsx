@@ -28,6 +28,9 @@ export function SidebarProvider({ children }: SidebarProviderProps) {
 
     // Read from localStorage after hydration
     useEffect(() => {
+        if (window.location.pathname.startsWith('/admin')) {
+            sessionStorage.setItem('hasVisitedHome', 'true');
+        }
         const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
         if (saved !== null) {
             // Read persisted client state after SSR hydration.

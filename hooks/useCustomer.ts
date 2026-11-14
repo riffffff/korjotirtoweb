@@ -12,6 +12,7 @@ const customerDetailCache = new Map<string, { data: CustomerDetail; time: number
 // Cache expiry times (Stale-While-Revalidate: data is shown instantly, revalidated in background)
 const LIST_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 const DETAIL_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+const customerListeners = new Set<() => void>();
 
 /**
  * Hook for fetching all customers with caching
@@ -58,6 +59,13 @@ export function useCustomers() {
 
     useEffect(() => {
         fetchData();
+        const onCacheCleared = () => {
+            void fetchData(true);
+        };
+        customerListeners.add(onCacheCleared);
+        return () => {
+            customerListeners.delete(onCacheCleared);
+        };
     }, [fetchData]);
 
     // Force refresh and clear cache
@@ -127,6 +135,13 @@ export function useCustomerDetail(id: string | null) {
 
     useEffect(() => {
         fetchData();
+        const onCacheCleared = () => {
+            void fetchData(true);
+        };
+        customerListeners.add(onCacheCleared);
+        return () => {
+            customerListeners.delete(onCacheCleared);
+        };
     }, [fetchData]);
 
     // Force refresh
@@ -155,6 +170,7 @@ export function clearCustomerCaches() {
     customerListCache = null;
     customerListCacheTime = 0;
     customerDetailCache.clear();
+    customerListeners.forEach((listener) => listener());
     // Also clear dashboard cache to sync stats
     clearDashboardCache();
 }

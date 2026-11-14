@@ -26,7 +26,7 @@ interface ImportJobContextValue {
 
 const ImportJobContext = createContext<ImportJobContextValue | null>(null);
 
-const CHUNK_SIZE = 15;
+const CHUNK_SIZE = 30;
 
 export function ImportJobProvider({ children }: { children: React.ReactNode }) {
     const [status, setStatus] = useState<ImportJobStatus>('idle');
@@ -138,26 +138,46 @@ export function ImportJobProvider({ children }: { children: React.ReactNode }) {
                     setCurrentName(chunkRows[0]?.name || `Batch ${i + 1}`);
                     setMessage(`Menyimpan batch ${i + 1} dari ${chunksCount} (${chunkRows.length} baris)...`);
 
-                    const chunkRes = await fetch('/api/import/chunk', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            period: targetPeriod,
-                            rows: chunkRows,
-                            chunkIndex: i,
-                            totalChunks: chunksCount,
-                            isLastChunk: isLast,
-                        }),
-                    });
+                    let lastError: Error | null = null;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        try {
+                            const chunkRes = await fetch('/api/import/chunk', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    period: targetPeriod,
+                                    rows: chunkRows,
+                                    chunkIndex: i,
+                                    totalChunks: chunksCount,
+                                    isLastChunk: isLast,
+                                }),
+                            });
 
-                    if (!chunkRes.ok) {
-                        const errData = await chunkRes.json();
-                        throw new Error(errData?.error || `Gagal menyimpan batch ke-${i + 1}`);
+                            if (!chunkRes.ok) {
+                                const errData = await chunkRes.json().catch(() => null);
+                                throw new Error(errData?.error || `Gagal menyimpan batch ke-${i + 1} (HTTP ${chunkRes.status})`);
+                            }
+
+                            lastError = null;
+                            break;
+                        } catch (chunkErr) {
+                            lastError = chunkErr instanceof Error
+                                ? chunkErr
+                                : new Error(`Gagal menyimpan batch ke-${i + 1}`);
+                            if (attempt < 2) {
+                                await new Promise((resolve) => setTimeout(resolve, 600));
+                            }
+                        }
+                    }
+
+                    if (lastError) {
+                        throw lastError;
                     }
 
                     processedSoFar += chunkRows.length;
                     setCurrent(processedSoFar);
                     setPercent(Math.round(20 + ((i + 1) / chunksCount) * 80));
+                    clearCustomerCaches();
                 }
 
                 clearCustomerCaches();

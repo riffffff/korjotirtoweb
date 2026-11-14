@@ -8,6 +8,7 @@ export type DashboardData = DashboardStatsDTO;
 let dashboardCache: DashboardData | null = null;
 let dashboardCacheTime = 0;
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+const dashboardListeners = new Set<() => void>();
 
 /**
  * Hook for fetching dashboard data with stale-while-revalidate caching
@@ -51,6 +52,13 @@ export function useDashboard() {
 
     useEffect(() => {
         fetchData();
+        const onCacheCleared = () => {
+            void fetchData(true);
+        };
+        dashboardListeners.add(onCacheCleared);
+        return () => {
+            dashboardListeners.delete(onCacheCleared);
+        };
     }, [fetchData]);
 
     // Force refresh and clear cache
@@ -64,9 +72,10 @@ export function useDashboard() {
 }
 
 /**
- * Utility to clear dashboard cache
+ * Utility to clear dashboard cache and notify active subscribers
  */
 export function clearDashboardCache() {
     dashboardCache = null;
     dashboardCacheTime = 0;
+    dashboardListeners.forEach((listener) => listener());
 }
