@@ -35,10 +35,14 @@ export default function HomePage() {
   type SortOption = 'number_asc' | 'name_asc' | 'unpaid_desc';
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [sortBy, setSortBy] = useState<SortOption>('number_asc');
+  const [tempStatusFilter, setTempStatusFilter] = useState<StatusFilter>('ALL');
+  const [tempSortBy, setTempSortBy] = useState<SortOption>('number_asc');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isFilterAnimating, setIsFilterAnimating] = useState(false);
 
   const openFilter = () => {
+    setTempStatusFilter(statusFilter);
+    setTempSortBy(sortBy);
     setIsFilterOpen(true);
     setTimeout(() => {
       setIsFilterAnimating(true);
@@ -50,6 +54,12 @@ export default function HomePage() {
     setTimeout(() => {
       setIsFilterOpen(false);
     }, 280);
+  };
+
+  const handleApplyFilter = () => {
+    setStatusFilter(tempStatusFilter);
+    setSortBy(tempSortBy);
+    closeFilter();
   };
 
   const hasActiveFilters = statusFilter !== 'ALL' || sortBy !== 'number_asc';
@@ -325,15 +335,14 @@ export default function HomePage() {
                         <SlidersHorizontal className="w-4 h-4 text-blue-600" />
                         <span className="font-semibold text-neutral-800 text-sm">Filter & Urutkan</span>
                       </div>
-                      {hasActiveFilters && (
-                        <button
-                          type="button"
-                          onClick={handleResetFilters}
-                          className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline"
-                        >
-                          Reset
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={closeFilter}
+                        className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        aria-label="Tutup"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* Status Filter */}
@@ -348,9 +357,9 @@ export default function HomePage() {
                           <button
                             key={opt.id}
                             type="button"
-                            onClick={() => setStatusFilter(opt.id as StatusFilter)}
+                            onClick={() => setTempStatusFilter(opt.id as StatusFilter)}
                             className={`py-1.5 px-1 text-xs text-center rounded-lg transition-colors ${
-                              statusFilter === opt.id
+                              tempStatusFilter === opt.id
                                 ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
                                 : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border border-transparent'
                             }`}
@@ -367,24 +376,35 @@ export default function HomePage() {
                       <div className="space-y-1">
                         {[
                           { id: 'number_asc', label: 'Nomor Pelanggan' },
-                          { id: 'name_asc', label: 'Nama (A - Z)' },
+                          { id: 'name_asc', label: 'Nama Pelanggan (A-Z)' },
                           { id: 'unpaid_desc', label: 'Tagihan Terbanyak' },
                         ].map((opt) => (
                           <button
                             key={opt.id}
                             type="button"
-                            onClick={() => setSortBy(opt.id as SortOption)}
+                            onClick={() => setTempSortBy(opt.id as SortOption)}
                             className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors ${
-                              sortBy === opt.id
+                              tempSortBy === opt.id
                                 ? 'bg-blue-50 text-blue-700 font-semibold'
                                 : 'hover:bg-neutral-50 text-neutral-600'
                             }`}
                           >
                             <span>{opt.label}</span>
-                            {sortBy === opt.id && <Check className="w-4 h-4 text-blue-600" />}
+                            {tempSortBy === opt.id && <Check className="w-4 h-4 text-blue-600" />}
                           </button>
                         ))}
                       </div>
+                    </div>
+
+                    {/* Apply Button */}
+                    <div className="pt-2 border-t border-neutral-100">
+                      <button
+                        type="button"
+                        onClick={handleApplyFilter}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        Terapkan
+                      </button>
                     </div>
                   </div>
 
@@ -413,29 +433,18 @@ export default function HomePage() {
                           <SlidersHorizontal className="w-4 h-4 text-blue-600" />
                           <h3 className="font-bold text-neutral-800 text-sm">Filter & Urutkan</h3>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {hasActiveFilters && (
-                            <button
-                              type="button"
-                              onClick={handleResetFilters}
-                              className="text-xs text-blue-600 font-semibold hover:underline"
-                            >
-                              Reset
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={closeFilter}
-                            className="p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
-                            aria-label="Tutup"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={closeFilter}
+                          className="p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                          aria-label="Tutup"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
 
                       {/* Content Body - Compact, fits on one screen without scroll */}
-                      <div className="px-5 pt-4 pb-6 space-y-4">
+                      <div className="px-5 pt-4 pb-4 space-y-4">
                         {/* Status Tagihan */}
                         <div>
                           <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
@@ -450,9 +459,9 @@ export default function HomePage() {
                               <button
                                 key={opt.id}
                                 type="button"
-                                onClick={() => setStatusFilter(opt.id as StatusFilter)}
+                                onClick={() => setTempStatusFilter(opt.id as StatusFilter)}
                                 className={`py-2 px-1 text-xs text-center rounded-xl transition-all font-medium border ${
-                                  statusFilter === opt.id
+                                  tempStatusFilter === opt.id
                                     ? 'bg-blue-50 text-blue-700 font-bold border-blue-500 shadow-xs'
                                     : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border-neutral-200/70'
                                 }`}
@@ -471,25 +480,36 @@ export default function HomePage() {
                           <div className="space-y-1.5">
                             {[
                               { id: 'number_asc', label: 'Nomor Pelanggan' },
-                              { id: 'name_asc', label: 'Nama (A - Z)' },
+                              { id: 'name_asc', label: 'Nama Pelanggan (A-Z)' },
                               { id: 'unpaid_desc', label: 'Tagihan Terbanyak' },
                             ].map((opt) => (
                               <button
                                 key={opt.id}
                                 type="button"
-                                onClick={() => setSortBy(opt.id as SortOption)}
+                                onClick={() => setTempSortBy(opt.id as SortOption)}
                                 className={`w-full flex items-center justify-between px-3.5 py-2.5 text-xs rounded-xl transition-all border ${
-                                  sortBy === opt.id
+                                  tempSortBy === opt.id
                                     ? 'bg-blue-50 text-blue-700 font-bold border-blue-200'
                                     : 'bg-white hover:bg-neutral-50 text-neutral-700 border-neutral-200/60 font-medium'
                                 }`}
                               >
                                 <span>{opt.label}</span>
-                                {sortBy === opt.id && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                                {tempSortBy === opt.id && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
                               </button>
                             ))}
                           </div>
                         </div>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="p-4 border-t border-neutral-100 bg-white shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleApplyFilter}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
+                        >
+                          Terapkan
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -531,7 +551,7 @@ export default function HomePage() {
               {sortBy !== 'number_asc' && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   <span>
-                    {sortBy === 'name_asc' ? 'Nama A-Z' : 'Tagihan Terbanyak'}
+                    {sortBy === 'name_asc' ? 'Nama Pelanggan (A-Z)' : 'Tagihan Terbanyak'}
                   </span>
                   <button
                     type="button"
