@@ -129,7 +129,7 @@ export default function OnlinePaymentSection({
         setError(null);
         const trimmedPhone = phone.trim();
         if (!trimmedPhone || !/^[0-9+\-\s()]{8,20}$/.test(trimmedPhone)) {
-            setError('Nomor WhatsApp tidak valid (minimal 8 digit)');
+            setError('Nomor WhatsApp tidak valid');
             return;
         }
         if (!proof) {
