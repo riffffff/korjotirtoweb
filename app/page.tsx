@@ -16,7 +16,7 @@ import { formatDateTime } from '@/lib/formatDate';
 import CustomerForm from '@/components/customer/CustomerForm';
 import SearchInput from '@/components/ui/SearchInput';
 import Logo from '@/components/ui/Logo';
-import { BarChart3, Check, FileUp, Loader2, Plus, Search, SlidersHorizontal, UserPlus, X } from 'lucide-react';
+import { BarChart3, Check, FileUp, Loader2, Plus, RotateCcw, Search, SlidersHorizontal, UserPlus, X } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/ui/Icons';
 
 export default function HomePage() {
@@ -531,44 +531,48 @@ export default function HomePage() {
 
           {/* Active Filter Chips */}
           {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-              <span className="text-neutral-400">Filter aktif:</span>
-              {statusFilter !== 'ALL' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  <span>
-                    {statusFilter === 'UNPAID' ? 'Belum Lunas' : 'Lunas'}
+            <div className="flex items-center justify-between gap-2 pt-1 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                <span className="text-neutral-400 shrink-0">Filter aktif:</span>
+                {statusFilter !== 'ALL' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                    <span>
+                      {statusFilter === 'UNPAID' ? 'Belum Lunas' : 'Lunas'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('ALL')}
+                      className="hover:text-blue-900 rounded-full"
+                      title="Hapus filter status"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('ALL')}
-                    className="hover:text-blue-900 rounded-full"
-                    title="Hapus filter status"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {sortBy !== 'number_asc' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                  <span>
-                    {sortBy === 'name_asc' ? 'Nama Pelanggan (A-Z)' : 'Tagihan Terbanyak'}
+                )}
+                {sortBy !== 'number_asc' && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+                    <span>
+                      {sortBy === 'name_asc' ? 'Nama Pelanggan (A-Z)' : 'Tagihan Terbanyak'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSortBy('number_asc')}
+                      className="hover:text-blue-900 rounded-full"
+                      title="Hapus urutan"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('number_asc')}
-                    className="hover:text-blue-900 rounded-full"
-                    title="Hapus urutan"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
+                )}
+              </div>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="text-neutral-400 hover:text-neutral-600 hover:underline ml-1"
+                className="inline-flex items-center gap-1 text-neutral-400 hover:text-neutral-700 hover:underline shrink-0 ml-auto transition-colors"
+                title="Reset semua filter"
               >
-                Reset Semua
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
               </button>
             </div>
           )}
