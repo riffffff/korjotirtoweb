@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
@@ -85,6 +85,12 @@ export default function ImportPage() {
         XLSX.writeFile(workbook, `Log-Error-Import-${selectedPeriod}.xlsx`);
     };
 
+    useEffect(() => {
+        if (!authLoading && !isAdmin) {
+            router.push('/');
+        }
+    }, [authLoading, isAdmin, router]);
+
     const importLoading = (
         <AppLayout>
             <PageHeader title="Import Tagihan" actions={<DashboardNavigationButton />} />
@@ -94,11 +100,7 @@ export default function ImportPage() {
         </AppLayout>
     );
 
-    if (authLoading) return importLoading;
-    if (!isAdmin) {
-        router.push('/');
-        return importLoading;
-    }
+    if (authLoading || !isAdmin) return importLoading;
 
     return (
         <AppLayout>

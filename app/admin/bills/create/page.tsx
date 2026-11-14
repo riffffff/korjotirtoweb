@@ -53,6 +53,12 @@ export default function CreateBillsPage() {
         }
     };
 
+    useEffect(() => {
+        if (!authLoading && !isAdmin) {
+            router.push('/');
+        }
+    }, [authLoading, isAdmin, router]);
+
     const createBillsLoading = (
         <AppLayout>
             <PageHeader title="Tambah Tagihan per Periode" subtitle="Buat tagihan untuk semua pelanggan" actions={<DashboardNavigationButton />} />
@@ -62,11 +68,7 @@ export default function CreateBillsPage() {
         </AppLayout>
     );
 
-    if (authLoading) return createBillsLoading;
-    if (!isAdmin) {
-        router.push('/');
-        return createBillsLoading;
-    }
+    if (authLoading || !isAdmin) return createBillsLoading;
 
     return (
         <AppLayout>

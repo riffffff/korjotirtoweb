@@ -86,6 +86,12 @@ export default function SettingsPage() {
         }
     };
 
+    useEffect(() => {
+        if (!authLoading && !isAdmin) {
+            router.push('/');
+        }
+    }, [authLoading, isAdmin, router]);
+
     const settingsLoading = (
         <AppLayout>
             <PageHeader title="Pengaturan" subtitle="Atur template pesan WhatsApp" actions={<DashboardNavigationButton />} />
@@ -95,11 +101,7 @@ export default function SettingsPage() {
         </AppLayout>
     );
 
-    if (authLoading) return settingsLoading;
-    if (!isAdmin) {
-        router.push('/');
-        return settingsLoading;
-    }
+    if (authLoading || !isAdmin) return settingsLoading;
 
     if (loading && !isInitialized) {
         return settingsLoading;
