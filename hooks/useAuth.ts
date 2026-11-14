@@ -36,7 +36,9 @@ function loadSession(): Promise<User | null> {
     if (!sessionRequest) {
         sessionRequest = authClient.getSession()
             .then((session) => {
-                const user: User = { username: session.username, role: session.role };
+                const user: User | null = session && session.authenticated !== false && session.username && session.role
+                    ? { username: session.username, role: session.role }
+                    : null;
                 publishSession(user);
                 return user;
             })

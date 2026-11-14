@@ -127,6 +127,11 @@ export default function OnlinePaymentSection({
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setError(null);
+        const trimmedPhone = phone.trim();
+        if (!trimmedPhone || !/^[0-9+\-\s()]{8,20}$/.test(trimmedPhone)) {
+            setError('Nomor WhatsApp tidak valid (minimal 8 digit)');
+            return;
+        }
         if (!proof) {
             setError('Pilih gambar bukti pembayaran terlebih dahulu');
             return;
@@ -141,7 +146,7 @@ export default function OnlinePaymentSection({
             const finalProof = await compressImage(proof);
             const response = await paymentProofClient.create({
                 customerId,
-                phone,
+                phone: trimmedPhone,
                 amount: numericAmount,
                 proof: finalProof,
                 note,
