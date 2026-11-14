@@ -8,6 +8,7 @@ import { DashboardNavigationButton } from '@/components/admin/AdminPageNavigatio
 import { LogOut } from 'lucide-react';
 import LoadingState from '@/components/state/LoadingState';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import PageHeader from '@/components/layout/PageHeader';
 import AppLayout from '@/components/layout/AppLayout';
 
@@ -31,6 +32,8 @@ export default function SettingsPage() {
     const [paymentDraft, setPaymentDraft] = useState<Record<string, string>>({});
     const [savedPaymentDraft, setSavedPaymentDraft] = useState<Record<string, string>>({});
     const [isInitialized, setIsInitialized] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const currentTemplate = useMemo(() => templateDraft, [templateDraft]);
 
@@ -217,12 +220,7 @@ export default function SettingsPage() {
                         <Button
                             type="button"
                             variant="danger"
-                            onClick={async () => {
-                                if (confirm('Apakah Anda yakin ingin keluar dari akun admin?')) {
-                                    await logout();
-                                    router.push('/');
-                                }
-                            }}
+                            onClick={() => setShowLogoutConfirm(true)}
                             className="w-full sm:w-auto"
                         >
                             <LogOut className="w-4 h-4 mr-2" />
@@ -230,6 +228,45 @@ export default function SettingsPage() {
                         </Button>
                     </div>
                 </div>
+
+                <Modal
+                    isOpen={showLogoutConfirm}
+                    onClose={() => !isLoggingOut && setShowLogoutConfirm(false)}
+                    title="Konfirmasi Keluar"
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-neutral-600">
+                            Apakah Anda yakin ingin keluar dari akun administrator?
+                        </p>
+                        <div className="flex justify-end gap-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowLogoutConfirm(false)}
+                                disabled={isLoggingOut}
+                                className="px-4 py-2 rounded-xl border border-neutral-200 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    setIsLoggingOut(true);
+                                    try {
+                                        await logout();
+                                        setShowLogoutConfirm(false);
+                                        router.push('/');
+                                    } finally {
+                                        setIsLoggingOut(false);
+                                    }
+                                }}
+                                disabled={isLoggingOut}
+                                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                            >
+                                {isLoggingOut ? 'Keluar...' : 'Ya, Keluar'}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             </main>
         </AppLayout>
     );

@@ -16,12 +16,12 @@ import { formatDateTime } from '@/lib/formatDate';
 import CustomerForm from '@/components/customer/CustomerForm';
 import SearchInput from '@/components/ui/SearchInput';
 import Logo from '@/components/ui/Logo';
-import { BarChart3, FileUp, Loader2, LogOut, Plus, Search, UserPlus, X } from 'lucide-react';
+import { BarChart3, FileUp, Loader2, Plus, Search, UserPlus, X } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/ui/Icons';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAdmin, isLoading: authLoading, logout } = useAuth();
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const { settings } = useSettings();
   const { customers, loading, error, refetch } = useCustomers();
   const [search, setSearch] = useState('');
@@ -175,19 +175,6 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (confirm('Apakah Anda yakin ingin keluar dari akun admin?')) {
-                    await logout();
-                    router.push('/');
-                  }
-                }}
-                className="p-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
-                title="Keluar"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           )}
         </div>
