@@ -27,7 +27,7 @@ export default function OnlinePaymentSection({
     embedded = false,
 }: OnlinePaymentSectionProps) {
     const [phone, setPhone] = useState(defaultPhone || '');
-    const [amount, setAmount] = useState(String(totalAmount));
+    const [amount, setAmount] = useState('');
     const [note, setNote] = useState('');
     const [proof, setProof] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -50,7 +50,6 @@ export default function OnlinePaymentSection({
                         message: 'Bukti pembayaran sedang menunggu konfirmasi admin.',
                     });
                 } else if (latest.status === 'APPROVED') {
-                    setAmount(String(latest.amount));
                     setPhone(latest.phone);
                     setResult({
                         id: latest.id,
@@ -71,11 +70,11 @@ export default function OnlinePaymentSection({
         };
     }, [customerId]);
 
-    const formattedAmount = formatCurrency(Number(amount) || 0);
+    const formattedAmount = amount ? formatCurrency(Number(amount)) : '';
 
     const handleAmountChange = (value: string) => {
         const digits = value.replace(/\D/g, '');
-        setAmount(digits || '0');
+        setAmount(digits);
     };
 
     const whatsappUrl = useMemo(() => {
@@ -101,13 +100,18 @@ export default function OnlinePaymentSection({
             setError('Pilih gambar bukti pembayaran terlebih dahulu');
             return;
         }
+        const numericAmount = Number(amount);
+        if (!numericAmount || numericAmount <= 0) {
+            setError('Masukkan nominal transfer yang valid');
+            return;
+        }
         setSubmitting(true);
         try {
             const finalProof = await compressImage(proof);
             const response = await paymentProofClient.create({
                 customerId,
                 phone,
-                amount: Number(amount),
+                amount: numericAmount,
                 proof: finalProof,
                 note,
             });
@@ -178,7 +182,7 @@ export default function OnlinePaymentSection({
                     </div>
                     <div>
                         <label htmlFor="online-payment-amount" className="text-xs text-neutral-600 block mb-1">Nominal transfer</label>
-                        <input id="online-payment-amount" type="text" inputMode="numeric" minLength={1} value={formattedAmount} onChange={(event) => handleAmountChange(event.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-neutral-200 text-sm" />
+                        <input id="online-payment-amount" type="text" inputMode="numeric" placeholder="Contoh: 50.000" value={formattedAmount} onChange={(event) => handleAmountChange(event.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-neutral-200 text-sm" />
                     </div>
                     <div>
                         <label htmlFor="online-payment-proof" className="text-xs text-neutral-600 block mb-1">Bukti pembayaran</label>
