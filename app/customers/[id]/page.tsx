@@ -1,5 +1,6 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useCustomerDetail, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +19,7 @@ import CustomerForm from '@/components/customer/CustomerForm';
 import Button from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { formatDateShort, formatDateTime, formatPeriod } from '@/lib/formatDate';
-import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/ui/Icons';
 
 export default function CustomerDetailPage() {
@@ -209,24 +210,41 @@ export default function CustomerDetailPage() {
     return (<>
         <AppLayout>
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+                {/* Desktop Breadcrumbs */}
+                <div className="hidden md:flex items-center gap-2 text-sm text-neutral-500">
+                    <Link href="/" className="hover:text-blue-600 transition-colors">
+                        Pelanggan
+                    </Link>
+                    <span>/</span>
+                    <span className="text-neutral-800 font-medium">{customer.name}</span>
+                </div>
+
                 {/* Customer Header */}
                 <div className="bg-white rounded-xl p-4 border border-neutral-200">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="text-blue-600 font-bold text-xl">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                            <Link
+                                href="/"
+                                aria-label="Kembali ke Daftar Pelanggan"
+                                title="Kembali ke Daftar Pelanggan"
+                                className="w-10 h-10 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 flex items-center justify-center transition-colors shrink-0"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                            </Link>
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                                <span className="text-blue-600 font-bold text-lg md:text-xl">
                                     {customer.customerNumber}
                                 </span>
                             </div>
-                            <div>
-                                <h1 className="text-xl font-bold text-neutral-800">{customer.name}</h1>
+                            <div className="min-w-0">
+                                <h1 className="text-lg md:text-xl font-bold text-neutral-800 truncate">{customer.name}</h1>
                                 {customer.phone && (
-                                    <p className="text-sm text-neutral-500">{customer.phone}</p>
+                                    <p className="text-xs md:text-sm text-neutral-500 truncate">{customer.phone}</p>
                                 )}
                             </div>
                         </div>
                         {isAdmin && (
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 shrink-0">
                                 <button
                                     onClick={() => setShowEditModal(true)}
                                     className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
