@@ -1,77 +1,42 @@
 'use client';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { clearCustomerCaches } from '@/hooks/useCustomer';
-import { customerClient as customerService } from '@/services/client/customer.client';
 import AppLayout from '@/components/layout/AppLayout';
 import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
-import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
 import PasswordConfirm from '@/components/ui/PasswordConfirm';
-import { FileSpreadsheet, Upload, Download, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import {
+    FileSpreadsheet,
+    UploadCloud,
+    Download,
+    AlertCircle,
+    CheckCircle2,
+    Calendar,
+    X,
+    Loader2,
+    Info,
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PageHeader from '@/components/layout/PageHeader';
 import { useImportJob } from '@/context/ImportJobContext';
-
-interface ImportErrorItem {
-    excelRow: number;
-    customerNumber: number;
-    name: string;
-    issueType:
-        | 'NAMA_TIDAK_COCOK'
-        | 'METER_AWAL_TIDAK_COCOK'
-        | 'METER_AKHIR_INVALID'
-        | 'DUPLIKASI_DATA'
-        | 'KALKULASI_PEMAKAIAN_INVALID'
-        | 'KALKULASI_TARIF_INVALID';
-    excelValue: string;
-    systemValue: string;
-    message: string;
-}
-
-interface ImportProgress {
-    type: 'status' | 'progress' | 'complete' | 'error';
-    message?: string;
-    percent?: number;
-    current?: number;
-    total?: number;
-    currentName?: string;
-    added?: number;
-    newCustomers?: number;
-    existingUpdated?: number;
-    skipped?: number;
-    failed?: number;
-    errors?: ImportErrorItem[];
-}
 
 export default function ImportPage() {
     const router = useRouter();
     const { isAdmin, isLoading: authLoading } = useAuth();
     const job = useImportJob();
-    const [clearing, setClearing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [clearSuccess, setClearSuccess] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [showInfo, setShowInfo] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Password confirmation states
+    // Password confirmation modal state
     const [showImportConfirm, setShowImportConfirm] = useState(false);
-    const [showClearConfirm, setShowClearConfirm] = useState(false);
-    const [showDeletePeriodConfirm, setShowDeletePeriodConfirm] = useState(false);
-
-    // Delete by period states
-    const [deletingPeriod, setDeletingPeriod] = useState(false);
-    const [deletePeriodValue, setDeletePeriodValue] = useState(() => {
-        const now = new Date();
-        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    });
-    const [deletePeriodSuccess, setDeletePeriodSuccess] = useState<string | null>(null);
 
     const isRunning = job.status === 'validating' || job.status === 'importing';
 
@@ -128,7 +93,6 @@ export default function ImportPage() {
     const handleImportConfirmed = async () => {
         setShowImportConfirm(false);
         setError(null);
-        setClearSuccess(false);
 
         if (!selectedFile) return;
         const fileToUpload = selectedFile;
@@ -160,75 +124,26 @@ export default function ImportPage() {
         ];
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Error Validasi');
-        XLSX.writeFile(workbook, `Log-Error-Import-Tagihan-${job.period || selectedPeriod}.xlsx`);
-    };
-
-    const handleClearClick = () => {
-        setShowClearConfirm(true);
-    };
-
-    const handleClearConfirmed = async () => {
-        setShowClearConfirm(false);
-        setClearing(true);
-        setError(null);
-        setClearSuccess(false);
-        job.dismissJob();
-
-        try {
-            const response = await customerService.clearAll();
-            if (response.success) {
-                clearCustomerCaches();
-                setClearSuccess(true);
-            } else {
-                setError(response.error || 'Gagal menghapus data');
-            }
-        } catch (err) {
-            console.error('Clear failed:', err);
-            setError('Gagal menghapus data. Cek console untuk detail.');
-        } finally {
-            setClearing(false);
-        }
+        XLSX.writeFile(workbook, `Log-Error-Import-Tagihan-${selectedPeriod}.xlsx`);
     };
 
     const formatPeriod = (period: string) => {
         const [year, month] = period.split('-');
-        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        return `${months[parseInt(month) - 1]} ${year}`;
+        const months = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+        ];
+        return `${months[parseInt(month) - 1] ?? month} ${year}`;
     };
-
-    const handleDeletePeriodClick = () => {
-        setShowDeletePeriodConfirm(true);
-    };
-
-    const handleDeletePeriodConfirmed = async () => {
-        setShowDeletePeriodConfirm(false);
-        setDeletingPeriod(true);
-        setError(null);
-        setDeletePeriodSuccess(null);
-
-        try {
-            const response = await customerService.deleteBillsByPeriod(deletePeriodValue);
-            if (response.success) {
-                clearCustomerCaches();
-                setDeletePeriodSuccess(`Berhasil menghapus ${response.count} tagihan periode ${formatPeriod(deletePeriodValue)}`);
-            } else {
-                setError(response.error || 'Gagal menghapus tagihan periode');
-            }
-        } catch (err) {
-            console.error('Delete period failed:', err);
-            setError('Gagal menghapus tagihan. Cek console untuk detail.');
-        } finally {
-            setDeletingPeriod(false);
-        }
-    };
-
-    const isProcessing = isRunning || clearing || deletingPeriod;
 
     const importLoading = (
         <AppLayout>
-            <PageHeader title="Import Tagihan" subtitle="Import tagihan bulanan dari Excel" actions={<DashboardNavigationButton />} />
-            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+            <PageHeader
+                title="Import Tagihan"
+                subtitle="Import tagihan bulanan dari Excel"
+                actions={<DashboardNavigationButton />}
+            />
+            <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 md:py-8 space-y-4">
                 <LoadingState variant="skeleton-import" />
             </main>
         </AppLayout>
@@ -242,189 +157,222 @@ export default function ImportPage() {
 
     return (
         <AppLayout>
-            <PageHeader title="Import Tagihan" subtitle="Import tagihan bulanan dari Excel" actions={<DashboardNavigationButton />} />
+            <PageHeader
+                title="Import Tagihan"
+                subtitle="Sinkronisasi tagihan bulanan dari file Excel"
+                actions={<DashboardNavigationButton />}
+            />
 
-            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
+            <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 md:py-8 space-y-5">
                 <AdminPageNavigation backHref="/admin/dashboard" />
 
-                {/* Period Selector */}
-                <section className="bg-white rounded-xl border border-neutral-200 p-4">
-                    <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Periode Tagihan
-                    </label>
-                    <input
-                        type="month"
-                        value={selectedPeriod}
-                        onChange={(e) => setSelectedPeriod(e.target.value)}
-                        disabled={isProcessing}
-                        className="w-full px-4 py-3 bg-white rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
-                    />
-                    <p className="text-xs text-neutral-500 mt-2">
-                        Tagihan akan dibuat untuk periode: <strong>{formatPeriod(selectedPeriod)}</strong>
-                    </p>
-                </section>
+                {/* Main Minimalist Import Card */}
+                <div className="bg-white rounded-3xl border border-neutral-200/80 shadow-sm p-6 sm:p-8 space-y-6">
+                    {/* Period Selector Section */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs sm:text-sm font-bold text-neutral-800 flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-blue-600" />
+                                Periode Tagihan
+                            </label>
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                                {formatPeriod(selectedPeriod)}
+                            </span>
+                        </div>
+                        <input
+                            type="month"
+                            value={selectedPeriod}
+                            onChange={(e) => setSelectedPeriod(e.target.value)}
+                            disabled={isRunning}
+                            className="w-full px-4 py-3 bg-neutral-50 hover:bg-neutral-100/70 focus:bg-white rounded-2xl border border-neutral-200/90 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-neutral-800 font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base outline-none"
+                        />
+                    </div>
 
-                {/* Drop Zone */}
-                <div
-                    onDragOver={!isProcessing ? handleDragOver : undefined}
-                    onDragLeave={!isProcessing ? handleDragLeave : undefined}
-                    onDrop={!isProcessing ? handleDrop : undefined}
-                    onClick={() => !isProcessing && fileInputRef.current?.click()}
-                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all ${isProcessing
-                            ? 'border-neutral-200 bg-neutral-50 cursor-not-allowed opacity-60'
-                            : isDragging
-                                ? 'border-blue-500 bg-blue-50 cursor-pointer'
-                                : selectedFile
-                                    ? 'border-green-400 bg-green-50 cursor-pointer'
-                                    : 'border-neutral-300 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
-                        }`}
-                >
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".xlsx,.xls"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        disabled={isProcessing}
-                    />
-
-                    {selectedFile ? (
-                        <div className="space-y-2">
-                            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
-                                <FileSpreadsheet className="w-8 h-8 text-green-600" />
-                            </div>
-                            <p className="font-semibold text-green-700">{selectedFile.name}</p>
-                            <p className="text-sm text-green-600">
-                                {(selectedFile.size / 1024).toFixed(1)} KB
-                            </p>
-                            {!isProcessing && (
+                    {/* File Dropzone Section */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs sm:text-sm font-bold text-neutral-800 flex items-center gap-2">
+                                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                                File Spreadsheet Excel
+                            </label>
+                            {selectedFile && (
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedFile(null);
-                                    }}
-                                    className="text-sm text-red-500 hover:text-red-600"
+                                    type="button"
+                                    onClick={() => setSelectedFile(null)}
+                                    disabled={isRunning}
+                                    className="text-xs text-rose-600 hover:text-rose-700 font-semibold hover:underline cursor-pointer"
                                 >
-                                    Hapus file
+                                    Ganti File
                                 </button>
                             )}
                         </div>
-                    ) : (
-                        <div className="space-y-2">
-                            <div className="w-16 h-16 mx-auto bg-neutral-100 rounded-full flex items-center justify-center">
-                                <Upload className="w-8 h-8 text-neutral-500" />
+
+                        {!selectedFile ? (
+                            <div
+                                onDragOver={!isRunning ? handleDragOver : undefined}
+                                onDragLeave={!isRunning ? handleDragLeave : undefined}
+                                onDrop={!isRunning ? handleDrop : undefined}
+                                onClick={() => !isRunning && fileInputRef.current?.click()}
+                                className={`group relative border-2 border-dashed rounded-2xl p-7 sm:p-9 text-center transition-all cursor-pointer ${
+                                    isDragging
+                                        ? 'border-blue-500 bg-blue-50/50 scale-[0.99]'
+                                        : 'border-neutral-200/90 bg-neutral-50/40 hover:border-blue-400 hover:bg-blue-50/20'
+                                } ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            >
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                    disabled={isRunning}
+                                />
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-13 h-13 rounded-2xl bg-white shadow-sm border border-neutral-200/60 flex items-center justify-center text-blue-600 group-hover:scale-105 group-hover:border-blue-300 transition-all">
+                                        <UploadCloud className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm sm:text-base font-bold text-neutral-800">
+                                            {isDragging ? 'Lepaskan file di sini' : 'Pilih atau Tarik File Excel'}
+                                        </p>
+                                        <p className="text-xs text-neutral-500 mt-1">
+                                            Mendukung format <span className="font-semibold text-neutral-700">.xlsx</span> atau <span className="font-semibold text-neutral-700">.xls</span>
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="font-semibold text-neutral-700">
-                                {isDragging ? 'Drop file di sini' : 'Drag & drop file Excel'}
-                            </p>
-                            <p className="text-sm text-neutral-500">atau klik untuk pilih file</p>
+                        ) : (
+                            <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-2xl p-4 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                        <FileSpreadsheet className="w-6 h-6" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-neutral-800 truncate">
+                                            {selectedFile.name}
+                                        </p>
+                                        <p className="text-xs text-emerald-700 mt-0.5">
+                                            {(selectedFile.size / 1024).toFixed(1)} KB • Siap diimpor
+                                        </p>
+                                    </div>
+                                </div>
+                                {!isRunning && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedFile(null)}
+                                        className="p-2 rounded-xl text-neutral-400 hover:text-rose-600 hover:bg-white transition-all cursor-pointer"
+                                        title="Hapus file"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Inline Progress (Clean & Modern) */}
+                    {isRunning && (
+                        <div className="bg-blue-50/70 border border-blue-200/70 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in duration-200">
+                            <div className="flex items-center justify-between text-xs sm:text-sm">
+                                <span className="font-bold text-blue-950 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                                    Memproses Import Data ({job.percent}%)
+                                </span>
+                                {job.totalChunks > 0 && (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">
+                                        Batch {job.currentChunk} / {job.totalChunks}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="w-full bg-blue-100/80 rounded-full h-2 overflow-hidden">
+                                <div
+                                    className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                                    style={{ width: `${job.percent}%` }}
+                                />
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-blue-700">
+                                <span className="truncate max-w-[280px]">{job.message}</span>
+                                {job.total > 0 && (
+                                    <span className="shrink-0">{job.current} dari {job.total} baris</span>
+                                )}
+                            </div>
                         </div>
                     )}
-                </div>
 
-                {/* Active Progress Card (Non-blocking: user can browse other pages freely!) */}
-                {isRunning && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-blue-100 rounded-xl text-blue-600 shrink-0">
-                                    <FileSpreadsheet className="w-5 h-5 animate-pulse" />
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-bold text-blue-900">
-                                        Proses Import Sedang Berjalan ({job.percent}%)
-                                    </h4>
-                                    <p className="text-xs text-blue-700 mt-0.5">
-                                        {job.message}
-                                    </p>
-                                </div>
+                    {/* Error Alert */}
+                    {error && (
+                        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center justify-between gap-3 text-rose-700 text-xs sm:text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                                <span>{error}</span>
                             </div>
-                            {job.totalChunks > 0 && (
-                                <span className="text-xs font-bold px-2.5 py-1 bg-blue-200/80 text-blue-800 rounded-lg shrink-0">
-                                    Batch {job.currentChunk} / {job.totalChunks}
-                                </span>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => setError(null)}
+                                className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
+                    )}
 
-                        {/* Progress bar */}
-                        <div className="w-full bg-blue-200/60 rounded-full h-3 overflow-hidden">
-                            <div
-                                className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
-                                style={{ width: `${job.percent}%` }}
-                            />
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-blue-600">
-                            <span>
-                                {job.total > 0 ? `${job.current} dari ${job.total} baris pelanggan` : 'Memverifikasi data Excel...'}
-                            </span>
-                            <span className="text-[11px] text-blue-700 italic font-medium">
-                                💡 Anda bebas membuka halaman lain (Dashboard, Pelanggan, dll). Progress tetap berjalan.
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Actions */}
-                <div className="space-y-2">
-                    <Button
+                    {/* Submit Button */}
+                    <button
+                        type="button"
                         onClick={handleImportClick}
-                        loading={isRunning}
-                        variant="primary"
-                        className="w-full"
-                        disabled={isRunning || clearing || deletingPeriod || !selectedFile}
+                        disabled={isRunning || !selectedFile}
+                        className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                            isRunning || !selectedFile
+                                ? 'bg-neutral-100 text-neutral-400 border border-neutral-200/80 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white shadow-md shadow-blue-500/20'
+                        }`}
                     >
-                        {isRunning ? 'Sedang Memproses...' : 'Import Data'}
-                    </Button>
+                        {isRunning ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Sedang Mengimpor Data...</span>
+                            </>
+                        ) : (
+                            <>
+                                <UploadCloud className="w-4 h-4" />
+                                <span>Import Tagihan {formatPeriod(selectedPeriod)}</span>
+                            </>
+                        )}
+                    </button>
                 </div>
 
-                {/* Delete Period Success */}
-                {deletePeriodSuccess && (
-                    <div className="bg-green-50 rounded-xl p-4">
-                        <p className="text-green-700 font-medium">{deletePeriodSuccess}</p>
-                    </div>
-                )}
-
-                {/* Clear Success */}
-                {clearSuccess && (
-                    <div className="bg-green-50 rounded-xl p-4">
-                        <p className="text-green-700 font-medium">Data berhasil dihapus!</p>
-                        <p className="text-sm text-green-600 mt-1">Silakan import data baru.</p>
-                    </div>
-                )}
-
-                {/* Error Display & Download Log Error */}
+                {/* Validation Errors Section (If validation fails) */}
                 {job.errors && job.errors.length > 0 && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-4">
+                    <div className="bg-rose-50 border border-rose-200 rounded-3xl p-5 sm:p-6 space-y-4 animate-in fade-in duration-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div className="flex items-start gap-3">
-                                <div className="p-2 bg-red-100 rounded-lg text-red-600 mt-0.5 shrink-0">
+                                <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
                                     <AlertCircle className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h4 className="text-base font-bold text-red-800">
-                                        Import Dibatalkan (Database Tetap Aman)
+                                    <h4 className="text-sm sm:text-base font-bold text-rose-950">
+                                        Import Dibatalkan (Database Aman)
                                     </h4>
-                                    <p className="text-sm text-red-600 mt-0.5">
-                                        Ditemukan <strong>{job.errors.length}</strong> data tidak sesuai verifikasi 3 lapis. Transaksi dibatalkan secara penuh sehingga tidak ada data yang masuk atau berubah di database.
+                                    <p className="text-xs text-rose-700 mt-0.5">
+                                        Ditemukan <strong>{job.errors.length}</strong> baris data tidak sesuai verifikasi 3 lapis. Tidak ada data yang tersimpan.
                                     </p>
                                 </div>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleDownloadErrorExcel}
-                                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors cursor-pointer"
+                                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all cursor-pointer"
                             >
-                                <Download className="w-4 h-4" />
+                                <Download className="w-3.5 h-3.5" />
                                 Download Log Error (.xlsx)
                             </button>
                         </div>
 
-                        {/* Scrollable Error Table */}
-                        <div className="overflow-hidden border border-red-200 rounded-lg bg-white">
-                            <div className="max-h-72 overflow-y-auto">
+                        {/* Error Table */}
+                        <div className="overflow-hidden border border-rose-200 rounded-2xl bg-white shadow-sm">
+                            <div className="max-h-64 overflow-y-auto">
                                 <table className="w-full text-left text-xs">
-                                    <thead className="bg-red-100/70 text-red-900 sticky top-0 font-semibold border-b border-red-200">
+                                    <thead className="bg-rose-100/70 text-rose-900 sticky top-0 font-semibold border-b border-rose-200">
                                         <tr>
                                             <th className="py-2.5 px-3">Baris</th>
                                             <th className="py-2.5 px-3">No.</th>
@@ -433,24 +381,24 @@ export default function ImportPage() {
                                             <th className="py-2.5 px-3">Keterangan</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-red-100">
+                                    <tbody className="divide-y divide-rose-100">
                                         {job.errors.map((err, idx) => (
-                                            <tr key={idx} className="hover:bg-red-50/50">
-                                                <td className="py-2.5 px-3 font-semibold text-neutral-700 whitespace-nowrap">
+                                            <tr key={idx} className="hover:bg-rose-50/50">
+                                                <td className="py-2 px-3 font-semibold text-neutral-700 whitespace-nowrap">
                                                     {err.excelRow ? `Baris ${err.excelRow}` : '-'}
                                                 </td>
-                                                <td className="py-2.5 px-3 text-neutral-600 whitespace-nowrap">
+                                                <td className="py-2 px-3 text-neutral-600 whitespace-nowrap">
                                                     {err.customerNumber || '-'}
                                                 </td>
-                                                <td className="py-2.5 px-3 font-medium text-neutral-800 whitespace-nowrap">
+                                                <td className="py-2 px-3 font-medium text-neutral-800 whitespace-nowrap">
                                                     {err.name}
                                                 </td>
-                                                <td className="py-2.5 px-3 whitespace-nowrap">
-                                                    <span className="inline-block px-2 py-0.5 rounded font-medium text-[11px] bg-red-100 text-red-700">
+                                                <td className="py-2 px-3 whitespace-nowrap">
+                                                    <span className="inline-block px-2 py-0.5 rounded-md font-medium text-[10px] bg-rose-100 text-rose-700">
                                                         {err.issueType.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
-                                                <td className="py-2.5 px-3 text-red-700 leading-relaxed">
+                                                <td className="py-2 px-3 text-rose-700 leading-relaxed">
                                                     {err.message}
                                                 </td>
                                             </tr>
@@ -462,90 +410,90 @@ export default function ImportPage() {
                     </div>
                 )}
 
-                {(error || (job.status === 'error' && (!job.errors || job.errors.length === 0))) && (
-                    <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-                        <p className="text-red-600 font-medium">Error</p>
-                        <p className="text-sm text-red-500 mt-1">{error || job.message}</p>
-                    </div>
-                )}
-
-                {/* Complete Result */}
+                {/* Complete Result Card */}
                 {job.status === 'completed' && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-4">
+                    <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-3xl p-5 sm:p-6 space-y-4 animate-in fade-in duration-200">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-100 rounded-lg text-green-600">
-                                <CheckCircle2 className="w-6 h-6" />
+                            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                <CheckCircle2 className="w-5 h-5" />
                             </div>
-                            <div>
-                                <p className="text-green-800 font-bold text-base">Import Tagihan Selesai!</p>
-                                <p className="text-sm text-green-700">{job.message}</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
-                            <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
-                                <p className="text-2xl font-bold text-neutral-800">{job.total}</p>
-                                <p className="text-xs text-neutral-500">Total Baris</p>
-                            </div>
-                            <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm">
-                                <p className="text-2xl font-bold text-blue-600">{job.totalChunks}</p>
-                                <p className="text-xs text-neutral-500">Total Batch</p>
-                            </div>
-                            <div className="bg-white rounded-lg p-3 border border-green-100 shadow-sm col-span-2 sm:col-span-1">
-                                <p className="text-2xl font-bold text-green-600">100%</p>
-                                <p className="text-xs text-neutral-500">Berhasil Disimpan</p>
+                            <div className="min-w-0">
+                                <h4 className="text-sm sm:text-base font-bold text-emerald-950">
+                                    Import Tagihan Berhasil!
+                                </h4>
+                                <p className="text-xs text-emerald-700 mt-0.5">{job.message}</p>
                             </div>
                         </div>
 
-                        <div className="flex gap-2">
-                            <Button
+                        <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                            <div className="bg-white/90 rounded-2xl p-3 border border-emerald-100/90 shadow-sm">
+                                <p className="text-xl font-bold text-neutral-800">{job.total}</p>
+                                <p className="text-[11px] text-neutral-500 font-medium">Total Baris</p>
+                            </div>
+                            <div className="bg-white/90 rounded-2xl p-3 border border-emerald-100/90 shadow-sm">
+                                <p className="text-xl font-bold text-blue-600">{job.totalChunks}</p>
+                                <p className="text-[11px] text-neutral-500 font-medium">Batch</p>
+                            </div>
+                            <div className="bg-white/90 rounded-2xl p-3 border border-emerald-100/90 shadow-sm">
+                                <p className="text-xl font-bold text-emerald-600">100%</p>
+                                <p className="text-[11px] text-neutral-500 font-medium">Tersimpan</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                            <button
+                                type="button"
                                 onClick={() => router.push('/')}
-                                variant="secondary"
-                                className="w-full"
+                                className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-sm transition-all cursor-pointer"
                             >
                                 Lihat Daftar Pelanggan
-                            </Button>
-                            <Button
+                            </button>
+                            <button
+                                type="button"
                                 onClick={job.dismissJob}
-                                variant="secondary"
-                                className="shrink-0"
+                                className="py-3 px-4 bg-white hover:bg-neutral-100 text-neutral-700 text-xs sm:text-sm font-semibold rounded-2xl border border-neutral-200 transition-all cursor-pointer"
                             >
-                                Tutup Notifikasi
-                            </Button>
+                                Tutup
+                            </button>
                         </div>
                     </div>
                 )}
+
+                {/* Minimalist Instructions Accordion */}
+                <div className="bg-white rounded-2xl border border-neutral-200/80 p-4 text-xs text-neutral-600 space-y-2">
+                    <button
+                        type="button"
+                        onClick={() => setShowInfo(!showInfo)}
+                        className="w-full flex items-center justify-between font-bold text-neutral-700 hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                        <span className="flex items-center gap-1.5">
+                            <Info className="w-4 h-4 text-blue-500" />
+                            Format Kolom Excel yang Didukung
+                        </span>
+                        <span className="text-neutral-400 font-semibold">{showInfo ? 'Sembunyikan' : 'Lihat'}</span>
+                    </button>
+                    {showInfo && (
+                        <div className="pt-2 border-t border-neutral-100 space-y-1.5 text-neutral-500 text-[11px] leading-relaxed">
+                            <p>
+                                File Excel harus memiliki kolom: <strong className="text-neutral-700">NO</strong>, <strong className="text-neutral-700">NAMA</strong>, <strong className="text-neutral-700">AWAL</strong> (stand meter awal), <strong className="text-neutral-700">AKHIR</strong> (stand meter akhir), <strong className="text-neutral-700">JML</strong> (pemakaian), <strong className="text-neutral-700">K.I</strong>, <strong className="text-neutral-700">K.II</strong>, <strong className="text-neutral-700">BEBAN</strong>, dan <strong className="text-neutral-700">JUMLAH</strong>.
+                            </p>
+                            <p>
+                                Pastikan stand meter awal sama dengan stand akhir bulan sebelumnya dan kalkulasi rumus volume pemakaian sesuai.
+                            </p>
+                        </div>
+                    )}
+                </div>
             </main>
 
-            {/* Password Confirmation Modals */}
+            {/* Password Confirmation Modal */}
             <PasswordConfirm
                 isOpen={showImportConfirm}
                 onClose={() => setShowImportConfirm(false)}
                 onConfirm={handleImportConfirmed}
                 title="Konfirmasi Import"
-                description="Masukkan password admin untuk mengimport data."
-                confirmText="Import"
+                description="Masukkan password admin untuk memproses import tagihan."
+                confirmText="Mulai Import"
                 loading={isRunning}
-            />
-
-            <PasswordConfirm
-                isOpen={showClearConfirm}
-                onClose={() => setShowClearConfirm(false)}
-                onConfirm={handleClearConfirmed}
-                title="Konfirmasi Hapus Semua Data"
-                description="PERINGATAN! Semua data pelanggan, tagihan, dan pembayaran akan DIHAPUS PERMANEN. Masukkan password admin untuk melanjutkan."
-                confirmText="Hapus Semua"
-                loading={clearing}
-            />
-
-            <PasswordConfirm
-                isOpen={showDeletePeriodConfirm}
-                onClose={() => setShowDeletePeriodConfirm(false)}
-                onConfirm={handleDeletePeriodConfirmed}
-                title="Konfirmasi Hapus Tagihan Periode"
-                description={`Tagihan periode ${formatPeriod(deletePeriodValue)} akan dihapus. Pelanggan tetap ada. Masukkan password admin untuk melanjutkan.`}
-                confirmText="Hapus Periode"
-                loading={deletingPeriod}
             />
         </AppLayout>
     );
