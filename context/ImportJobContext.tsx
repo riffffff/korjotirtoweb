@@ -185,10 +185,10 @@ export function ImportJobProvider({ children }: { children: React.ReactNode }) {
                 setPercent(100);
                 setMessage(`Selesai! Seluruh ${rowCount} data tagihan berhasil diimpor.`);
                 return true;
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Import job failed:', err);
                 setStatus('error');
-                setMessage(err?.message || 'Terjadi kesalahan saat memproses import');
+                setMessage(err instanceof Error ? err.message : 'Terjadi kesalahan saat memproses import');
                 setPercent(100);
                 return false;
             }

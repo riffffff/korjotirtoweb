@@ -27,7 +27,6 @@ export default function OnlinePaymentSection({
     customerName,
     customerNumber,
     defaultPhone,
-    totalAmount,
     settings,
     embedded = false,
 }: OnlinePaymentSectionProps) {

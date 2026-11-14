@@ -31,12 +31,14 @@ const RATE_K1 = 1800;
 const RATE_K2 = 3000;
 const ADMIN_FEE = 3000;
 
+/*
 function calculateBill(usage: number) {
     const k1 = Math.min(usage, 40);
     const k2 = Math.max(0, usage - 40);
     const amount = (k1 * RATE_K1) + (k2 * RATE_K2) + ADMIN_FEE;
     return amount;
 }
+*/
 
 async function main() {
     console.log('🌱 Starting Insights Seeder for Test Database...');

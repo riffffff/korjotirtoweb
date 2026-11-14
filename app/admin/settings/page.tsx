@@ -86,11 +86,6 @@ export default function SettingsPage() {
         }
     };
 
-    const handleResetTemplate = () => {
-        setTemplateDraft(DEFAULT_WA_BILL_TEMPLATE);
-        setSaveMessage(null);
-    };
-
     const settingsLoading = (
         <AppLayout>
             <PageHeader title="Pengaturan" subtitle="Atur template pesan WhatsApp" actions={<DashboardNavigationButton />} />
