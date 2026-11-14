@@ -246,18 +246,18 @@ export default function HomePage() {
                   href={`/customerNumber/${customer.customerNumber}`}
                   className="block bg-white rounded-xl p-4 border border-neutral-100 hover:border-neutral-200 hover:bg-neutral-50/70 transition-colors duration-150"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
                     {/* Left: Number & Name */}
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
                         <span className="text-neutral-600 font-bold text-sm">
                           {customer.customerNumber}
                         </span>
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-neutral-800 truncate">{customer.name}</h3>
                         {customer.phone && (
-                          <p className="text-xs text-neutral-400">{customer.phone}</p>
+                          <p className="text-xs text-neutral-400 truncate">{customer.phone}</p>
                         )}
                       </div>
                     </div>

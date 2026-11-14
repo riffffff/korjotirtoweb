@@ -221,46 +221,52 @@ export default function CustomerDetailPage() {
 
                 {/* Customer Header */}
                 <div className="bg-white rounded-xl p-4 border border-neutral-200">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                            <Link
-                                href="/"
-                                aria-label="Kembali ke Daftar Pelanggan"
-                                title="Kembali ke Daftar Pelanggan"
-                                className="w-10 h-10 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 flex items-center justify-center transition-colors shrink-0"
-                            >
-                                <ArrowLeft className="w-5 h-5" />
-                            </Link>
-                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                                <span className="text-blue-600 font-bold text-lg md:text-xl">
-                                    {customer.customerNumber}
-                                </span>
-                            </div>
-                            <div className="min-w-0">
-                                <h1 className="text-lg md:text-xl font-bold text-neutral-800 truncate">{customer.name}</h1>
-                                {customer.phone && (
-                                    <p className="text-xs md:text-sm text-neutral-500 truncate">{customer.phone}</p>
-                                )}
-                            </div>
-                        </div>
+                    {/* Top Action & Back Bar */}
+                    <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-neutral-100">
+                        <Link
+                            href="/"
+                            aria-label="Kembali ke Daftar Pelanggan"
+                            title="Kembali ke Daftar Pelanggan"
+                            className="inline-flex items-center gap-1.5 text-xs md:text-sm font-medium text-neutral-600 hover:text-blue-600 transition-colors py-1 px-2.5 -ml-2 rounded-lg hover:bg-neutral-100"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            <span>Kembali</span>
+                        </Link>
                         {isAdmin && (
-                            <div className="flex gap-2 shrink-0">
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setShowEditModal(true)}
                                     className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
-                                    title="Edit"
+                                    title="Edit Pelanggan"
                                 >
                                     <Pencil className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => setShowDeleteConfirm(true)}
                                     className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
-                                    title="Hapus"
+                                    title="Hapus Pelanggan"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
                         )}
+                    </div>
+
+                    {/* Customer Profile Info (Full Width, No Truncation) */}
+                    <div className="flex items-center gap-3.5">
+                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <span className="text-blue-600 font-bold text-lg md:text-xl">
+                                {customer.customerNumber}
+                            </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg md:text-xl font-bold text-neutral-800 break-words leading-snug">
+                                {customer.name}
+                            </h1>
+                            {customer.phone && (
+                                <p className="text-xs md:text-sm text-neutral-500 mt-0.5">{customer.phone}</p>
+                            )}
+                        </div>
                     </div>
 
                     {/* WhatsApp Button - Admin only, if has phone and unpaid bills */}
