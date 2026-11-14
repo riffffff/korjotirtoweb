@@ -128,7 +128,7 @@ export default function ImportPage() {
     const importLoading = (
         <AppLayout>
             <PageHeader title="Import Tagihan" actions={<DashboardNavigationButton />} />
-            <main className="max-w-xl mx-auto px-4 sm:px-6 py-6 md:py-8 space-y-4">
+            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
                 <LoadingState variant="skeleton-import" />
             </main>
         </AppLayout>
@@ -144,90 +144,94 @@ export default function ImportPage() {
         <AppLayout>
             <PageHeader title="Import Tagihan" actions={<DashboardNavigationButton />} />
 
-            <main className="max-w-xl mx-auto px-4 sm:px-6 py-6 md:py-8 space-y-5">
+            <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
                 <AdminPageNavigation backHref="/admin/dashboard" />
 
-                {/* Minimalist Card */}
-                <div className="bg-white rounded-3xl border border-neutral-200/80 shadow-sm p-6 sm:p-7 space-y-5">
-                    {/* Period Input */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-neutral-600 flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-neutral-500" />
-                            Periode Tagihan
-                        </label>
-                        <input
-                            type="month"
-                            value={selectedPeriod}
-                            onChange={(e) => setSelectedPeriod(e.target.value)}
-                            disabled={isRunning}
-                            className="w-full px-4 py-2.5 bg-neutral-50 hover:bg-neutral-100/70 focus:bg-white rounded-xl border border-neutral-200/90 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-neutral-800 font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm outline-none"
-                        />
-                    </div>
+                {/* Main Minimalist Card */}
+                <div className="bg-white rounded-2xl border border-neutral-200 p-5 md:p-6 space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                        {/* Period Selector (4 columns on desktop) */}
+                        <div className="md:col-span-4 space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-600 flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-neutral-500" />
+                                Periode Tagihan
+                            </label>
+                            <input
+                                type="month"
+                                value={selectedPeriod}
+                                onChange={(e) => setSelectedPeriod(e.target.value)}
+                                disabled={isRunning}
+                                className="w-full px-4 py-2.5 bg-neutral-50 hover:bg-neutral-100/70 focus:bg-white rounded-xl border border-neutral-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-neutral-800 font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm outline-none"
+                            />
+                        </div>
 
-                    {/* File Upload */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-neutral-600 flex items-center gap-1.5">
-                            <FileSpreadsheet className="w-3.5 h-3.5 text-neutral-500" />
-                            File Excel
-                        </label>
+                        {/* File Upload (8 columns on desktop) */}
+                        <div className="md:col-span-8 space-y-1.5">
+                            <label className="text-xs font-semibold text-neutral-600 flex items-center gap-1.5">
+                                <FileSpreadsheet className="w-3.5 h-3.5 text-neutral-500" />
+                                File Excel
+                            </label>
 
-                        {!selectedFile ? (
-                            <div
-                                onDragOver={!isRunning ? handleDragOver : undefined}
-                                onDragLeave={!isRunning ? handleDragLeave : undefined}
-                                onDrop={!isRunning ? handleDrop : undefined}
-                                onClick={() => !isRunning && fileInputRef.current?.click()}
-                                className={`group relative border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center transition-all cursor-pointer ${
-                                    isDragging
-                                        ? 'border-blue-500 bg-blue-50/50 scale-[0.99]'
-                                        : 'border-neutral-200 bg-neutral-50/50 hover:border-blue-400 hover:bg-blue-50/20'
-                                } ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".xlsx,.xls"
-                                    onChange={handleFileSelect}
-                                    className="hidden"
-                                    disabled={isRunning}
-                                />
-                                <div className="flex flex-col items-center gap-2">
-                                    <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-neutral-200/60 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-all">
-                                        <UploadCloud className="w-5 h-5" />
-                                    </div>
-                                    <p className="text-sm font-semibold text-neutral-700">
-                                        {isDragging ? 'Lepaskan file di sini' : 'Pilih file Excel (.xlsx)'}
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="bg-emerald-50/60 border border-emerald-200/70 rounded-xl p-3.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                    <FileSpreadsheet className="w-5 h-5 text-emerald-600 shrink-0" />
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-semibold text-neutral-800 truncate">
-                                            {selectedFile.name}
-                                        </p>
-                                        <p className="text-xs text-neutral-500">
-                                            {(selectedFile.size / 1024).toFixed(1)} KB
-                                        </p>
+                            {!selectedFile ? (
+                                <div
+                                    onDragOver={!isRunning ? handleDragOver : undefined}
+                                    onDragLeave={!isRunning ? handleDragLeave : undefined}
+                                    onDrop={!isRunning ? handleDrop : undefined}
+                                    onClick={() => !isRunning && fileInputRef.current?.click()}
+                                    className={`group relative border-2 border-dashed rounded-xl px-5 py-3.5 transition-all cursor-pointer ${
+                                        isDragging
+                                            ? 'border-blue-500 bg-blue-50/50'
+                                            : 'border-neutral-200 bg-neutral-50/50 hover:border-blue-400 hover:bg-blue-50/20'
+                                    } ${isRunning ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".xlsx,.xls"
+                                        onChange={handleFileSelect}
+                                        className="hidden"
+                                        disabled={isRunning}
+                                    />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-lg bg-white shadow-sm border border-neutral-200 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-all shrink-0">
+                                            <UploadCloud className="w-4 h-4" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-xs sm:text-sm font-semibold text-neutral-700 truncate">
+                                                {isDragging ? 'Lepaskan file di sini' : 'Pilih file Excel (.xlsx)'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                                {!isRunning && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedFile(null)}
-                                        className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-600 hover:bg-white transition-all cursor-pointer"
-                                        title="Hapus"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                            ) : (
+                                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                                        <div className="min-w-0 flex items-center gap-2">
+                                            <p className="text-xs sm:text-sm font-semibold text-neutral-800 truncate">
+                                                {selectedFile.name}
+                                            </p>
+                                            <span className="text-[11px] text-neutral-400 shrink-0">
+                                                ({(selectedFile.size / 1024).toFixed(1)} KB)
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {!isRunning && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedFile(null)}
+                                            className="p-1 rounded-lg text-neutral-400 hover:text-rose-600 hover:bg-white transition-all cursor-pointer shrink-0"
+                                            title="Hapus"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Minimal Progress Bar (when running) */}
+                    {/* Progress Bar (when running) */}
                     {isRunning && (
                         <div className="bg-blue-50/60 border border-blue-200/60 rounded-xl p-3.5 space-y-2 animate-in fade-in duration-150">
                             <div className="flex items-center justify-between text-xs font-semibold text-blue-900">
@@ -261,30 +265,32 @@ export default function ImportPage() {
                     )}
 
                     {/* Submit Button */}
-                    <button
-                        type="button"
-                        onClick={handleImportClick}
-                        disabled={isRunning || !selectedFile}
-                        className={`w-full py-3 px-5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                            isRunning || !selectedFile
-                                ? 'bg-neutral-100 text-neutral-400 border border-neutral-200/80 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white shadow-sm'
-                        }`}
-                    >
-                        {isRunning ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Mengimpor...</span>
-                            </>
-                        ) : (
-                            <span>Import Data</span>
-                        )}
-                    </button>
+                    <div className="flex justify-end pt-1">
+                        <button
+                            type="button"
+                            onClick={handleImportClick}
+                            disabled={isRunning || !selectedFile}
+                            className={`w-full sm:w-auto sm:min-w-[160px] py-2.5 px-5 rounded-xl font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                                isRunning || !selectedFile
+                                    ? 'bg-neutral-100 text-neutral-400 border border-neutral-200/80 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white shadow-sm'
+                            }`}
+                        >
+                            {isRunning ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Mengimpor...</span>
+                                </>
+                            ) : (
+                                <span>Import Data</span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Validation Errors Section */}
                 {job.errors && job.errors.length > 0 && (
-                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in duration-200">
+                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 md:p-5 space-y-3 animate-in fade-in duration-200">
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -304,25 +310,35 @@ export default function ImportPage() {
 
                         {/* Error Table */}
                         <div className="overflow-hidden border border-rose-200 rounded-xl bg-white shadow-sm">
-                            <div className="max-h-56 overflow-y-auto">
+                            <div className="max-h-60 overflow-y-auto">
                                 <table className="w-full text-left text-xs">
                                     <thead className="bg-rose-50 text-rose-900 sticky top-0 font-semibold border-b border-rose-200">
                                         <tr>
-                                            <th className="py-2 px-2.5">Baris</th>
-                                            <th className="py-2 px-2.5">Nama</th>
-                                            <th className="py-2 px-2.5">Masalah</th>
+                                            <th className="py-2.5 px-3">Baris</th>
+                                            <th className="py-2.5 px-3">No. Pelanggan</th>
+                                            <th className="py-2.5 px-3">Nama di Excel</th>
+                                            <th className="py-2.5 px-3">Jenis Masalah</th>
+                                            <th className="py-2.5 px-3">Keterangan</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-rose-100">
                                         {job.errors.map((err, idx) => (
                                             <tr key={idx} className="hover:bg-rose-50/50">
-                                                <td className="py-2 px-2.5 font-medium text-neutral-600 whitespace-nowrap">
+                                                <td className="py-2 px-3 font-medium text-neutral-600 whitespace-nowrap">
                                                     {err.excelRow ? `Baris ${err.excelRow}` : '-'}
                                                 </td>
-                                                <td className="py-2 px-2.5 font-medium text-neutral-800 whitespace-nowrap">
+                                                <td className="py-2 px-3 text-neutral-600 whitespace-nowrap">
+                                                    {err.customerNumber || '-'}
+                                                </td>
+                                                <td className="py-2 px-3 font-medium text-neutral-800 whitespace-nowrap">
                                                     {err.name}
                                                 </td>
-                                                <td className="py-2 px-2.5 text-rose-700">
+                                                <td className="py-2 px-3 whitespace-nowrap">
+                                                    <span className="inline-block px-2 py-0.5 rounded-md font-medium text-[10px] bg-rose-100 text-rose-700">
+                                                        {err.issueType.replace(/_/g, ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="py-2 px-3 text-rose-700">
                                                     {err.message}
                                                 </td>
                                             </tr>
@@ -336,7 +352,7 @@ export default function ImportPage() {
 
                 {/* Complete Result Card */}
                 {job.status === 'completed' && (
-                    <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 space-y-3 animate-in fade-in duration-200">
+                    <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 md:p-5 space-y-3 animate-in fade-in duration-200">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
@@ -358,14 +374,14 @@ export default function ImportPage() {
                             <button
                                 type="button"
                                 onClick={() => router.push('/')}
-                                className="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                                className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
                             >
                                 Lihat Daftar Pelanggan
                             </button>
                             <button
                                 type="button"
                                 onClick={job.dismissJob}
-                                className="py-2 px-3 bg-white hover:bg-neutral-100 text-neutral-700 text-xs font-semibold rounded-xl border border-neutral-200 transition-all cursor-pointer"
+                                className="py-2 px-4 bg-white hover:bg-neutral-100 text-neutral-700 text-xs font-semibold rounded-xl border border-neutral-200 transition-all cursor-pointer"
                             >
                                 Tutup
                             </button>
