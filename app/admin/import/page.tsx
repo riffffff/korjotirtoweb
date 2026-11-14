@@ -219,9 +219,9 @@ export default function ImportPage() {
 
                         {/* Error Table */}
                         <div className="overflow-hidden border border-rose-200 rounded-xl bg-white shadow-sm">
-                            <div className="max-h-60 overflow-y-auto">
+                            <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs">
-                                    <thead className="bg-rose-50 text-rose-900 sticky top-0 font-semibold border-b border-rose-200">
+                                    <thead className="bg-rose-50 text-rose-900 font-semibold border-b border-rose-200">
                                         <tr>
                                             <th className="py-2.5 px-3">Baris</th>
                                             <th className="py-2.5 px-3">No. Pelanggan</th>
