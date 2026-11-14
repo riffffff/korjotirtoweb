@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCustomers, clearCustomerCaches } from '@/hooks/useCustomer';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
@@ -16,7 +16,7 @@ import { formatDateTime } from '@/lib/formatDate';
 import CustomerForm from '@/components/customer/CustomerForm';
 import SearchInput from '@/components/ui/SearchInput';
 import Logo from '@/components/ui/Logo';
-import { BarChart3, FileUp, Loader2, Plus, Search, UserPlus, X } from 'lucide-react';
+import { BarChart3, Check, FileUp, Loader2, Plus, Search, SlidersHorizontal, UserPlus, X } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/ui/Icons';
 
 export default function HomePage() {
@@ -30,6 +30,21 @@ export default function HomePage() {
   const [sendingCustomerId, setSendingCustomerId] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Filter and Sort states
+  type StatusFilter = 'ALL' | 'UNPAID' | 'PAID' | 'HAS_DEPOSIT';
+  type SortOption = 'number_asc' | 'number_desc' | 'name_asc' | 'name_desc' | 'unpaid_desc' | 'unpaid_asc';
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [sortBy, setSortBy] = useState<SortOption>('number_asc');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+
+  const hasActiveFilters = statusFilter !== 'ALL' || sortBy !== 'number_asc';
+  const activeFilterCount = (statusFilter !== 'ALL' ? 1 : 0) + (sortBy !== 'number_asc' ? 1 : 0);
+
+  const handleResetFilters = () => {
+    setStatusFilter('ALL');
+    setSortBy('number_asc');
+  };
+
   // Redirect admin to dashboard on first load
   useEffect(() => {
     if (!authLoading && isAdmin) {
@@ -41,11 +56,53 @@ export default function HomePage() {
     }
   }, [isAdmin, authLoading, router]);
 
-  // Filter customers by search term
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(search.toLowerCase()) ||
-    String(customer.customerNumber).includes(search)
-  );
+  // Filter and sort customers
+  const filteredCustomers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    let result = customers.filter((customer) => {
+      // Search term
+      if (term) {
+        const matchesName = customer.name.toLowerCase().includes(term);
+        const matchesNumber = String(customer.customerNumber).includes(term);
+        const matchesPhone = customer.phone ? customer.phone.includes(term) : false;
+        if (!matchesName && !matchesNumber && !matchesPhone) return false;
+      }
+
+      // Status filter
+      if (statusFilter === 'UNPAID') {
+        return customer.unpaidTotal > 0;
+      }
+      if (statusFilter === 'PAID') {
+        return customer.unpaidTotal === 0;
+      }
+      if (statusFilter === 'HAS_DEPOSIT') {
+        return customer.depositBalance > 0;
+      }
+      return true;
+    });
+
+    // Sorting
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'number_asc':
+          return a.customerNumber - b.customerNumber;
+        case 'number_desc':
+          return b.customerNumber - a.customerNumber;
+        case 'name_asc':
+          return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
+        case 'name_desc':
+          return b.name.localeCompare(a.name, 'id', { sensitivity: 'base' });
+        case 'unpaid_desc':
+          return b.unpaidTotal - a.unpaidTotal;
+        case 'unpaid_asc':
+          return a.unpaidTotal - b.unpaidTotal;
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [customers, search, statusFilter, sortBy]);
 
   // Handle send WA to individual customer via wa.me
   const handleSendWA = async (e: React.MouseEvent, customer: typeof customers[0]) => {
@@ -201,24 +258,193 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Header with Search and Add Button */}
-        <div className="flex gap-3">
-          {/* Search */}
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Cari nama atau nomor pelanggan..."
-            containerClassName="flex-1"
-          />
-          {/* Desktop Add Button */}
-          {isAdmin && !showAddForm && (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="hidden md:flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Tambah</span>
-            </button>
+        {/* Header with Search, Filter & Sort, and Add Button */}
+        <div className="space-y-2">
+          <div className="flex gap-2 items-center">
+            {/* Search */}
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Cari nama atau nomor pelanggan..."
+              containerClassName="flex-1"
+            />
+
+            {/* Filter & Sort Button */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                title="Filter & Urutkan"
+                className={`h-11 sm:h-12 px-3 sm:px-3.5 flex items-center justify-center gap-1.5 rounded-xl border transition-all ${
+                  hasActiveFilters
+                    ? 'bg-blue-50 border-blue-300 text-blue-600 font-medium'
+                    : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300'
+                }`}
+              >
+                <SlidersHorizontal className="w-5 h-5 shrink-0" />
+                <span className="hidden sm:inline text-sm font-medium">Filter</span>
+                {activeFilterCount > 0 && (
+                  <span className="flex items-center justify-center w-5 h-5 text-[11px] font-bold rounded-full bg-blue-600 text-white shrink-0">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Filter & Sort Dropdown Popover */}
+              {showFilterMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-20"
+                    onClick={() => setShowFilterMenu(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-neutral-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-150">
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+                        <span className="font-semibold text-neutral-800 text-sm">Filter & Urutkan</span>
+                      </div>
+                      {hasActiveFilters && (
+                        <button
+                          type="button"
+                          onClick={handleResetFilters}
+                          className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="py-3 border-b border-neutral-100">
+                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Status Tagihan</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { id: 'ALL', label: 'Semua' },
+                          { id: 'UNPAID', label: 'Belum Lunas' },
+                          { id: 'PAID', label: 'Lunas' },
+                          { id: 'HAS_DEPOSIT', label: 'Ada Saldo' },
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setStatusFilter(opt.id as StatusFilter)}
+                            className={`px-3 py-2 text-xs rounded-lg text-left transition-colors ${
+                              statusFilter === opt.id
+                                ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200'
+                                : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-600 border border-transparent'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sorting */}
+                    <div className="py-3">
+                      <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">Urutan</p>
+                      <div className="space-y-1">
+                        {[
+                          { id: 'number_asc', label: 'No. Pelanggan (1 → 99)' },
+                          { id: 'number_desc', label: 'No. Pelanggan (99 → 1)' },
+                          { id: 'name_asc', label: 'Nama (A - Z)' },
+                          { id: 'name_desc', label: 'Nama (Z - A)' },
+                          { id: 'unpaid_desc', label: 'Tagihan Terbanyak' },
+                          { id: 'unpaid_asc', label: 'Tagihan Terkecil' },
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setSortBy(opt.id as SortOption)}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors ${
+                              sortBy === opt.id
+                                ? 'bg-blue-50 text-blue-700 font-semibold'
+                                : 'hover:bg-neutral-50 text-neutral-600'
+                            }`}
+                          >
+                            <span>{opt.label}</span>
+                            {sortBy === opt.id && <Check className="w-4 h-4 text-blue-600" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Done Button */}
+                    <div className="pt-2 border-t border-neutral-100">
+                      <button
+                        type="button"
+                        onClick={() => setShowFilterMenu(false)}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        Terapkan
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Desktop Add Button */}
+            {isAdmin && !showAddForm && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="hidden md:flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors shrink-0"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Tambah</span>
+              </button>
+            )}
+          </div>
+
+          {/* Active Filter Chips */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+              <span className="text-neutral-400">Filter aktif:</span>
+              {statusFilter !== 'ALL' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  <span>
+                    {statusFilter === 'UNPAID' && 'Belum Lunas'}
+                    {statusFilter === 'PAID' && 'Lunas'}
+                    {statusFilter === 'HAS_DEPOSIT' && 'Ada Saldo'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('ALL')}
+                    className="hover:text-blue-900 rounded-full"
+                    title="Hapus filter status"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {sortBy !== 'number_asc' && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                  <span>
+                    {sortBy === 'number_desc' && 'No. 99 → 1'}
+                    {sortBy === 'name_asc' && 'Nama A-Z'}
+                    {sortBy === 'name_desc' && 'Nama Z-A'}
+                    {sortBy === 'unpaid_desc' && 'Tagihan Terbanyak'}
+                    {sortBy === 'unpaid_asc' && 'Tagihan Terkecil'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy('number_asc')}
+                    className="hover:text-blue-900 rounded-full"
+                    title="Hapus urutan"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="text-neutral-400 hover:text-neutral-600 hover:underline ml-1"
+              >
+                Reset Semua
+              </button>
+            </div>
           )}
         </div>
 
@@ -234,11 +460,31 @@ export default function HomePage() {
         {!loading && !error && (
           <div className="space-y-3">
             {filteredCustomers.length === 0 ? (
-              <EmptyState
-                title={search ? 'Pelanggan tidak ditemukan' : 'Belum ada pelanggan'}
-                description={search ? 'Coba gunakan nama atau nomor pelanggan lain.' : 'Tambahkan pelanggan untuk mulai mengelola tagihan.'}
-                icon={<Search className="w-7 h-7 text-neutral-400" />}
-              />
+              <div className="space-y-3">
+                <EmptyState
+                  title={search || hasActiveFilters ? 'Pelanggan tidak ditemukan' : 'Belum ada pelanggan'}
+                  description={
+                    search || hasActiveFilters
+                      ? 'Tidak ada pelanggan yang cocok dengan pencarian atau filter yang dipilih.'
+                      : 'Tambahkan pelanggan untuk mulai mengelola tagihan.'
+                  }
+                  icon={<Search className="w-7 h-7 text-neutral-400" />}
+                />
+                {(search || hasActiveFilters) && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('');
+                        handleResetFilters();
+                      }}
+                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+                    >
+                      Reset Filter & Pencarian
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               filteredCustomers.map((customer) => (
                 <Link
