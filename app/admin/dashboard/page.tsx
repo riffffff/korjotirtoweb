@@ -190,25 +190,25 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* Total Pelanggan Card */}
-                            <div className="col-start-1 row-start-2 bg-white rounded-xl p-2.5 md:p-4 border border-neutral-200 flex items-center gap-2 md:gap-4 md:col-auto md:row-auto">
-                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-slate-600 flex items-center justify-center shrink-0">
-                                    <Users className="w-4 h-4 md:w-6 md:h-6 text-white" />
+                            <div className="col-start-1 row-start-2 bg-white rounded-xl p-3 md:p-4 border border-neutral-200 flex items-center gap-2.5 md:gap-4 md:col-auto md:row-auto min-w-0">
+                                <div className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-slate-700 flex items-center justify-center shrink-0 shadow-xs">
+                                    <Users className="w-4.5 h-4.5 md:w-6 md:h-6 text-white" />
                                 </div>
-                                <div>
-                                    <p className="text-xs md:text-sm text-neutral-500">Total Pelanggan</p>
-                                    <p className="text-lg md:text-2xl font-bold text-neutral-800">{data.totalCustomers}</p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs md:text-sm font-medium text-neutral-500 truncate leading-tight">Total Pelanggan</p>
+                                    <p className="text-base sm:text-lg md:text-2xl font-bold text-neutral-800 truncate mt-0.5 leading-tight">{data.totalCustomers}</p>
                                 </div>
                             </div>
 
                             {/* Customer Balance Card */}
-                            <div className="col-start-2 row-start-2 bg-white rounded-xl p-2.5 md:p-4 border border-neutral-200 flex items-center gap-2 md:gap-4 md:col-auto md:row-auto">
-                                <div className="w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-emerald-500 flex items-center justify-center shrink-0">
-                                    <Wallet className="w-4 h-4 md:w-6 md:h-6 text-white" />
+                            <div className="col-start-2 row-start-2 bg-white rounded-xl p-3 md:p-4 border border-neutral-200 flex items-center gap-2.5 md:gap-4 md:col-auto md:row-auto min-w-0">
+                                <div className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
+                                    <Wallet className="w-4.5 h-4.5 md:w-6 md:h-6 text-white" />
                                 </div>
-                                <div>
-                                    <p className="text-xs md:text-sm text-neutral-500">Saldo Pelanggan</p>
-                                    <p className="text-sm md:text-2xl font-bold text-emerald-600 truncate">
-                                        {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(data.totalOutstanding)}
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs md:text-sm font-medium text-neutral-500 truncate leading-tight">Saldo Pelanggan</p>
+                                    <p className="text-base sm:text-lg md:text-2xl font-bold text-emerald-600 truncate mt-0.5 leading-tight">
+                                        {formatCurrency(data.totalOutstanding)}
                                     </p>
                                 </div>
                             </div>

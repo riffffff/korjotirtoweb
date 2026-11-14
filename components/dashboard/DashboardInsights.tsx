@@ -1,11 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
     AlertCircle,
     AlertTriangle,
     ArrowRight,
     CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
     Clock,
     Droplets,
 } from 'lucide-react';
@@ -82,6 +85,14 @@ export default function DashboardInsights({
     };
 
     const anomalies = waterUsageInsight?.anomalies || [];
+    const [anomalyPage, setAnomalyPage] = useState(1);
+    const ANOMALY_PAGE_SIZE = 5;
+    const totalAnomalyPages = Math.ceil(anomalies.length / ANOMALY_PAGE_SIZE) || 1;
+    const currentAnomalyPage = Math.min(anomalyPage, totalAnomalyPages);
+    const displayedAnomalies = anomalies.slice(
+        (currentAnomalyPage - 1) * ANOMALY_PAGE_SIZE,
+        currentAnomalyPage * ANOMALY_PAGE_SIZE
+    );
 
     return (
         <section className="space-y-3.5">
@@ -204,53 +215,79 @@ export default function DashboardInsights({
                                 <p className="text-[11px] text-neutral-400 mt-1">Tidak terdeteksi lonjakan kebocoran atau meteran macet.</p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-neutral-100">
-                                {anomalies.map((anom) => (
-                                    <div
-                                        key={anom.customerId}
-                                        className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
-                                    >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <div
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                            <>
+                                <div className="divide-y divide-neutral-100">
+                                    {displayedAnomalies.map((anom) => (
+                                        <div
+                                            key={anom.customerId}
+                                            className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
+                                        >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold text-xs ${
+                                                        anom.type === 'SPIKE'
+                                                            ? 'bg-amber-100 text-amber-800'
+                                                            : 'bg-neutral-100 text-neutral-700'
+                                                    }`}
+                                                >
+                                                    {anom.customerNumber}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <Link
+                                                        href={`/customerNumber/${anom.customerNumber}`}
+                                                        className="text-xs font-semibold text-neutral-800 hover:text-blue-600 truncate block transition-colors"
+                                                    >
+                                                        {anom.name}
+                                                    </Link>
+                                                    <p className="text-[11px] text-neutral-500 mt-0.5 truncate">
+                                                        {anom.type === 'SPIKE'
+                                                            ? `Naik ${anom.previousUsage} m³ ➔ ${anom.currentUsage} m³ (+${anom.percentChange}%)`
+                                                            : `Tercatat 0 m³ (bulan lalu ${anom.previousUsage ?? 0} m³)`}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <span
+                                                className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 border ${
                                                     anom.type === 'SPIKE'
-                                                        ? 'bg-amber-100 text-amber-700'
-                                                        : 'bg-neutral-100 text-neutral-600'
+                                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                                        : 'bg-neutral-50 text-neutral-600 border-neutral-200'
                                                 }`}
                                             >
-                                                {anom.type === 'SPIKE' ? (
-                                                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                                                ) : (
-                                                    <span className="text-xs font-bold">0</span>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <Link
-                                                    href={`/customerNumber/${anom.customerNumber}`}
-                                                    className="text-xs font-semibold text-neutral-800 hover:text-blue-600 truncate block transition-colors"
-                                                >
-                                                    #{anom.customerNumber} {anom.name}
-                                                </Link>
-                                                <p className="text-[11px] text-neutral-500 mt-0.5 truncate">
-                                                    {anom.type === 'SPIKE'
-                                                        ? `Naik ${anom.previousUsage} m³ ➔ ${anom.currentUsage} m³ (+${anom.percentChange}%)`
-                                                        : `Tercatat 0 m³ (bulan lalu ${anom.previousUsage ?? 0} m³)`}
-                                                </p>
-                                            </div>
+                                                {anom.type === 'SPIKE' ? 'Lonjakan' : '0 m³'}
+                                            </span>
                                         </div>
+                                    ))}
+                                </div>
 
-                                        <span
-                                            className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 border ${
-                                                anom.type === 'SPIKE'
-                                                    ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                                    : 'bg-neutral-50 text-neutral-600 border-neutral-200'
-                                            }`}
-                                        >
-                                            {anom.type === 'SPIKE' ? 'Lonjakan' : '0 m³'}
+                                {totalAnomalyPages > 1 && (
+                                    <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
+                                        <span>
+                                            Hal {currentAnomalyPage} dari {totalAnomalyPages} ({anomalies.length} data)
                                         </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => setAnomalyPage((prev) => Math.max(1, prev - 1))}
+                                                disabled={currentAnomalyPage <= 1}
+                                                className="p-1 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                title="Halaman sebelumnya"
+                                            >
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setAnomalyPage((prev) => Math.min(totalAnomalyPages, prev + 1))}
+                                                disabled={currentAnomalyPage >= totalAnomalyPages}
+                                                className="p-1 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                title="Halaman berikutnya"
+                                            >
+                                                <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

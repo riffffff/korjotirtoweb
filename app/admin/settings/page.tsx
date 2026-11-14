@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { DEFAULT_WA_BILL_TEMPLATE } from '@/lib/whatsapp';
 import { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
+import { LogOut } from 'lucide-react';
 import LoadingState from '@/components/state/LoadingState';
 import Button from '@/components/ui/Button';
 import PageHeader from '@/components/layout/PageHeader';
@@ -21,7 +22,7 @@ const PAYMENT_SETTING_KEYS = [
 
 export default function SettingsPage() {
     const router = useRouter();
-    const { isAdmin, isLoading: authLoading } = useAuth();
+    const { isAdmin, isLoading: authLoading, logout } = useAuth();
     const { settings, loading, error, updateCache, saveSettings } = useSettings();
     const [saving, setSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ success: boolean; text: string } | null>(null);
@@ -204,6 +205,30 @@ export default function SettingsPage() {
                         </Button>
                     </div>
                     */}
+                </div>
+
+                {/* Akun Administrator & Logout */}
+                <div className="bg-white rounded-2xl border border-neutral-200 p-5 md:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-base font-bold text-neutral-800">Akun Administrator</h2>
+                            <p className="text-xs text-neutral-500 mt-0.5">Anda saat ini sedang login sebagai administrator</p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            onClick={async () => {
+                                if (confirm('Apakah Anda yakin ingin keluar dari akun admin?')) {
+                                    await logout();
+                                    router.push('/');
+                                }
+                            }}
+                            className="w-full sm:w-auto"
+                        >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Keluar dari Akun
+                        </Button>
+                    </div>
                 </div>
             </main>
         </AppLayout>
