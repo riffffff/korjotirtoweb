@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Copy, ExternalLink, Upload, Wallet } from 'lucide-react';
+import { CheckCircle2, Copy, ExternalLink, Wallet } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatCurrency';
 import { paymentProofClient } from '@/services/client/payment-proof.client';
 import { SkeletonOnlinePaymentStatus } from '@/components/ui/Skeleton';
 import { compressImage } from '@/lib/compressImage';
+import FileUpload from '@/components/ui/FileUpload';
 
 interface OnlinePaymentSectionProps {
     customerId: string;
@@ -184,14 +185,16 @@ export default function OnlinePaymentSection({
                         <label htmlFor="online-payment-amount" className="text-xs text-neutral-600 block mb-1">Nominal transfer</label>
                         <input id="online-payment-amount" type="text" inputMode="numeric" placeholder="Contoh: 50.000" value={formattedAmount} onChange={(event) => handleAmountChange(event.target.value)} required className="w-full px-3 py-2.5 rounded-lg border border-neutral-200 text-sm" />
                     </div>
-                    <div>
-                        <label htmlFor="online-payment-proof" className="text-xs text-neutral-600 block mb-1">Bukti pembayaran</label>
-                        <label htmlFor="online-payment-proof" className="w-full min-h-11 px-3 py-2.5 rounded-lg border border-dashed border-blue-300 text-sm text-blue-700 flex items-center gap-2 cursor-pointer">
-                            <Upload className="w-4 h-4" />
-                            <span className="truncate">{proof?.name || 'Pilih gambar JPG, PNG, atau WEBP'}</span>
-                        </label>
-                        <input id="online-payment-proof" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setProof(event.target.files?.[0] || null)} className="sr-only" />
-                    </div>
+                    <FileUpload
+                        id="online-payment-proof"
+                        label="Bukti pembayaran"
+                        file={proof}
+                        onFileSelect={setProof}
+                        accept="image/jpeg,image/png,image/webp"
+                        placeholder="Pilih gambar JPG, PNG, atau WEBP"
+                        disabled={submitting}
+                        onError={setError}
+                    />
                     <div>
                         <label htmlFor="online-payment-note" className="text-xs text-neutral-600 block mb-1">Catatan (opsional)</label>
                         <textarea id="online-payment-note" value={note} onChange={(event) => setNote(event.target.value)} rows={2} className="w-full px-3 py-2.5 rounded-lg border border-neutral-200 text-sm" />
