@@ -19,10 +19,7 @@ export default function PaymentContainer({
         <section className="bg-white border border-blue-200 rounded-xl shadow-sm overflow-hidden">
             <div className="p-4 pb-0">
                 <h2 className="text-sm font-semibold text-blue-700">Pembayaran</h2>
-                <p className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-3">
-                    Pembayaran otomatis dialokasikan ke tagihan paling lama terlebih dahulu (FIFO).
-                </p>
-                <div className="grid grid-cols-2 gap-1 p-1 mt-4 bg-neutral-100 rounded-lg" role="tablist" aria-label="Metode pembayaran">
+                <div className="grid grid-cols-2 gap-1 p-1 mt-3 bg-neutral-100 rounded-lg" role="tablist" aria-label="Metode pembayaran">
                     {isAdmin && (
                         <button
                             type="button"
