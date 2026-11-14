@@ -45,6 +45,18 @@ export default function HomePage() {
     setSortBy('number_asc');
   };
 
+  // Lock body scroll on mobile when filter bottom sheet is open
+  useEffect(() => {
+    if (showFilterMenu && typeof window !== 'undefined' && window.innerWidth < 768) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showFilterMenu]);
+
   // Redirect admin to dashboard on first load
   useEffect(() => {
     if (!authLoading && isAdmin) {
@@ -290,14 +302,17 @@ export default function HomePage() {
                 )}
               </button>
 
-              {/* Filter & Sort Dropdown Popover */}
+              {/* Filter & Sort Popover (Desktop) & Bottom Sheet (Mobile) */}
               {showFilterMenu && (
                 <>
+                  {/* Backdrop for Desktop */}
                   <div
-                    className="fixed inset-0 z-20"
+                    className="hidden md:block fixed inset-0 z-20"
                     onClick={() => setShowFilterMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-neutral-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-150">
+
+                  {/* Desktop Dropdown */}
+                  <div className="hidden md:block absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-neutral-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-150">
                     {/* Header */}
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
                       <div className="flex items-center gap-2">
@@ -379,6 +394,122 @@ export default function HomePage() {
                       >
                         Terapkan
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile Bottom Sheet Drawer */}
+                  <div className="md:hidden">
+                    {/* Backdrop */}
+                    <div
+                      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+                      onClick={() => setShowFilterMenu(false)}
+                    />
+
+                    {/* Bottom Sheet Modal */}
+                    <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[85vh] animate-in slide-in-from-bottom duration-300">
+                      {/* Drag Handle Bar */}
+                      <div className="w-12 h-1.5 bg-neutral-300 rounded-full mx-auto mt-3 mb-1 shrink-0" />
+
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-100 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <SlidersHorizontal className="w-5 h-5 text-blue-600" />
+                          <h3 className="font-bold text-neutral-800 text-base">Filter & Urutkan</h3>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {hasActiveFilters && (
+                            <button
+                              type="button"
+                              onClick={handleResetFilters}
+                              className="text-xs text-blue-600 font-semibold hover:underline"
+                            >
+                              Reset
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowFilterMenu(false)}
+                            className="p-1 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+                            aria-label="Tutup"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Scrollable Body */}
+                      <div className="overflow-y-auto px-5 py-4 space-y-5 flex-1">
+                        {/* Status Tagihan */}
+                        <div>
+                          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5">
+                            Status Tagihan
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: 'ALL', label: 'Semua Status' },
+                              { id: 'UNPAID', label: 'Belum Lunas' },
+                              { id: 'PAID', label: 'Lunas' },
+                              { id: 'HAS_DEPOSIT', label: 'Ada Saldo' },
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setStatusFilter(opt.id as StatusFilter)}
+                                className={`px-3.5 py-2.5 text-xs rounded-xl text-left transition-colors flex items-center justify-between ${
+                                  statusFilter === opt.id
+                                    ? 'bg-blue-50 text-blue-700 font-bold border-2 border-blue-600'
+                                    : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border border-neutral-200/80 font-medium'
+                                }`}
+                              >
+                                <span>{opt.label}</span>
+                                {statusFilter === opt.id && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Urutkan Berdasarkan */}
+                        <div>
+                          <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2.5">
+                            Urutkan Berdasarkan
+                          </p>
+                          <div className="space-y-1.5">
+                            {[
+                              { id: 'number_asc', label: 'Nomor Pelanggan (1 → 99)' },
+                              { id: 'number_desc', label: 'Nomor Pelanggan (99 → 1)' },
+                              { id: 'name_asc', label: 'Nama Pelanggan (A → Z)' },
+                              { id: 'name_desc', label: 'Nama Pelanggan (Z → A)' },
+                              { id: 'unpaid_desc', label: 'Tagihan Terbanyak' },
+                              { id: 'unpaid_asc', label: 'Tagihan Terkecil' },
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setSortBy(opt.id as SortOption)}
+                                className={`w-full flex items-center justify-between px-3.5 py-3 text-xs rounded-xl transition-colors ${
+                                  sortBy === opt.id
+                                    ? 'bg-blue-50 text-blue-700 font-bold border border-blue-300'
+                                    : 'bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200/60 font-medium'
+                                }`}
+                              >
+                                <span>{opt.label}</span>
+                                {sortBy === opt.id && <Check className="w-4 h-4 text-blue-600 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div className="p-4 border-t border-neutral-100 bg-white shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setShowFilterMenu(false)}
+                          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                        >
+                          Terapkan Filter
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </>
