@@ -50,7 +50,12 @@ export default function PaymentContainer({
                 </div>
             </div>
             <div className="p-4">
-                {activeTab === 'cash' && isAdmin ? cashPayment : onlinePayment}
+                <div className={activeTab === 'cash' && isAdmin ? 'block' : 'hidden'}>
+                    {cashPayment}
+                </div>
+                <div className={activeTab === 'online' || !isAdmin ? 'block' : 'hidden'}>
+                    {onlinePayment}
+                </div>
             </div>
         </section>
     );

@@ -12,6 +12,7 @@ export interface FileUploadProps {
     accept?: string;
     placeholder?: string;
     disabled?: boolean;
+    compact?: boolean;
     className?: string;
     onError?: (error: string) => void;
 }
@@ -25,6 +26,7 @@ export default function FileUpload({
     accept,
     placeholder = 'Pilih atau drag file ke sini',
     disabled = false,
+    compact = false,
     className = '',
     onError,
 }: FileUploadProps) {
@@ -111,7 +113,11 @@ export default function FileUpload({
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => !disabled && inputRef.current?.click()}
-                    className={`group relative border-2 border-dashed rounded-xl px-5 py-3.5 transition-all cursor-pointer ${
+                    className={`group relative border-dashed transition-all cursor-pointer ${
+                        compact
+                            ? 'border rounded-lg px-3.5 py-2.5'
+                            : 'border-2 rounded-xl px-5 py-3.5'
+                    } ${
                         isDragging
                             ? 'border-blue-500 bg-blue-50/50'
                             : 'border-neutral-200 bg-neutral-50/50 hover:border-blue-400 hover:bg-blue-50/20'
@@ -126,19 +132,25 @@ export default function FileUpload({
                         className="hidden"
                         disabled={disabled}
                     />
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-white shadow-sm border border-neutral-200 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-all shrink-0">
-                            <UploadCloud className="w-4 h-4" />
+                    <div className={`flex items-center ${compact ? 'gap-2.5' : 'gap-3'}`}>
+                        <div className={`rounded-lg bg-white shadow-xs border border-neutral-200 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-all shrink-0 ${
+                            compact ? 'w-7 h-7' : 'w-9 h-9'
+                        }`}>
+                            <UploadCloud className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-xs sm:text-sm font-semibold text-neutral-700 truncate">
+                            <p className={`font-semibold text-neutral-700 truncate ${
+                                compact ? 'text-xs' : 'text-xs sm:text-sm'
+                            }`}>
                                 {isDragging ? 'Lepaskan file di sini' : placeholder}
                             </p>
                         </div>
                     </div>
                 </div>
             ) : (
-                <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                <div className={`bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 animate-in fade-in duration-150 ${
+                    compact ? 'px-3 py-2' : 'px-4 py-2.5'
+                }`}>
                     <div className="flex items-center gap-2.5 min-w-0">
                         {renderFileIcon()}
                         <div className="min-w-0 flex items-center gap-2">
@@ -169,3 +181,4 @@ export default function FileUpload({
         </div>
     );
 }
+
