@@ -8,7 +8,6 @@ import { customerClient as customerService } from '@/services/client/customer.cl
 import { billClient } from '@/services/client/bill.client';
 import { openBillNotification } from '@/lib/whatsapp';
 import AppLayout from '@/components/layout/AppLayout';
-import BackButton from '@/components/BackButton';
 import PaymentSection from '@/components/customer/PaymentSection';
 import OnlinePaymentSection from '@/components/customer/OnlinePaymentSection';
 import PaymentContainer from '@/components/customer/PaymentContainer';
@@ -210,8 +209,6 @@ export default function CustomerDetailPage() {
     return (<>
         <AppLayout>
             <div className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
-                <BackButton href="/" />
-
                 {/* Customer Header */}
                 <div className="bg-white rounded-xl p-4 border border-neutral-200">
                     <div className="flex items-center justify-between">

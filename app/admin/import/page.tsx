@@ -3,7 +3,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
-import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
+import { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import LoadingState from '@/components/state/LoadingState';
 import PasswordConfirm from '@/components/ui/PasswordConfirm';
 import {
@@ -145,8 +145,6 @@ export default function ImportPage() {
             <PageHeader title="Import Tagihan" actions={<DashboardNavigationButton />} />
 
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
-                <AdminPageNavigation backHref="/admin/dashboard" />
-
                 {/* Main Minimalist Card */}
                 <div className="bg-white rounded-2xl border border-neutral-200 p-5 md:p-6 space-y-5">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5">

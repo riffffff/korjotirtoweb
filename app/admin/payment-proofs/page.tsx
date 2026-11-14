@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Check, ExternalLink, Loader2, X } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import PageHeader from '@/components/layout/PageHeader';
-import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
+import { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import LoadingState from '@/components/state/LoadingState';
 import EmptyState from '@/components/state/EmptyState';
 import Modal from '@/components/ui/Modal';
@@ -150,7 +150,6 @@ export default function PaymentProofsPage() {
             <AppLayout>
                 <PageHeader title="Pengajuan Pembayaran" subtitle="Verifikasi bukti pembayaran online" actions={<DashboardNavigationButton />} />
                 <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 space-y-4">
-                    <AdminPageNavigation />
                     <LoadingState variant="skeleton-payment-proofs" />
                 </main>
             </AppLayout>
@@ -161,7 +160,6 @@ export default function PaymentProofsPage() {
         <AppLayout>
             <PageHeader title="Pengajuan Pembayaran" subtitle="Verifikasi bukti pembayaran online" actions={<DashboardNavigationButton />} />
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 space-y-4">
-                <AdminPageNavigation />
                 <div className="flex gap-2 overflow-x-auto">
                     {['PENDING', 'APPROVED', 'REJECTED'].map((value) => (
                         <button

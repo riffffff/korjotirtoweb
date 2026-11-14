@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
-import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
+import { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import Button from '@/components/ui/Button';
 import LoadingState from '@/components/state/LoadingState';
 import { billClient } from '@/services/client/bill.client';
@@ -57,7 +57,6 @@ export default function CreateBillsPage() {
         <AppLayout>
             <PageHeader title="Tambah Tagihan per Periode" subtitle="Buat tagihan untuk semua pelanggan" actions={<DashboardNavigationButton />} />
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
-                <AdminPageNavigation />
                 <LoadingState variant="skeleton-form" />
             </main>
         </AppLayout>
@@ -74,8 +73,6 @@ export default function CreateBillsPage() {
             <PageHeader title="Tambah Tagihan per Periode" subtitle="Buat tagihan untuk semua pelanggan" actions={<DashboardNavigationButton />} />
 
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
-                <AdminPageNavigation />
-
                 <section className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-neutral-700 mb-2">

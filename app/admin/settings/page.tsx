@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { DEFAULT_WA_BILL_TEMPLATE } from '@/lib/whatsapp';
-import AdminPageNavigation, { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
+import { DashboardNavigationButton } from '@/components/admin/AdminPageNavigation';
 import LoadingState from '@/components/state/LoadingState';
 import Button from '@/components/ui/Button';
 import PageHeader from '@/components/layout/PageHeader';
@@ -111,8 +111,6 @@ export default function SettingsPage() {
             <PageHeader title="Pengaturan" subtitle="Atur informasi pembayaran online" actions={<DashboardNavigationButton />} />
 
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-5 md:py-6 space-y-4">
-                <AdminPageNavigation />
-
                 {error && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                         <p className="text-sm text-red-700">{error}</p>
