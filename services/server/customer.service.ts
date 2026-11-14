@@ -137,7 +137,7 @@ export async function getAllCustomers(isAdmin: boolean) {
     });
 }
 
-export async function getCustomerDetail(customerId: string) {
+export async function getCustomerDetail(customerId: string, isAdmin = false) {
     const customer = await prisma.customer.findFirst({
         where: { id: customerId, deletedAt: null },
         select: {
@@ -193,7 +193,7 @@ export async function getCustomerDetail(customerId: string) {
             id: customer.id,
             name: customer.name,
             customerNumber: customer.customerNumber,
-            phone: customer.phone,
+            phone: isAdmin ? customer.phone : null,
             totalBill: formattedBills.reduce((sum, bill) => sum + bill.totalWithPenalty, 0),
             totalPaid: Number(customer.totalPaid),
             unpaidTotal,

@@ -263,7 +263,7 @@ export default function CustomerDetailPage() {
                             <h1 className="text-xl md:text-2xl font-bold text-neutral-800 break-words leading-snug">
                                 {customer.name}
                             </h1>
-                            {customer.phone && (
+                            {isAdmin && customer.phone && (
                                 <p className="text-xs md:text-sm text-neutral-500 mt-0.5">{customer.phone}</p>
                             )}
                         </div>
@@ -380,7 +380,7 @@ export default function CustomerDetailPage() {
                                 customerId={customer.id}
                                 customerName={customer.name}
                                 customerNumber={customer.customerNumber}
-                                defaultPhone={customer.phone}
+                                defaultPhone={isAdmin ? customer.phone : ''}
                                 totalAmount={customer.unpaidTotal}
                                 settings={settings}
                             />

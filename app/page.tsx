@@ -632,7 +632,7 @@ export default function HomePage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-neutral-800 truncate">{customer.name}</h3>
-                        {customer.phone && (
+                        {isAdmin && customer.phone && (
                           <p className="text-xs text-neutral-400 truncate">{customer.phone}</p>
                         )}
                       </div>
@@ -665,8 +665,8 @@ export default function HomePage() {
                     </div>
                   </div>
 
-                  {/* Last Notified Info - always show if has phone */}
-                  {customer.phone && (
+                  {/* Last Notified Info - show only for admin */}
+                  {isAdmin && customer.phone && (
                     <div className="mt-2 pt-2 border-t border-neutral-100 text-xs text-neutral-400">
                       {customer.lastNotifiedAt 
                         ? `Terakhir dikirim: ${formatDateTime(customer.lastNotifiedAt)}`

@@ -22,7 +22,7 @@ export default function CustomerCard({ customer, isAdmin, onSelect, onSendWA }: 
                     </div>
                     <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-neutral-800 truncate">{customer.name}</h3>
-                        {customer.phone && <p className="text-xs text-neutral-400 truncate">{customer.phone}</p>}
+                        {isAdmin && customer.phone && <p className="text-xs text-neutral-400 truncate">{customer.phone}</p>}
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -39,7 +39,7 @@ export default function CustomerCard({ customer, isAdmin, onSelect, onSendWA }: 
                     </div>
                 </div>
             </div>
-            {customer.phone && (
+            {isAdmin && customer.phone && (
                 <div className="mt-2 pt-2 border-t border-neutral-100 text-xs text-neutral-400">
                     {customer.lastNotifiedAt ? `Terakhir dikirim: ${formatDateTime(customer.lastNotifiedAt)}` : 'Belum pernah dikirim WA'}
                 </div>

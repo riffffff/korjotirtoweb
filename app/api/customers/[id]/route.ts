@@ -5,11 +5,19 @@ import { getCustomerDetail, softDeleteCustomer, updateCustomer } from '@/service
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
+        const isAdmin = (() => {
+            try {
+                requireAdmin(request);
+                return true;
+            } catch {
+                return false;
+            }
+        })();
         const customerId = await resolveCustomerId((await params).id);
         if (!customerId) return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
-        const data = await getCustomerDetail(customerId);
+        const data = await getCustomerDetail(customerId, isAdmin);
         if (!data) return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
         return NextResponse.json({ success: true, data });
     } catch (error) {
