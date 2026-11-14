@@ -386,17 +386,6 @@ export default function HomePage() {
                         ))}
                       </div>
                     </div>
-
-                    {/* Done Button */}
-                    <div className="pt-2 border-t border-neutral-100">
-                      <button
-                        type="button"
-                        onClick={closeFilter}
-                        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
-                      >
-                        Terapkan
-                      </button>
-                    </div>
                   </div>
 
                   {/* Mobile Bottom Sheet Drawer */}
@@ -446,7 +435,7 @@ export default function HomePage() {
                       </div>
 
                       {/* Content Body - Compact, fits on one screen without scroll */}
-                      <div className="px-5 py-4 space-y-4">
+                      <div className="px-5 pt-4 pb-6 space-y-4">
                         {/* Status Tagihan */}
                         <div>
                           <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
@@ -501,17 +490,6 @@ export default function HomePage() {
                             ))}
                           </div>
                         </div>
-                      </div>
-
-                      {/* Footer Actions */}
-                      <div className="p-4 border-t border-neutral-100 bg-white shrink-0">
-                        <button
-                          type="button"
-                          onClick={closeFilter}
-                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
-                        >
-                          Terapkan
-                        </button>
                       </div>
                     </div>
                   </div>
